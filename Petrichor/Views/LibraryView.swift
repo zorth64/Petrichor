@@ -8,7 +8,19 @@ struct LibraryView: View {
     
     var body: some View {
         VStack {
-            if libraryManager.tracks.isEmpty {
+            if libraryManager.isScanning {
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    
+                    Text("Scanning for music files...")
+                        .font(.headline)
+                    
+                    Text("Found \(libraryManager.tracks.count) tracks so far")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if libraryManager.tracks.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "music.note.list")
                         .font(.system(size: 60))
@@ -29,97 +41,78 @@ struct LibraryView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Use the simpler List approach instead of Table
+                // Show tracks list
                 List {
                     ForEach(libraryManager.tracks) { track in
-                        TrackRow(track: track)
-                            .onTapGesture {
+                        TrackRowContainer(
+                            track: track,
+                            isCurrentTrack: audioPlayerManager.currentTrack?.id == track.id,
+                            isPlaying: audioPlayerManager.currentTrack?.id == track.id && audioPlayerManager.isPlaying,
+                            isSelected: selectedTrackID == track.id,
+                            onSelect: {
+                                selectedTrackID = track.id
+                            },
+                            onPlay: {
                                 audioPlayerManager.playTrack(track)
                                 selectedTrackID = track.id
+                            },
+                            contextMenuItems: {
+                                createLibraryContextMenu(for: track)
                             }
-                            .background(selectedTrackID == track.id ? Color.accentColor.opacity(0.1) : Color.clear)
-                            .contextMenu {
-                                Button("Play") {
-                                    audioPlayerManager.playTrack(track)
-                                }
-                                
-                                Menu("Add to Playlist") {
-                                    ForEach(playlistManager.playlists) { playlist in
-                                        Button(playlist.name) {
-                                            playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
-                                        }
-                                    }
-                                    
-                                    Divider()
-                                    
-                                    Button("New Playlist...") {
-                                        // We'll implement this later
-                                    }
-                                }
-                            }
+                        )
                     }
                 }
+                .listStyle(.plain)
             }
         }
-        .navigationTitle("Library")
+    }
+    
+    // MARK: - Context Menu Helper
+    
+    private func createLibraryContextMenu(for track: Track) -> [ContextMenuItem] {
+        var items: [ContextMenuItem] = []
+        
+        items.append(.button(title: "Play") {
+            audioPlayerManager.playTrack(track)
+            selectedTrackID = track.id
+        })
+        
+        if !playlistManager.playlists.isEmpty {
+            let playlistItems = playlistManager.playlists.map { playlist in
+                ContextMenuItem.button(title: playlist.name) {
+                    playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
+                }
+            }
+            
+            var allPlaylistItems = playlistItems
+            allPlaylistItems.append(.divider)
+            allPlaylistItems.append(.button(title: "New Playlist...") {
+                // TODO: Implement new playlist creation
+            })
+            
+            items.append(.menu(title: "Add to Playlist", items: allPlaylistItems))
+        } else {
+            items.append(.button(title: "Create Playlist with This Track") {
+                // TODO: Implement playlist creation
+            })
+        }
+        
+        return items
     }
 }
 
-// Track row for the list
-struct TrackRow: View {
-    let track: Track
-    
-    var body: some View {
-        HStack {
-            // Album art thumbnail if available
-            if let artworkData = track.artworkData,
-               let nsImage = NSImage(data: artworkData) {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 40, height: 40)
-                    .cornerRadius(4)
-            } else {
-                Image(systemName: "music.note")
-                    .font(.system(size: 20))
-                    .frame(width: 40, height: 40)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(4)
-            }
-            
-            // Track information
-            VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
-                    .fontWeight(.medium)
-                
-                HStack {
-                    Text(track.artist)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("•")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text(track.album)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
-            // Duration
-            Text(formatDuration(track.duration))
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding(.vertical, 4)
-    }
-    
-    private func formatDuration(_ seconds: Double) -> String {
-        let minutes = Int(seconds) / 60
-        let remainingSeconds = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
-    }
+#Preview {
+    LibraryView()
+        .environmentObject({
+            let coordinator = AppCoordinator()
+            return coordinator.audioPlayerManager
+        }())
+        .environmentObject({
+            let coordinator = AppCoordinator()
+            return coordinator.libraryManager
+        }())
+        .environmentObject({
+            let coordinator = AppCoordinator()
+            return coordinator.playlistManager
+        }())
 }

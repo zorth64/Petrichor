@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 
-class Track: Identifiable, ObservableObject {
+class Track: Identifiable, ObservableObject, Equatable {
     let id = UUID()
     let url: URL
     
@@ -11,13 +11,14 @@ class Track: Identifiable, ObservableObject {
     @Published var genre: String
     @Published var duration: Double
     @Published var artworkData: Data?
+    @Published var isMetadataLoaded: Bool = false
     let format: String
     
     init(url: URL) {
         self.url = url
         
         // Default values
-        self.title = url.lastPathComponent
+        self.title = url.deletingPathExtension().lastPathComponent
         self.artist = "Unknown Artist"
         self.album = "Unknown Album"
         self.genre = "Unknown Genre"
@@ -28,6 +29,7 @@ class Track: Identifiable, ObservableObject {
         loadMetadata()
     }
     
+    // Add Equatable conformance
     static func == (lhs: Track, rhs: Track) -> Bool {
         return lhs.id == rhs.id
     }
@@ -120,6 +122,14 @@ class Track: Identifiable, ObservableObject {
                 
                 self.duration = duration
                 self.artworkData = artwork
+                self.isMetadataLoaded = true
+                
+                // Debug log for artwork loading
+                if artwork != nil {
+                    print("Loaded artwork for: \(self.title)")
+                } else {
+                    print("No artwork found for: \(self.title)")
+                }
             }
         }
     }

@@ -4,44 +4,31 @@ struct ContentView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
-    @State private var selectedSidebarItem: String? = "Library"
+    
+    @State private var selectedTab: MainTab = .library
+    @State private var showingSettings = false
     
     var body: some View {
-        NavigationView {
-            // Sidebar
-            List(selection: $selectedSidebarItem) {
-                Text("Library").tag("Library")
-                Text("Folders").tag("Folders")
-                
-                Section("Playlists") {
-                    if playlistManager.playlists.isEmpty {
-                        Text("No playlists yet")
-                            .foregroundColor(.secondary)
-                            .italic()
-                    } else {
-                        ForEach(playlistManager.playlists) { playlist in
-                            Text(playlist.name).tag("Playlist-\(playlist.id)")
-                        }
-                    }
-                }
-            }
-            .listStyle(SidebarListStyle())
-            .frame(minWidth: 150)
+        VStack(spacing: 0) {
+            // Dynamic Toolbar based on selected tab
+            DynamicToolbar(selectedTab: selectedTab)
             
-            // Main content area
+            Divider()
+            
+            // Main Content Area
             VStack {
-                if let selectedItem = selectedSidebarItem {
-                    if selectedItem == "Library" {
+                // Content based on selected tab
+                Group {
+                    switch selectedTab {
+                    case .library:
                         LibraryView()
-                    } else if selectedItem == "Folders" {
+                    case .folders:
                         FoldersView()
-                    } else if selectedItem.starts(with: "Playlist-") {
-                        if let playlistId = UUID(uuidString: selectedItem.replacingOccurrences(of: "Playlist-", with: "")),
-                           let playlist = playlistManager.playlists.first(where: { $0.id == playlistId }) {
-                            PlaylistView(playlist: playlist)
-                        }
+                    case .playlists:
+                        PlaylistsView()
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
                 Divider()
                 
@@ -50,23 +37,44 @@ struct ContentView: View {
                     .frame(height: 150)
             }
         }
+        .frame(minWidth: 800, minHeight: 600)
+        .navigationTitle("") // Remove any automatic title
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button(action: toggleSidebar) {
-                    Image(systemName: "sidebar.left")
-                }
+            // Center tabs in title bar
+            ToolbarItem(placement: .principal) {
+                TitleBarTabs(selectedTab: $selectedTab)
             }
             
-            ToolbarItem {
-                Button(action: { libraryManager.addFolder() }) {
-                    Label("Add Folder", systemImage: "folder.badge.plus")
+            // Right side of title bar
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {
+                    showingSettings = true
+                }) {
+                    Image(systemName: "gear")
+                        .font(.system(size: 16))
                 }
+                .buttonStyle(.borderless)
             }
         }
-        .frame(minWidth: 800, minHeight: 600)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(libraryManager)
+        }
     }
-    
-    private func toggleSidebar() {
-        NSApp.keyWindow?.firstResponder?.tryToPerform(#selector(NSSplitViewController.toggleSidebar(_:)), with: nil)
-    }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject({
+            let coordinator = AppCoordinator()
+            return coordinator.audioPlayerManager
+        }())
+        .environmentObject({
+            let coordinator = AppCoordinator()
+            return coordinator.libraryManager
+        }())
+        .environmentObject({
+            let coordinator = AppCoordinator()
+            return coordinator.playlistManager
+        }())
 }
