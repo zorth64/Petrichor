@@ -9,7 +9,11 @@ struct FoldersView: View {
     @State private var selectedTrackID: UUID?
     @State private var folderSearchText = ""
     @State private var sortAscending = true
+    @State private var showingRemoveFolderAlert = false
+    @State private var folderToRemove: Folder?
     @AppStorage("foldersViewSplitPosition") private var splitPosition: Double = 250
+    
+    let viewType: LibraryViewType
     
     var filteredAndSortedFolders: [Folder] {
         let filtered = libraryManager.folders.filter { folder in
@@ -119,21 +123,21 @@ struct FoldersView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
                 } else {
-                    // Custom list without selection binding to avoid blue highlighting
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(filteredAndSortedFolders) { folder in
-                                FolderListRow(
-                                    folder: folder,
-                                    trackCount: libraryManager.getTracksInFolder(folder).count,
-                                    isSelected: selectedFolder?.id == folder.id,
-                                    onTap: { selectedFolder = folder },
-                                    onRemove: { libraryManager.removeFolder(folder) }
-                                )
-                            }
+                    // Simple list with native selection
+                    SimpleFolderListView(
+                        folders: filteredAndSortedFolders,
+                        selectedFolder: $selectedFolder,
+                        onRefresh: { folder in
+                            refreshFolder(folder)
+                        },
+                        onRevealInFinder: { folder in
+                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
+                        },
+                        onRemove: { folder in
+                            folderToRemove = folder
+                            showingRemoveFolderAlert = true
                         }
-                        .padding(.vertical, 4)
-                    }
+                    )
                 }
             }
             .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
@@ -214,27 +218,14 @@ struct FoldersView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding()
                     } else {
-                        List {
-                            ForEach(folderTracks) { track in
-                                TrackRowContainer(
-                                    track: track,
-                                    isCurrentTrack: audioPlayerManager.currentTrack?.id == track.id,
-                                    isPlaying: audioPlayerManager.currentTrack?.id == track.id && audioPlayerManager.isPlaying,
-                                    isSelected: selectedTrackID == track.id,
-                                    onSelect: {
-                                        selectedTrackID = track.id
-                                    },
-                                    onPlay: {
-                                        audioPlayerManager.playTrack(track)
-                                        selectedTrackID = track.id
-                                    },
-                                    contextMenuItems: {
-                                        createFolderContextMenu(for: track, in: folder)
-                                    }
-                                )
+                        Group {
+                            switch viewType {
+                            case .list:
+                                folderTracksListView(folderTracks: folderTracks, folder: folder)
+                            case .grid:
+                                folderTracksGridView(folderTracks: folderTracks, folder: folder)
                             }
                         }
-                        .listStyle(.plain)
                     }
                 } else {
                     VStack(spacing: 16) {
@@ -255,6 +246,104 @@ struct FoldersView: View {
                 }
             }
             .frame(minWidth: 300)
+        }
+        .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
+            Button("Cancel", role: .cancel) {
+                folderToRemove = nil
+            }
+            Button("Remove", role: .destructive) {
+                if let folder = folderToRemove {
+                    libraryManager.removeFolder(folder)
+                    folderToRemove = nil
+                }
+            }
+        } message: {
+            if let folder = folderToRemove {
+                Text("Are you sure you want to remove \"\(folder.name)\" from your library? This will remove all tracks from this folder but won't delete the actual files.")
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func refreshFolder(_ folder: Folder) {
+        // Remove existing tracks from this folder
+        let folderPrefix = folder.url.path
+        libraryManager.tracks.removeAll(where: { $0.url.path.hasPrefix(folderPrefix) })
+        
+        // Trigger a rescan of this specific folder
+        libraryManager.scanFolderForMusicFiles(folder.url)
+    }
+    
+    // MARK: - Helper Views
+    
+    private func folderTracksListView(folderTracks: [Track], folder: Folder) -> some View {
+        List {
+            ForEach(folderTracks) { track in
+                TrackRowContainer(
+                    track: track,
+                    isCurrentTrack: audioPlayerManager.currentTrack?.id == track.id,
+                    isPlaying: audioPlayerManager.currentTrack?.id == track.id && audioPlayerManager.isPlaying,
+                    isSelected: selectedTrackID == track.id,
+                    onSelect: {
+                        selectedTrackID = track.id
+                    },
+                    onPlay: {
+                        audioPlayerManager.playTrack(track)
+                        selectedTrackID = track.id
+                    },
+                    contextMenuItems: {
+                        createFolderContextMenu(for: track, in: folder)
+                    }
+                )
+            }
+        }
+        .listStyle(.plain)
+    }
+    
+    private func folderTracksGridView(folderTracks: [Track], folder: Folder) -> some View {
+        ScrollView {
+            LazyVGrid(
+                columns: [
+                    GridItem(.adaptive(minimum: 176, maximum: 200), spacing: 16)
+                ],
+                spacing: 16
+            ) {
+                ForEach(folderTracks) { track in
+                    TrackGridItem(
+                        track: track,
+                        isCurrentTrack: audioPlayerManager.currentTrack?.id == track.id,
+                        isPlaying: audioPlayerManager.currentTrack?.id == track.id && audioPlayerManager.isPlaying,
+                        isSelected: selectedTrackID == track.id,
+                        onSelect: {
+                            selectedTrackID = track.id
+                        },
+                        onPlay: {
+                            audioPlayerManager.playTrack(track)
+                            selectedTrackID = track.id
+                        }
+                    )
+                    .contextMenu {
+                        ForEach(createFolderContextMenu(for: track, in: folder), id: \.id) { item in
+                            switch item {
+                            case .button(let title, let role, let action):
+                                Button(title, role: role, action: action)
+                            case .menu(let title, let items):
+                                Menu(title) {
+                                    ForEach(items, id: \.id) { subItem in
+                                        if case .button(let subTitle, let subRole, let subAction) = subItem {
+                                            Button(subTitle, role: subRole, action: subAction)
+                                        }
+                                    }
+                                }
+                            case .divider:
+                                Divider()
+                            }
+                        }
+                    }
+                }
+            }
+            .padding()
         }
     }
     
@@ -298,7 +387,7 @@ struct FoldersView: View {
 }
 
 #Preview {
-    FoldersView()
+    FoldersView(viewType: .list)
         .environmentObject({
             let coordinator = AppCoordinator()
             return coordinator.audioPlayerManager

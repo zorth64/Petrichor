@@ -9,6 +9,7 @@ class Track: Identifiable, ObservableObject, Equatable {
     @Published var artist: String
     @Published var album: String
     @Published var genre: String
+    @Published var year: String
     @Published var duration: Double
     @Published var artworkData: Data?
     @Published var isMetadataLoaded: Bool = false
@@ -22,6 +23,7 @@ class Track: Identifiable, ObservableObject, Equatable {
         self.artist = "Unknown Artist"
         self.album = "Unknown Album"
         self.genre = "Unknown Genre"
+        self.year = "Unknown Year"
         self.duration = 0
         self.format = url.pathExtension
         
@@ -48,6 +50,7 @@ class Track: Identifiable, ObservableObject, Equatable {
             var artist: String?
             var album: String?
             var genre: String?
+            var year: String?
             var artwork: Data?
             
             // Process metadata
@@ -66,10 +69,12 @@ class Track: Identifiable, ObservableObject, Equatable {
                         }
                     }
                     
-                    // Look for genre in various possible keys
+                    // Look for genre and year in various possible keys
                     let keyString = item.key as? String ?? ""
                     if keyString.lowercased().contains("genre") {
                         genre = stringValue
+                    } else if keyString.lowercased().contains("year") || keyString.lowercased().contains("date") {
+                        year = stringValue
                     }
                 }
                 
@@ -79,21 +84,29 @@ class Track: Identifiable, ObservableObject, Equatable {
                 }
             }
             
-            // Extract genre using ID3 metadata if we didn't find it above
-            if genre == nil {
+            // Extract genre and year using ID3 metadata if we didn't find them above
+            if genre == nil || year == nil {
                 for format in [AVMetadataFormat.id3Metadata, AVMetadataFormat.iTunesMetadata] {
                     let formatMetadata = asset.metadata(forFormat: format)
                     // Check if the array is not empty before processing
                     if !formatMetadata.isEmpty {
                         for item in formatMetadata {
                             let keyString = item.key as? String ?? ""
-                            if keyString.lowercased().contains("genre"), let stringValue = item.stringValue {
+                            if genre == nil && keyString.lowercased().contains("genre"), let stringValue = item.stringValue {
                                 genre = stringValue
-                                break
+                            }
+                            if year == nil && (keyString.lowercased().contains("year") || keyString.lowercased().contains("date")), let stringValue = item.stringValue {
+                                // Extract just the year from date strings
+                                let components = stringValue.components(separatedBy: CharacterSet.decimalDigits.inverted)
+                                if let yearString = components.first(where: { $0.count == 4 && Int($0) != nil }) {
+                                    year = yearString
+                                } else {
+                                    year = stringValue
+                                }
                             }
                         }
                     }
-                    if genre != nil { break }
+                    if genre != nil && year != nil { break }
                 }
             }
             
@@ -118,6 +131,10 @@ class Track: Identifiable, ObservableObject, Equatable {
                 
                 if let genre = genre, !genre.isEmpty {
                     self.genre = genre
+                }
+                
+                if let year = year, !year.isEmpty {
+                    self.year = year
                 }
                 
                 self.duration = duration

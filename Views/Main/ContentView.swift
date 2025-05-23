@@ -7,11 +7,15 @@ struct ContentView: View {
     
     @State private var selectedTab: MainTab = .library
     @State private var showingSettings = false
+    @AppStorage("libraryViewType") private var libraryViewType: LibraryViewType = .list
     
     var body: some View {
         VStack(spacing: 0) {
             // Dynamic Toolbar based on selected tab
-            DynamicToolbar(selectedTab: selectedTab)
+            DynamicToolbar(
+                selectedTab: selectedTab,
+                libraryViewType: $libraryViewType
+            )
             
             Divider()
             
@@ -21,9 +25,9 @@ struct ContentView: View {
                 Group {
                     switch selectedTab {
                         case .library:
-                            LibraryView()
+                            LibraryView(viewType: libraryViewType)
                         case .folders:
-                            FoldersView()
+                            FoldersView(viewType: libraryViewType)
                         case .playlists:
                             PlaylistsView()
                     }

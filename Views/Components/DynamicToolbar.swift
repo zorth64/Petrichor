@@ -3,7 +3,7 @@ import SwiftUI
 struct DynamicToolbar: View {
     let selectedTab: MainTab
     @EnvironmentObject var libraryManager: LibraryManager
-    @State private var searchText = ""
+    @Binding var libraryViewType: LibraryViewType
     
     var body: some View {
         HStack {
@@ -25,37 +25,47 @@ struct DynamicToolbar: View {
     
     private var libraryToolbar: some View {
         HStack {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 14))
-                
-                TextField("Search your library...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 14))
-                
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12))
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color(NSColor.textBackgroundColor))
-            .cornerRadius(6)
-            .frame(maxWidth: 350)
-            
             Spacer()
             
-            // Library stats
-            Text("\(libraryManager.tracks.count) tracks")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // View toggle button (Finder-style)
+            HStack(spacing: 0) {
+                Button(action: { libraryViewType = .list }) {
+                    Image(systemName: "list.bullet")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 28, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(libraryViewType == .list ? Color.accentColor : Color.clear)
+                        )
+                        .foregroundColor(libraryViewType == .list ? .white : .primary)
+                }
+                .buttonStyle(.borderless)
+                .help("List View")
+                
+                Button(action: { libraryViewType = .grid }) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 28, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(libraryViewType == .grid ? Color.accentColor : Color.clear)
+                        )
+                        .foregroundColor(libraryViewType == .grid ? .white : .primary)
+                }
+                .buttonStyle(.borderless)
+                .help("Grid View")
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                    )
+            )
+            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 0.5)
+            
+            Spacer()
         }
     }
     
@@ -63,34 +73,47 @@ struct DynamicToolbar: View {
     
     private var foldersToolbar: some View {
         HStack {
-            Button(action: { libraryManager.addFolder() }) {
-                Label("Add Folder", systemImage: "folder.badge.plus")
-                    .font(.system(size: 13))
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            
-            // Note: Remove folder functionality will be handled through context menu in folder list
-            // since we don't have direct access to selected folder here
-            
             Spacer()
             
-            // Folder stats
-            HStack(spacing: 16) {
-                Text("\(libraryManager.folders.count) folders")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                if libraryManager.isScanning {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                        Text("Scanning...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+            // View toggle button (same as library)
+            HStack(spacing: 0) {
+                Button(action: { libraryViewType = .list }) {
+                    Image(systemName: "list.bullet")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 28, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(libraryViewType == .list ? Color.accentColor : Color.clear)
+                        )
+                        .foregroundColor(libraryViewType == .list ? .white : .primary)
                 }
+                .buttonStyle(.borderless)
+                .help("List View")
+                
+                Button(action: { libraryViewType = .grid }) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 28, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(libraryViewType == .grid ? Color.accentColor : Color.clear)
+                        )
+                        .foregroundColor(libraryViewType == .grid ? .white : .primary)
+                }
+                .buttonStyle(.borderless)
+                .help("Grid View")
             }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                    )
+            )
+            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 0.5)
+            
+            Spacer()
         }
     }
     
@@ -118,10 +141,12 @@ struct DynamicToolbar: View {
 }
 
 #Preview {
-    VStack(spacing: 0) {
-        DynamicToolbar(selectedTab: .library)
-        DynamicToolbar(selectedTab: .folders)
-        DynamicToolbar(selectedTab: .playlists)
+    @State var libraryViewType: LibraryViewType = .list
+    
+    return VStack(spacing: 0) {
+        DynamicToolbar(selectedTab: .library, libraryViewType: $libraryViewType)
+        DynamicToolbar(selectedTab: .folders, libraryViewType: $libraryViewType)
+        DynamicToolbar(selectedTab: .playlists, libraryViewType: $libraryViewType)
     }
     .environmentObject({
         let manager = LibraryManager()

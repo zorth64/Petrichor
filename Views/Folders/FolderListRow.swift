@@ -44,10 +44,5 @@ struct FolderListRow: View {
             onTap()
         }
         .padding(.horizontal, 8)
-        .contextMenu {
-            Button("Remove from Library", role: .destructive) {
-                onRemove()
-            }
-        }
     }
 }

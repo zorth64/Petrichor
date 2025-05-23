@@ -51,6 +51,17 @@ struct TrackRow: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
+                    
+                    // Show year if available and not "Unknown Year"
+                    if track.isMetadataLoaded && !track.year.isEmpty && track.year != "Unknown Year" {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text(track.year)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
@@ -79,6 +90,7 @@ struct TrackRow: View {
     sampleTrack.title = "Sample Song"
     sampleTrack.artist = "Sample Artist"
     sampleTrack.album = "Sample Album"
+    sampleTrack.year = "2025"
     sampleTrack.duration = 180.0
     sampleTrack.isMetadataLoaded = true
     

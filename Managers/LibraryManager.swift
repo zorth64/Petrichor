@@ -153,7 +153,7 @@ class LibraryManager: ObservableObject {
     
     // MARK: - File Scanning
     
-    private func scanFolderForMusicFiles(_ folderURL: URL) {
+    func scanFolderForMusicFiles(_ folderURL: URL) {
         print("LibraryManager: Starting scan of folder - \(folderURL.path)")
         
         // Set scanning state
@@ -302,6 +302,7 @@ class LibraryManager: ObservableObject {
                 "artist": track.artist,
                 "album": track.album,
                 "genre": track.genre,
+                "year": track.year,
                 "duration": String(track.duration),
                 "format": track.format
             ]
@@ -373,6 +374,9 @@ class LibraryManager: ObservableObject {
                     if let genre = trackDict["genre"], !genre.isEmpty {
                         track.genre = genre
                     }
+                    if let year = trackDict["year"], !year.isEmpty {
+                        track.year = year
+                    }
                     if let durationString = trackDict["duration"],
                        let duration = Double(durationString) {
                         track.duration = duration
@@ -404,12 +408,22 @@ class LibraryManager: ObservableObject {
         return tracks.filter { $0.artist == artist }
     }
     
+    func getTracksByArtistContaining(_ artistName: String) -> [Track] {
+        return tracks.filter { track in
+            track.artist.localizedCaseInsensitiveContains(artistName)
+        }
+    }
+    
     func getTracksByAlbum(_ album: String) -> [Track] {
         return tracks.filter { $0.album == album }
     }
     
     func getTracksByGenre(_ genre: String) -> [Track] {
         return tracks.filter { $0.genre == genre }
+    }
+    
+    func getTracksByYear(_ year: String) -> [Track] {
+        return tracks.filter { $0.year == year }
     }
     
     func getAllArtists() -> [String] {
@@ -422,6 +436,13 @@ class LibraryManager: ObservableObject {
     
     func getAllGenres() -> [String] {
         return Array(Set(tracks.map { $0.genre })).sorted()
+    }
+    
+    func getAllYears() -> [String] {
+        return Array(Set(tracks.map { $0.year })).sorted {
+            // Sort years in descending order (newest first)
+            $0.localizedStandardCompare($1) == .orderedDescending
+        }
     }
     
     // MARK: - Library Maintenance
