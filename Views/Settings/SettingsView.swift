@@ -9,6 +9,7 @@ struct SettingsView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var showingAddFolderSheet = false
     @State private var showingRemoveFolderAlert = false
+    @State private var showingResetConfirmation = false
     @State private var folderToRemove: Folder?
     
     var body: some View {
@@ -69,41 +70,11 @@ struct SettingsView: View {
                     .pickerStyle(.menu)
                     .frame(maxWidth: .infinity)
                 }
-                
-                HStack {
-                    Button("Refresh Library Now") {
-                        libraryManager.refreshLibrary()
-                    }
-                    .disabled(libraryManager.isScanning)
-                    
-                    Spacer()
-                    
-                    if libraryManager.isScanning {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Scanning...")
-                                .font(.caption)
-                                .foregroundColor(Color.clear)
-                        }
-                    }
-                }
-            }
-            
-            Section("Maintenance") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Button("Clean Up Missing Folders") {
-                        libraryManager.cleanupMissingFolders()
-                    }
-                    
-                    Button("Reset All Library Data", role: .destructive) {
-                        resetLibraryData()
-                    }
-                }
             }
         }
         .formStyle(.grouped)
         .scrollDisabled(true)
+        .scrollContentBackground(.hidden)
         .background(Color.clear)
     }
     
@@ -125,6 +96,11 @@ struct SettingsView: View {
                 
                 Spacer()
                 
+                Button(action: { libraryManager.refreshLibrary() }) {
+                    Label("Refresh Library", systemImage: "arrow.clockwise")
+                }
+                .disabled(libraryManager.isScanning)
+
                 Button(action: { libraryManager.addFolder() }) {
                     Label("Add Folder", systemImage: "plus")
                 }
@@ -185,12 +161,53 @@ struct SettingsView: View {
                     }
                 }
                 .frame(maxHeight: .infinity)
+                
+                HStack(spacing: 12) {
+                    Button(action: { libraryManager.cleanupMissingFolders() }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "paintbrush")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Clean Up Missing Folders")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    
+                    Button(action: { showingResetConfirmation = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Reset All Library Data")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .controlSize(.regular)
+                }
+                .alert("Reset Library Data", isPresented: $showingResetConfirmation) {
+                    Button("Cancel", role: .cancel) { }
+                    Button("Reset All Data", role: .destructive) {
+                        resetLibraryData()
+                    }
+                } message: {
+                    Text("This will permanently remove all library data, including added folders, tracks, and settings. This action cannot be undone.")
+                }
+                .padding(.horizontal, 20)
+                Spacer()
             }
             
             // Footer Info
             if !libraryManager.folders.isEmpty {
-                Divider()
-                
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(libraryManager.folders.count) folders monitored")
@@ -209,11 +226,20 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                    
+                    if libraryManager.isScanning {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Scanning...")
+                            .font(.caption)
+                            .foregroundColor(Color.clear)
+                    }
                 }
                 .padding()
                 .background(Color.clear)
             }
         }
+        .padding(10)
     }
     
     // MARK: - About
