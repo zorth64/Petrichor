@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct TrackRowContainer: View {
     let track: Track
@@ -128,25 +129,6 @@ struct TrackRowContainer: View {
     }
 }
 
-// MARK: - Context Menu Types
-
-enum ContextMenuItem {
-    case button(title: String, role: ButtonRole? = nil, action: () -> Void)
-    case menu(title: String, items: [ContextMenuItem])
-    case divider
-    
-    var id: String {
-        switch self {
-        case .button(let title, _, _):
-            return "button_\(title)"
-        case .menu(let title, _):
-            return "menu_\(title)"
-        case .divider:
-            return "divider_\(UUID().uuidString)"
-        }
-    }
-}
-
 #Preview {
     let sampleURL = URL(fileURLWithPath: "/path/to/sample.mp3")
     let sampleTrack = Track(url: sampleURL)
@@ -183,28 +165,4 @@ enum ContextMenuItem {
         )
     }
     .padding()
-}
-
-struct PlayingIndicator: View {
-    @State private var isAnimating = false
-    
-    var body: some View {
-        HStack(spacing: 1) {
-            ForEach(0..<3) { index in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(Color.accentColor)
-                    .frame(width: 2, height: isAnimating ? 8 : 3)
-                    .animation(
-                        Animation.easeInOut(duration: 0.5)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(index) * 0.1),
-                        value: isAnimating
-                    )
-            }
-        }
-        .frame(width: 16, height: 12)
-        .onAppear {
-            isAnimating = true
-        }
-    }
 }

@@ -14,13 +14,6 @@ class PlaylistManager: ObservableObject {
     // MARK: - Dependencies
     private weak var audioPlayer: AudioPlayerManager?
     
-    // MARK: - Enums
-    enum RepeatMode {
-        case off
-        case one
-        case all
-    }
-    
     // MARK: - Initialization
     init() {
         loadPlaylists()

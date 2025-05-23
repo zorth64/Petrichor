@@ -1,12 +1,5 @@
-//
-//  PlayerView.swift
-//  Petrichor
-//
-//  Created by Kushal Pandya on 2025-04-19.
-//
-
-
 import SwiftUI
+import Foundation
 
 struct PlayerView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
@@ -135,7 +128,7 @@ struct PlayerView: View {
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
     
-    private func repeatImageName(for mode: PlaylistManager.RepeatMode) -> String {
+    private func repeatImageName(for mode: RepeatMode) -> String {
         switch mode {
         case .off: return "repeat"
         case .one: return "repeat.1"
