@@ -1,11 +1,3 @@
-//
-//  AppCoordinator.swift
-//  Petrichor
-//
-//  Created by Kushal Pandya on 2025-04-19.
-//
-
-
 import SwiftUI
 
 class AppCoordinator: ObservableObject {
@@ -27,6 +19,7 @@ class AppCoordinator: ObservableObject {
         
         // Connect managers
         playlistManager.setAudioPlayer(audioPlayerManager)
+        playlistManager.setLibraryManager(libraryManager)
         
         // Setup now playing
         nowPlayingManager = NowPlayingManager()

@@ -169,7 +169,7 @@ struct FoldersView: View {
                         Text(folder.name)
                             .font(.headline)
                             .padding(.leading, 16)
-                            .padding(.top, 12)
+                            .padding(10)
                         
                         Spacer()
                         
@@ -178,13 +178,13 @@ struct FoldersView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.trailing, 16)
-                            .padding(.top, 12)
+                            .padding(10)
                     } else {
                         Text("No Folder Selected")
                             .font(.headline)
                             .foregroundColor(.secondary)
                             .padding(.leading, 16)
-                            .padding(.top, 12)
+                            .padding(10)
                         
                         Spacer()
                     }

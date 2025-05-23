@@ -20,21 +20,18 @@ struct ContentView: View {
                 // Content based on selected tab
                 Group {
                     switch selectedTab {
-                    case .library:
-                        LibraryView()
-                    case .folders:
-                        FoldersView()
-                    case .playlists:
-                        PlaylistsView()
+                        case .library:
+                            LibraryView()
+                        case .folders:
+                            FoldersView()
+                        case .playlists:
+                            PlaylistsView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
-                Divider()
-                
                 // Player controls at bottom
                 PlayerView()
-                    .frame(height: 150)
             }
         }
         .frame(minWidth: 800, minHeight: 600)

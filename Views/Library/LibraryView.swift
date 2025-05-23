@@ -53,7 +53,8 @@ struct LibraryView: View {
                                 selectedTrackID = track.id
                             },
                             onPlay: {
-                                audioPlayerManager.playTrack(track)
+                                // Use the new playTrack method that handles queue creation
+                                playlistManager.playTrack(track)
                                 selectedTrackID = track.id
                             },
                             contextMenuItems: {
@@ -73,9 +74,18 @@ struct LibraryView: View {
         var items: [ContextMenuItem] = []
         
         items.append(.button(title: "Play") {
-            audioPlayerManager.playTrack(track)
+            playlistManager.playTrack(track)
             selectedTrackID = track.id
         })
+        
+        items.append(.button(title: "Play Next") {
+            // For now, just play the track directly
+            // In a future update, we could implement proper "play next" functionality
+            playlistManager.playTrack(track)
+            selectedTrackID = track.id
+        })
+        
+        items.append(.divider)
         
         if !playlistManager.playlists.isEmpty {
             let playlistItems = playlistManager.playlists.map { playlist in
