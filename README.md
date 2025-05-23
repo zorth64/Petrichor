@@ -1,7 +1,7 @@
 # Petrichor
 
 <div align="center">
-  <img width="20%" src="./Petrichor/Assets.xcassets/AppIcon.appiconset/1024-mac.png" alt="Petrichor App Icon"/>
+  <img width="20%" src="./Resources/Assets.xcassets/AppIcon.appiconset/1024-mac.png" alt="Petrichor App Icon"/>
 </div>
 
 _a pleasant smell that frequently accompanies the first rain after a long period of warm, dry weather._ 🌧️
