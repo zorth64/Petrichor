@@ -37,7 +37,7 @@ struct PlaylistTrackRow: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 32, height: 32)
                         .clipShape(RoundedRectangle(cornerRadius: 3))
-                } else if track.isMetadataLoaded {
+                } else {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.gray.opacity(0.2))
                         .frame(width: 32, height: 32)
@@ -45,14 +45,6 @@ struct PlaylistTrackRow: View {
                             Image(systemName: "music.note")
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
-                        )
-                } else {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            ProgressView()
-                                .scaleEffect(0.4)
                         )
                 }
             }
@@ -64,14 +56,12 @@ struct PlaylistTrackRow: View {
                     .fontWeight(isCurrentTrack ? .medium : .regular)
                     .foregroundColor(isCurrentTrack ? .accentColor : .primary)
                     .lineLimit(1)
-                    .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
                 
                 HStack {
                     Text(track.artist)
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
-                        .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
                     
                     if !track.album.isEmpty && track.album != "Unknown Album" {
                         Text("•")
@@ -82,7 +72,6 @@ struct PlaylistTrackRow: View {
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
-                            .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
                     }
                 }
             }
@@ -94,7 +83,6 @@ struct PlaylistTrackRow: View {
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .monospacedDigit()
-                .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle()) // Makes entire row clickable
@@ -114,7 +102,6 @@ struct PlaylistTrackRow: View {
     sampleTrack.artist = "Sample Artist"
     sampleTrack.album = "Sample Album"
     sampleTrack.duration = 180.0
-    sampleTrack.isMetadataLoaded = true
     
     return VStack {
         PlaylistTrackRow(

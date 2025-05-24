@@ -1,11 +1,3 @@
-//
-//  CreatePlaylistSheet.swift
-//  Petrichor
-//
-//  Created by Kushal Pandya on 2025-05-22.
-//
-
-
 import SwiftUI
 
 struct CreatePlaylistSheet: View {

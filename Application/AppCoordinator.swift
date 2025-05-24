@@ -2,6 +2,7 @@ import SwiftUI
 
 class AppCoordinator: ObservableObject {
     // MARK: - Managers
+    static var shared: AppCoordinator?
     let libraryManager: LibraryManager
     let playlistManager: PlaylistManager
     let audioPlayerManager: AudioPlayerManager
@@ -24,5 +25,6 @@ class AppCoordinator: ObservableObject {
         // Setup now playing
         nowPlayingManager = NowPlayingManager()
         nowPlayingManager.connectRemoteCommandCenter(audioPlayer: audioPlayerManager, playlistManager: playlistManager)
+        Self.shared = self
     }
 }

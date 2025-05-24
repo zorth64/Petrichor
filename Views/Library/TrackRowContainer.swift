@@ -40,7 +40,6 @@ struct TrackRowContainer: View {
             if isPlaying {
                 PlayingIndicator()
                     .frame(width: 16)
-                    .padding(.trailing, 4)
             } else {
                 // Empty space to maintain alignment
                 Spacer()

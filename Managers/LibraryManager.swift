@@ -6,6 +6,8 @@ class LibraryManager: ObservableObject {
     @Published var tracks: [Track] = []
     @Published var folders: [Folder] = []
     @Published var isScanning: Bool = false
+    @Published var scanProgress: Double = 0.0
+    @Published var scanStatusMessage: String = ""
     
     // MARK: - Private Properties
     private let fileManager = FileManager.default
@@ -13,10 +15,17 @@ class LibraryManager: ObservableObject {
     private let userDefaults = UserDefaults.standard
     private var securityBookmarks: [URL: Data] = [:]
     
+    // Database manager
+    private let databaseManager = DatabaseManager()
+    
+    // Cache manager
+    private let cacheManager = TrackCacheManager()
+    
+    // Cache for database folders only
+    private var databaseFolders: [DatabaseFolder] = []
+    
     // Keys for UserDefaults
     private enum UserDefaultsKeys {
-        static let savedFolders = "SavedMusicFolders"
-        static let savedTracks = "SavedMusicTracks"
         static let lastScanDate = "LastScanDate"
         static let securityBookmarks = "SecurityBookmarks"
     }
@@ -24,9 +33,31 @@ class LibraryManager: ObservableObject {
     // MARK: - Initialization
     init() {
         print("LibraryManager: Initializing...")
+        
+        // Observe database manager scanning state
+        databaseManager.$isScanning
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isScanning)
+        
+        databaseManager.$scanProgress
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$scanProgress)
+        
+        databaseManager.$scanStatusMessage
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$scanStatusMessage)
+        
         loadSecurityBookmarks()
         loadMusicLibrary()
         startFileWatcher()
+        
+        // Register for memory pressure notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMemoryPressure),
+            name: NSNotification.Name.NSProcessInfoPowerStateDidChange,
+            object: nil
+        )
     }
     
     deinit {
@@ -60,9 +91,9 @@ class LibraryManager: ObservableObject {
             do {
                 var isStale = false
                 let url = try URL(resolvingBookmarkData: bookmarkData,
-                                options: [.withSecurityScope],
-                                relativeTo: nil,
-                                bookmarkDataIsStale: &isStale)
+                                  options: [.withSecurityScope],
+                                  relativeTo: nil,
+                                  bookmarkDataIsStale: &isStale)
                 
                 if isStale {
                     print("LibraryManager: Bookmark is stale for \(urlString)")
@@ -87,8 +118,8 @@ class LibraryManager: ObservableObject {
     private func createSecurityBookmark(for url: URL) -> Data? {
         do {
             let bookmarkData = try url.bookmarkData(options: [.withSecurityScope],
-                                                  includingResourceValuesForKeys: nil,
-                                                  relativeTo: nil)
+                                                    includingResourceValuesForKeys: nil,
+                                                    relativeTo: nil)
             securityBookmarks[url] = bookmarkData
             saveSecurityBookmarks()
             return bookmarkData
@@ -111,30 +142,45 @@ class LibraryManager: ObservableObject {
         openPanel.begin { [weak self] response in
             guard let self = self, response == .OK else { return }
             
+            var urlsToAdd: [URL] = []
+            
             for url in openPanel.urls {
-                let folder = Folder(url: url)
-                
-                // Check if folder already exists
-                if !self.folders.contains(where: { $0.url == url }) {
-                    self.folders.append(folder)
-                    print("LibraryManager: Added folder - \(folder.name) at \(url.path)")
-                    
-                    // Create and save security bookmark
-                    _ = self.createSecurityBookmark(for: url)
-                    
-                    // Start scanning for music files immediately
-                    self.scanFolderForMusicFiles(url)
-                } else {
-                    print("LibraryManager: Folder already exists - \(folder.name)")
+                // Create and save security bookmark
+                if self.createSecurityBookmark(for: url) != nil {
+                    urlsToAdd.append(url)
+                    print("LibraryManager: Added folder - \(url.lastPathComponent) at \(url.path)")
                 }
             }
             
-            // Save the updated folder list
-            self.saveMusicLibrary()
+            // Add folders to database
+            if !urlsToAdd.isEmpty {
+                // Show scanning immediately
+                self.isScanning = true
+                self.scanStatusMessage = "Preparing to scan folders..."
+                
+                // Small delay to ensure UI updates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.databaseManager.addFolders(urlsToAdd) { result in
+                        switch result {
+                        case .success(let dbFolders):
+                            print("LibraryManager: Successfully added \(dbFolders.count) folders to database")
+                            self.loadMusicLibrary() // Reload to reflect changes
+                        case .failure(let error):
+                            print("LibraryManager: Failed to add folders to database: \(error)")
+                        }
+                    }
+                }
+            }
         }
     }
     
     func removeFolder(_ folder: Folder) {
+        // Find the corresponding database folder
+        guard let dbFolder = databaseFolders.first(where: { $0.path == folder.url.path }) else {
+            print("LibraryManager: Folder not found in database")
+            return
+        }
+        
         // Stop accessing the security scoped resource
         if securityBookmarks[folder.url] != nil {
             folder.url.stopAccessingSecurityScopedResource()
@@ -142,123 +188,42 @@ class LibraryManager: ObservableObject {
             saveSecurityBookmarks()
         }
         
-        folders.removeAll(where: { $0.id == folder.id })
-        
-        // Remove tracks that were in this folder
-        let folderPrefix = folder.url.path
-        tracks.removeAll(where: { $0.url.path.hasPrefix(folderPrefix) })
-        
-        saveMusicLibrary()
-    }
-    
-    // MARK: - File Scanning
-    
-    func scanFolderForMusicFiles(_ folderURL: URL) {
-        print("LibraryManager: Starting scan of folder - \(folderURL.path)")
-        
-        // Set scanning state
-        DispatchQueue.main.async {
-            self.isScanning = true
-        }
-        
-        // Supported audio formats
-        let supportedExtensions = ["mp3", "m4a", "wav", "aac", "aiff", "flac"]
-        
-        // Use a background thread for scanning
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            var newTracks: [Track] = []
-            var scannedFiles = 0
-            
-            do {
-                // Check if we have access to this folder (should already be started from bookmark)
-                let hasAccess = self.securityBookmarks[folderURL] != nil
-                
-                if !hasAccess {
-                    print("LibraryManager: No security bookmark found for \(folderURL.path)")
-                    DispatchQueue.main.async { self.isScanning = false }
-                    return
-                }
-                
-                // Get all files in the directory and subdirectories
-                let resourceKeys: [URLResourceKey] = [.isRegularFileKey, .nameKey, .fileSizeKey]
-                let directoryEnumerator = self.fileManager.enumerator(
-                    at: folderURL,
-                    includingPropertiesForKeys: resourceKeys,
-                    options: [.skipsHiddenFiles, .skipsPackageDescendants],
-                    errorHandler: { (url, error) -> Bool in
-                        print("LibraryManager: Error accessing \(url.path): \(error.localizedDescription)")
-                        return true
-                    }
-                )
-                
-                guard let enumerator = directoryEnumerator else {
-                    print("LibraryManager: Failed to create directory enumerator for \(folderURL.path)")
-                    DispatchQueue.main.async { self.isScanning = false }
-                    return
-                }
-                
-                for case let fileURL as URL in enumerator {
-                    scannedFiles += 1
-                    
-                    do {
-                        let resourceValues = try fileURL.resourceValues(forKeys: Set(resourceKeys))
-                        
-                        // Skip if not a regular file
-                        guard resourceValues.isRegularFile == true else { continue }
-                        
-                        let fileExtension = fileURL.pathExtension.lowercased()
-                        
-                        // Check if it's a supported audio file
-                        if supportedExtensions.contains(fileExtension) {
-                            // Check if we already have this track
-                            let existingTrackExists = self.tracks.contains { existingTrack in
-                                existingTrack.url.path == fileURL.path
-                            }
-                            
-                            if !existingTrackExists {
-                                let track = Track(url: fileURL)
-                                newTracks.append(track)
-                                print("LibraryManager: Found new track - \(fileURL.lastPathComponent)")
-                            }
-                        }
-                    } catch {
-                        print("LibraryManager: Error reading file properties for \(fileURL.path): \(error.localizedDescription)")
-                    }
-                }
-                
-                print("LibraryManager: Scanned \(scannedFiles) files, found \(newTracks.count) new tracks in \(folderURL.lastPathComponent)")
-                
-                // Update UI on main thread
-                DispatchQueue.main.async {
-                    self.tracks.append(contentsOf: newTracks)
-                    self.isScanning = false
-                    self.saveMusicLibrary() // Save after adding tracks
-                    print("LibraryManager: Total tracks in library: \(self.tracks.count)")
-                }
-                
-            } catch {
-                print("LibraryManager: Error scanning folder \(folderURL.path): \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isScanning = false
-                }
+        // Remove from database
+        databaseManager.removeFolder(dbFolder) { [weak self] result in
+            switch result {
+            case .success:
+                print("LibraryManager: Successfully removed folder from database")
+                self?.loadMusicLibrary() // Reload to reflect changes
+            case .failure(let error):
+                print("LibraryManager: Failed to remove folder from database: \(error)")
             }
         }
     }
     
-    // MARK: - File Access Helper
+    // MARK: - Data Management
     
-    func ensureFileAccess(for url: URL) -> Bool {
-        // Check if this file is within one of our secured folders
-        for securedURL in securityBookmarks.keys {
-            if url.path.hasPrefix(securedURL.path) {
-                return true // We have access through the parent folder
-            }
+    func loadMusicLibrary() {
+        print("LibraryManager: Loading music library from database...")
+        
+        // Clear caches when reloading
+        cacheManager.clearAllCaches()
+        
+        // Load folders from database
+        databaseFolders = databaseManager.getAllFolders()
+        folders = databaseFolders.map { dbFolder in
+            Folder(url: URL(fileURLWithPath: dbFolder.path))
         }
         
-        print("LibraryManager: No access available for file: \(url.path)")
-        return false
+        // Load lightweight tracks from database (without artwork)
+        let dbTracks = databaseManager.getAllTracksLightweight()
+        tracks = dbTracks.map { dbTrack in
+            cacheManager.getTrack(from: dbTrack, using: databaseManager)
+        }
+        
+        print("LibraryManager: Loaded \(folders.count) folders and \(tracks.count) tracks from database")
+        
+        // Update last scan date
+        userDefaults.set(Date(), forKey: UserDefaultsKeys.lastScanDate)
     }
     
     // MARK: - File Watching
@@ -268,181 +233,67 @@ class LibraryManager: ObservableObject {
         fileWatcherTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
-            // Only scan if we're not currently scanning
+            // Only refresh if we're not currently scanning
             if !self.isScanning {
-                print("LibraryManager: Starting periodic scan...")
-                for folder in self.folders {
-                    self.scanFolderForMusicFiles(folder.url)
-                }
+                print("LibraryManager: Starting periodic refresh...")
+                self.refreshLibrary()
             }
         }
-    }
-    
-    // MARK: - Data Management
-    
-    func saveMusicLibrary() {
-        print("LibraryManager: Saving music library...")
-        
-        // Save folders
-        let folderData = folders.map { folder in
-            [
-                "id": folder.id.uuidString,
-                "url": folder.url.absoluteString,
-                "name": folder.name
-            ]
-        }
-        userDefaults.set(folderData, forKey: UserDefaultsKeys.savedFolders)
-        
-        // Save tracks
-        let trackData = tracks.map { track in
-            [
-                "id": track.id.uuidString,
-                "url": track.url.absoluteString,
-                "title": track.title,
-                "artist": track.artist,
-                "album": track.album,
-                "genre": track.genre,
-                "year": track.year,
-                "duration": String(track.duration),
-                "format": track.format
-            ]
-        }
-        userDefaults.set(trackData, forKey: UserDefaultsKeys.savedTracks)
-        
-        // Save last scan date
-        userDefaults.set(Date(), forKey: UserDefaultsKeys.lastScanDate)
-        
-        print("LibraryManager: Saved \(folders.count) folders and \(tracks.count) tracks to UserDefaults")
-    }
-    
-    func loadMusicLibrary() {
-        print("LibraryManager: Loading music library from UserDefaults...")
-        
-        // Clear existing data
-        folders.removeAll()
-        tracks.removeAll()
-        
-        // Load saved folders
-        if let savedFolderData = userDefaults.array(forKey: UserDefaultsKeys.savedFolders) as? [[String: String]] {
-            var loadedFolders: [Folder] = []
-            
-            for folderDict in savedFolderData {
-                guard let urlString = folderDict["url"],
-                      let url = URL(string: urlString) else {
-                    print("LibraryManager: Invalid folder data found, skipping...")
-                    continue
-                }
-                
-                // Check if the folder still exists and we have access
-                if fileManager.fileExists(atPath: url.path) && securityBookmarks[url] != nil {
-                    let folder = Folder(url: url)
-                    loadedFolders.append(folder)
-                    print("LibraryManager: Loaded folder - \(folder.name)")
-                } else {
-                    print("LibraryManager: Folder no longer exists or no access - \(url.path)")
-                }
-            }
-            
-            folders = loadedFolders
-        }
-        
-        // Load saved tracks
-        if let savedTrackData = userDefaults.array(forKey: UserDefaultsKeys.savedTracks) as? [[String: String]] {
-            var loadedTracks: [Track] = []
-            
-            for trackDict in savedTrackData {
-                guard let urlString = trackDict["url"],
-                      let url = URL(string: urlString) else {
-                    print("LibraryManager: Invalid track data found, skipping...")
-                    continue
-                }
-                
-                // Check if the track file still exists and we have access
-                if fileManager.fileExists(atPath: url.path) && ensureFileAccess(for: url) {
-                    let track = Track(url: url)
-                    
-                    // Restore saved metadata
-                    if let title = trackDict["title"], !title.isEmpty {
-                        track.title = title
-                    }
-                    if let artist = trackDict["artist"], !artist.isEmpty {
-                        track.artist = artist
-                    }
-                    if let album = trackDict["album"], !album.isEmpty {
-                        track.album = album
-                    }
-                    if let genre = trackDict["genre"], !genre.isEmpty {
-                        track.genre = genre
-                    }
-                    if let year = trackDict["year"], !year.isEmpty {
-                        track.year = year
-                    }
-                    if let durationString = trackDict["duration"],
-                       let duration = Double(durationString) {
-                        track.duration = duration
-                    }
-                    
-                    loadedTracks.append(track)
-                } else {
-                    print("LibraryManager: Track file no longer exists or no access - \(url.path)")
-                }
-            }
-            
-            tracks = loadedTracks
-            print("LibraryManager: Loaded \(loadedTracks.count) tracks from UserDefaults")
-        }
-        
-        print("LibraryManager: Library loading complete - \(folders.count) folders, \(tracks.count) tracks")
     }
     
     // MARK: - Track Management
     
     func getTracksInFolder(_ folder: Folder) -> [Track] {
-        let folderPrefix = folder.url.path
-        let folderTracks = tracks.filter { $0.url.path.hasPrefix(folderPrefix) }
-        print("LibraryManager: Found \(folderTracks.count) tracks in folder \(folder.name)")
-        return folderTracks
+        // Find the corresponding database folder
+        guard let dbFolder = databaseFolders.first(where: { $0.path == folder.url.path }) else {
+            print("LibraryManager: Folder not found in database")
+            return []
+        }
+        
+        // Get lightweight tracks from database and use cache
+        let dbTracks = databaseManager.getTracksForFolderLightweight(dbFolder.id)
+        return cacheManager.getTracksForFolder(dbFolder.id, from: dbTracks, using: databaseManager)
     }
     
     func getTracksByArtist(_ artist: String) -> [Track] {
-        return tracks.filter { $0.artist == artist }
+        let dbTracks = databaseManager.getTracksByArtistLightweight(artist)
+        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
     }
     
     func getTracksByArtistContaining(_ artistName: String) -> [Track] {
-        return tracks.filter { track in
-            track.artist.localizedCaseInsensitiveContains(artistName)
-        }
+        // The database method already uses LIKE with wildcards
+        return getTracksByArtist(artistName)
     }
     
     func getTracksByAlbum(_ album: String) -> [Track] {
-        return tracks.filter { $0.album == album }
+        let dbTracks = databaseManager.getTracksByAlbumLightweight(album)
+        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
     }
     
     func getTracksByGenre(_ genre: String) -> [Track] {
-        return tracks.filter { $0.genre == genre }
+        let dbTracks = databaseManager.getTracksByGenre(genre)
+        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
     }
     
     func getTracksByYear(_ year: String) -> [Track] {
-        return tracks.filter { $0.year == year }
+        let dbTracks = databaseManager.getTracksByYear(year)
+        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
     }
     
     func getAllArtists() -> [String] {
-        return Array(Set(tracks.map { $0.artist })).sorted()
+        return databaseManager.getAllArtists()
     }
     
     func getAllAlbums() -> [String] {
-        return Array(Set(tracks.map { $0.album })).sorted()
+        return databaseManager.getAllAlbums()
     }
     
     func getAllGenres() -> [String] {
-        return Array(Set(tracks.map { $0.genre })).sorted()
+        return databaseManager.getAllGenres()
     }
     
     func getAllYears() -> [String] {
-        return Array(Set(tracks.map { $0.year })).sorted {
-            // Sort years in descending order (newest first)
-            $0.localizedStandardCompare($1) == .orderedDescending
-        }
+        return databaseManager.getAllYears()
     }
     
     // MARK: - Library Maintenance
@@ -450,25 +301,94 @@ class LibraryManager: ObservableObject {
     func refreshLibrary() {
         print("LibraryManager: Refreshing library...")
         
-        // Clear existing tracks and rescan all folders
-        tracks.removeAll()
+        // For each folder, trigger a refresh in the database
+        for dbFolder in databaseFolders {
+            databaseManager.refreshFolder(dbFolder) { result in
+                switch result {
+                case .success:
+                    print("LibraryManager: Successfully refreshed folder \(dbFolder.name)")
+                case .failure(let error):
+                    print("LibraryManager: Failed to refresh folder \(dbFolder.name): \(error)")
+                }
+            }
+        }
         
-        for folder in folders {
-            scanFolderForMusicFiles(folder.url)
+        // Reload the library after refresh
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.loadMusicLibrary()
+        }
+    }
+    
+    func refreshFolder(_ folder: Folder) {
+        // Find the corresponding database folder
+        guard let dbFolder = databaseFolders.first(where: { $0.path == folder.url.path }) else {
+            print("LibraryManager: Folder not found in database")
+            return
+        }
+        
+        // Clear cache for this folder
+        cacheManager.clearFolderCache(dbFolder.id)
+        
+        // Delegate to database manager for refresh
+        databaseManager.refreshFolder(dbFolder) { [weak self] result in
+            switch result {
+            case .success:
+                print("LibraryManager: Successfully refreshed folder \(dbFolder.name)")
+                // Reload the library to reflect changes
+                self?.loadMusicLibrary()
+            case .failure(let error):
+                print("LibraryManager: Failed to refresh folder \(dbFolder.name): \(error)")
+            }
         }
     }
     
     func cleanupMissingFolders() {
-        // Remove folders that no longer exist
-        let existingFolders = folders.filter { folder in
-            fileManager.fileExists(atPath: folder.url.path)
+        // Check each folder to see if it still exists
+        var foldersToRemove: [DatabaseFolder] = []
+        
+        for dbFolder in databaseFolders {
+            if !fileManager.fileExists(atPath: dbFolder.path) {
+                foldersToRemove.append(dbFolder)
+            }
         }
         
-        if existingFolders.count != folders.count {
-            print("LibraryManager: Cleaning up \(folders.count - existingFolders.count) missing folders")
-            folders = existingFolders
-            saveMusicLibrary()
-            refreshLibrary()
+        if !foldersToRemove.isEmpty {
+            print("LibraryManager: Cleaning up \(foldersToRemove.count) missing folders")
+            
+            for folder in foldersToRemove {
+                databaseManager.removeFolder(folder) { _ in }
+            }
+            
+            // Reload after cleanup
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.loadMusicLibrary()
+            }
+        }
+    }
+    
+    // MARK: - Memory Management
+    
+    @objc private func handleMemoryPressure() {
+        print("LibraryManager: Handling memory pressure")
+        cacheManager.handleMemoryPressure()
+        
+        // Clear artwork from tracks that aren't currently playing
+        if let coordinator = AppCoordinator.shared,
+           let currentTrack = coordinator.audioPlayerManager.currentTrack {
+            // Clear artwork from all tracks except the current one
+            for track in tracks {
+                if track.id != currentTrack.id,
+                   let lightweightTrack = track as? LightweightTrack {
+                    lightweightTrack.clearArtwork()
+                }
+            }
+        } else {
+            // No track playing, clear all artwork
+            for track in tracks {
+                if let lightweightTrack = track as? LightweightTrack {
+                    lightweightTrack.clearArtwork()
+                }
+            }
         }
     }
 }

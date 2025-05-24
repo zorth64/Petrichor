@@ -1,11 +1,3 @@
-//
-//  Playlist.swift
-//  Petrichor
-//
-//  Created by Kushal Pandya on 2025-04-19.
-//
-
-
 import Foundation
 
 struct Playlist: Identifiable {

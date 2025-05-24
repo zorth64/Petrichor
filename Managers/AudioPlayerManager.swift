@@ -27,7 +27,9 @@ class AudioPlayerManager: ObservableObject {
     }
     
     deinit {
+        stop()
         timer?.invalidate()
+        timer = nil
     }
     
     // MARK: - Playback Controls

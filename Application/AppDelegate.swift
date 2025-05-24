@@ -14,10 +14,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         print("App is terminating...")
-        // Any cleanup code can go here
+        // Stop audio playback cleanly
+        if let coordinator = AppCoordinator.shared {
+            coordinator.audioPlayerManager.stop()
+        }
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("App finished launching")
+        
+        // Ensure main window is visible
+        if let window = NSApp.windows.first {
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+    
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // If no windows are visible, show the main window
+        if !flag {
+            // Create a new window if needed
+            if NSApp.windows.isEmpty {
+                // The window should be created by SwiftUI, just make it visible
+                NSApp.activate(ignoringOtherApps: true)
+            } else if let window = NSApp.windows.first {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+        return true
     }
 }

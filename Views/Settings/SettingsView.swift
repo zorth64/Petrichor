@@ -143,7 +143,7 @@ struct SettingsView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(libraryManager.folders) { folder in
                             VStack(spacing: 0) {
-                                FolderRowView(
+                                SettingsFolderRow(
                                     folder: folder,
                                     trackCount: libraryManager.getTracksInFolder(folder).count,
                                     onRemove: {
@@ -357,38 +357,128 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Auto Scan Interval Enum
+// MARK: - Settings Folder Row Component
 
-enum AutoScanInterval: String, CaseIterable, Codable {
-    case every15Minutes = "every15Minutes"
-    case every30Minutes = "every30Minutes"
-    case every60Minutes = "every60Minutes"
-    case onlyOnLaunch = "onlyOnLaunch"
+struct SettingsFolderRow: View {
+    let folder: Folder
+    let trackCount: Int
+    let onRemove: () -> Void
     
-    var displayName: String {
-        switch self {
-        case .every15Minutes:
-            return "Every 15 minutes"
-        case .every30Minutes:
-            return "Every 30 minutes"
-        case .every60Minutes:
-            return "Every hour"
-        case .onlyOnLaunch:
-            return "Only on app launch"
-        }
-    }
+    @State private var isExpanded = false
     
-    var timeInterval: TimeInterval? {
-        switch self {
-        case .every15Minutes:
-            return 15 * 60 // 15 minutes in seconds
-        case .every30Minutes:
-            return 30 * 60 // 30 minutes in seconds
-        case .every60Minutes:
-            return 60 * 60 // 1 hour in seconds
-        case .onlyOnLaunch:
-            return nil // No automatic scanning
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                // Folder icon
+                Image(systemName: "folder.fill")
+                    .foregroundColor(.accentColor)
+                    .font(.title3)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(folder.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    
+                    HStack {
+                        Text(folder.url.path)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        Text("\(trackCount) tracks")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+                
+                Spacer()
+                
+                // Actions
+                HStack(spacing: 8) {
+                    Button(action: { isExpanded.toggle() }) {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    
+                    Button(action: onRemove) {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            
+            // Expanded details
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 4) {
+                    Divider()
+                    
+                    HStack {
+                        Text("Full Path:")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        
+                        Text(folder.url.path)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    
+                    HStack {
+                        Text("Added:")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        
+                        Text("Recently") // You could store this date if needed
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if trackCount > 0 {
+                        HStack {
+                            Text("Status:")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.caption)
+                                
+                                Text("Active")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                            }
+                        }
+                    } else {
+                        HStack {
+                            Text("Status:")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.caption)
+                                
+                                Text("No tracks found")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                }
+                .padding(.leading, 32)
+            }
         }
+        .padding(.vertical, 4)
     }
 }
 

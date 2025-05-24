@@ -61,6 +61,7 @@ struct ContentView: View {
             SettingsView()
                 .environmentObject(libraryManager)
         }
+        .scanningOverlay() // Add the scanning overlay
     }
 }
 
