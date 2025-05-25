@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("startAtLogin") private var startAtLogin = false
-    @AppStorage("closeToTray") private var closeToTray = true
+    @AppStorage("closeToMenubar") private var closeToMenubar = true
     @AppStorage("showNotifications") private var showNotifications = true
     @AppStorage("autoScanInterval") private var autoScanInterval: AutoScanInterval = .every60Minutes
     
@@ -56,7 +56,7 @@ struct SettingsView: View {
         Form {
             Section("Application") {
                 Toggle("Start at login", isOn: $startAtLogin)
-                Toggle("Keep running when window is closed", isOn: $closeToTray)
+                Toggle("Keep running in menubar on close", isOn: $closeToMenubar)
                 Toggle("Show notifications for new tracks", isOn: $showNotifications)
             }
             

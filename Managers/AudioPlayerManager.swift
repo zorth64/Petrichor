@@ -4,7 +4,12 @@ import AVFoundation
 class AudioPlayerManager: ObservableObject {
     // MARK: - Published Properties
     @Published var currentTrack: Track?
-    @Published var isPlaying: Bool = false
+    @Published var isPlaying: Bool = false {
+        didSet {
+            // Post notification when playback state changes
+            NotificationCenter.default.post(name: NSNotification.Name("PlaybackStateChanged"), object: nil)
+        }
+    }
     @Published var currentTime: Double = 0
     @Published var volume: Float = 0.7
     
@@ -86,6 +91,28 @@ class AudioPlayerManager: ObservableObject {
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: 0, isPlaying: false)
         }
+    }
+    
+    // Graceful stop with fade out for app termination
+    func stopGracefully() {
+        if let player = player, player.isPlaying {
+            // Store original volume
+            let originalVolume = player.volume
+            
+            // Quickly fade out to prevent pops
+            player.setVolume(0, fadeDuration: 0.1)
+            
+            // Wait for fade to complete
+            Thread.sleep(forTimeInterval: 0.1)
+            
+            // Now stop
+            player.stop()
+            player.volume = originalVolume // Restore for next use
+        }
+        
+        isPlaying = false
+        currentTime = 0
+        timer?.invalidate()
     }
     
     func seekTo(time: Double) {
