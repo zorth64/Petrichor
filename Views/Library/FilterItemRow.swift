@@ -10,22 +10,17 @@ struct FilterItemRow: View {
             Text(item.name)
                 .font(.system(size: 13, weight: isSelected ? .medium : .regular))
                 .lineLimit(1)
-                .foregroundColor(isSelected ? .white : .primary)
+                .foregroundColor(.primary)
             
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor : Color.clear)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 6))
+        .contentShape(Rectangle())
         .onTapGesture {
             onTap()
         }
-        .padding(.horizontal, 8)
     }
 }
 

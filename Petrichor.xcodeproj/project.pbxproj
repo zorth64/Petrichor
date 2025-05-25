@@ -11,6 +11,7 @@
 		55593A422DE019E400640247 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 55593A412DE019E400640247 /* README.md */; };
 		5590877F2DE0C078009E7719 /* PetrichorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5590877E2DE0C078009E7719 /* PetrichorApp.swift */; };
 		559087A02DE0C078009E7719 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5590877C2DE0C078009E7719 /* Assets.xcassets */; };
+		55B0DEC12DE3A58400A41ED9 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 55B0DEC02DE3A58400A41ED9 /* GRDB */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +51,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				55B0DEC12DE3A58400A41ED9 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +121,7 @@
 			);
 			name = Petrichor;
 			packageProductDependencies = (
+				55B0DEC02DE3A58400A41ED9 /* GRDB */,
 			);
 			productName = Petrichor;
 			productReference = 550F4A0E2DB45B1A005F794E /* Petrichor.app */;
@@ -149,6 +152,7 @@
 			mainGroup = 550F4A052DB45B1A005F794E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				55B0DEBF2DE3A58400A41ED9 /* XCRemoteSwiftPackageReference "GRDB" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 550F4A0F2DB45B1A005F794E /* Products */;
@@ -395,6 +399,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		55B0DEBF2DE3A58400A41ED9 /* XCRemoteSwiftPackageReference "GRDB" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		55B0DEC02DE3A58400A41ED9 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 55B0DEBF2DE3A58400A41ED9 /* XCRemoteSwiftPackageReference "GRDB" */;
+			productName = GRDB;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 550F4A062DB45B1A005F794E /* Project object */;
 }
