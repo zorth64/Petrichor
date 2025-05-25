@@ -199,6 +199,7 @@ struct FilterSidebarView: View {
             }
             .padding(.vertical, 4)
         }
+        .background(Color(NSColor.textBackgroundColor))
     }
     
     // MARK: - Computed Properties

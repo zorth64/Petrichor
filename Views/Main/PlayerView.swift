@@ -9,7 +9,7 @@ struct PlayerView: View {
     @State private var tempProgressValue: Double = 0
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 0) {
             // Track info section
             HStack(spacing: 16) {
                 // Album art with proper clipping
@@ -36,7 +36,7 @@ struct PlayerView: View {
                 
                 // Track details
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(audioPlayerManager.currentTrack?.title ?? "No Track Selected")
+                    Text(audioPlayerManager.currentTrack?.title ?? "")
                         .font(.system(size: 16, weight: .medium))
                         .lineLimit(1)
                         .foregroundColor(.primary)
@@ -73,8 +73,10 @@ struct PlayerView: View {
             }
             .padding(.horizontal, 20)
             
+            Spacer().frame(height: 10)
+            
             // Progress bar section
-            VStack(spacing: 8) {
+            VStack(spacing: 5) {
                 // Custom progress bar with fixed height to prevent jumping
                 ZStack {
                     GeometryReader { geometry in
@@ -126,7 +128,7 @@ struct PlayerView: View {
                         }
                     }
                 }
-                .frame(height: 20) // Fixed height to prevent jumping
+                .frame(height: 10) // Fixed height to prevent jumping
                 
                 // Time labels
                 HStack {
@@ -144,9 +146,9 @@ struct PlayerView: View {
                 }
             }
             .padding(.horizontal, 20)
-            
+
             // Control buttons section
-            HStack(spacing: 20) {
+            HStack(spacing: 15) {
                 // Shuffle button
                 Button(action: {
                     playlistManager.toggleShuffle()

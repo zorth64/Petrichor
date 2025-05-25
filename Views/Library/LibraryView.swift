@@ -108,83 +108,39 @@ struct LibraryView: View {
                         tracksGridContent
                     }
                 }
+                .background(Color(NSColor.textBackgroundColor))
             }
         }
     }
     
-    // MARK: - List Content
+    // MARK: - List Content with Virtualization
     
     private var tracksListContent: some View {
-        List {
-            ForEach(filteredTracks) { track in
-                TrackRowContainer(
-                    track: track,
-                    isCurrentTrack: audioPlayerManager.currentTrack?.id == track.id,
-                    isPlaying: audioPlayerManager.currentTrack?.id == track.id && audioPlayerManager.isPlaying,
-                    isSelected: selectedTrackID == track.id,
-                    onSelect: {
-                        selectedTrackID = track.id
-                    },
-                    onPlay: {
-                        // Use the new playTrack method that handles queue creation
-                        playlistManager.playTrack(track)
-                        selectedTrackID = track.id
-                    },
-                    contextMenuItems: {
-                        createLibraryContextMenu(for: track)
-                    }
-                )
+        VirtualizedTrackList(
+            tracks: filteredTracks,
+            selectedTrackID: $selectedTrackID,
+            onPlayTrack: { track in
+                playlistManager.playTrack(track)
+            },
+            contextMenuItems: { track in
+                createLibraryContextMenu(for: track)
             }
-        }
-        .listStyle(.plain)
+        )
     }
     
-    // MARK: - Grid Content
+    // MARK: - Grid Content with Virtualization
     
     private var tracksGridContent: some View {
-        ScrollView {
-            LazyVGrid(
-                columns: [
-                    GridItem(.adaptive(minimum: 176, maximum: 200), spacing: 16)
-                ],
-                spacing: 16
-            ) {
-                ForEach(filteredTracks) { track in
-                    TrackGridItem(
-                        track: track,
-                        isCurrentTrack: audioPlayerManager.currentTrack?.id == track.id,
-                        isPlaying: audioPlayerManager.currentTrack?.id == track.id && audioPlayerManager.isPlaying,
-                        isSelected: selectedTrackID == track.id,
-                        onSelect: {
-                            selectedTrackID = track.id
-                        },
-                        onPlay: {
-                            playlistManager.playTrack(track)
-                            selectedTrackID = track.id
-                        }
-                    )
-                    .contextMenu {
-                        ForEach(createLibraryContextMenu(for: track), id: \.id) { item in
-                            switch item {
-                            case .button(let title, let role, let action):
-                                Button(title, role: role, action: action)
-                            case .menu(let title, let items):
-                                Menu(title) {
-                                    ForEach(items, id: \.id) { subItem in
-                                        if case .button(let subTitle, let subRole, let subAction) = subItem {
-                                            Button(subTitle, role: subRole, action: subAction)
-                                        }
-                                    }
-                                }
-                            case .divider:
-                                Divider()
-                            }
-                        }
-                    }
-                }
+        VirtualizedTrackGrid(
+            tracks: filteredTracks,
+            selectedTrackID: $selectedTrackID,
+            onPlayTrack: { track in
+                playlistManager.playTrack(track)
+            },
+            contextMenuItems: { track in
+                createLibraryContextMenu(for: track)
             }
-            .padding()
-        }
+        )
     }
     
     // MARK: - Tracks List Header
@@ -199,10 +155,6 @@ struct LibraryView: View {
                     } else {
                         Text(filterItem.name)
                             .font(.headline)
-                        
-                        Text(selectedFilterType.rawValue.dropLast())
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 } else {
                     Text("All Tracks")
@@ -253,28 +205,31 @@ struct LibraryView: View {
     
     private var filteredTracks: [Track] {
         guard let filterItem = selectedFilterItem else {
-            return libraryManager.tracks
+            return libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
         
         if filterItem.name.hasPrefix("All") {
-            return libraryManager.tracks
+            return libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
         
+        let unsortedTracks: [Track]
         switch selectedFilterType {
         case .artists:
             // For artists, check if the filter item name appears anywhere in the track's artist field
             // This handles both exact matches and collaborations
-            return libraryManager.tracks.filter { track in
+            unsortedTracks = libraryManager.tracks.filter { track in
                 track.artist.localizedCaseInsensitiveContains(filterItem.name) ||
                 track.artist == filterItem.name
             }
         case .albums:
-            return libraryManager.getTracksByAlbum(filterItem.name)
+            unsortedTracks = libraryManager.getTracksByAlbum(filterItem.name)
         case .genres:
-            return libraryManager.getTracksByGenre(filterItem.name)
+            unsortedTracks = libraryManager.getTracksByGenre(filterItem.name)
         case .years:
-            return libraryManager.getTracksByYear(filterItem.name)
+            unsortedTracks = libraryManager.getTracksByYear(filterItem.name)
         }
+        
+        return unsortedTracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
     
     // MARK: - Context Menu Helper

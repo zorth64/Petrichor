@@ -23,7 +23,7 @@ struct TrackGridItem: View {
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 160, height: 160)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                    } else if track.isMetadataLoaded {
+                    } else {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.gray.opacity(0.2))
                             .frame(width: 160, height: 160)
@@ -31,14 +31,6 @@ struct TrackGridItem: View {
                                 Image(systemName: "music.note")
                                     .font(.system(size: 40))
                                     .foregroundColor(.secondary)
-                            )
-                    } else {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.1))
-                            .frame(width: 160, height: 160)
-                            .overlay(
-                                ProgressView()
-                                    .scaleEffect(0.8)
                             )
                     }
                 }
@@ -90,15 +82,13 @@ struct TrackGridItem: View {
                     .foregroundColor(isCurrentTrack ? .accentColor : .primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                    .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
                 
                 Text(track.artist)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
                 
-                if track.isMetadataLoaded && !track.album.isEmpty && track.album != "Unknown Album" {
+                if !track.album.isEmpty && track.album != "Unknown Album" {
                     Text(track.album)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
@@ -130,7 +120,6 @@ struct TrackGridItem: View {
     sampleTrack.artist = "Sample Artist"
     sampleTrack.album = "Sample Album"
     sampleTrack.duration = 180.0
-    sampleTrack.isMetadataLoaded = true
     
     return HStack {
         TrackGridItem(

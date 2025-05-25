@@ -11,6 +11,12 @@ struct PetrichorApp: App {
                 .environmentObject(appCoordinator.audioPlayerManager)
                 .environmentObject(appCoordinator.libraryManager)
                 .environmentObject(appCoordinator.playlistManager)
+                .onAppear {
+                    // Ensure window is visible on launch
+                    if let window = NSApp.mainWindow {
+                        window.makeKeyAndOrderFront(nil)
+                    }
+                }
         }
         .commands {
             // Add custom menu commands
@@ -31,11 +37,11 @@ struct PetrichorApp: App {
             }
         }
         
-        #if os(macOS)
+#if os(macOS)
         Settings {
             SettingsView()
                 .environmentObject(appCoordinator.libraryManager)
         }
-        #endif
+#endif
     }
 }

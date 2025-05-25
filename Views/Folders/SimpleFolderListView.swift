@@ -1,11 +1,3 @@
-//
-//  SimpleFolderListView.swift
-//  Petrichor
-//
-//  Created by Kushal Pandya on 2025-05-23.
-//
-
-
 import SwiftUI
 
 struct SimpleFolderListView: View {
@@ -23,6 +15,8 @@ struct SimpleFolderListView: View {
                 trackCount: libraryManager.getTracksInFolder(folder).count
             )
             .tag(folder)
+            .listRowSeparatorTint(Color(NSColor.separatorColor).opacity(0.3))
+            .listRowSeparator(.visible, edges: .bottom)
             .contextMenu {
                 Button("Refresh") {
                     onRefresh(folder)
@@ -40,6 +34,8 @@ struct SimpleFolderListView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden) // Hide the default List background
+        .background(Color(NSColor.textBackgroundColor)) // Add our custom background
     }
 }
 
