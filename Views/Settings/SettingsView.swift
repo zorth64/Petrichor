@@ -11,30 +11,73 @@ struct SettingsView: View {
     @State private var showingRemoveFolderAlert = false
     @State private var showingResetConfirmation = false
     @State private var folderToRemove: Folder?
+    @State private var isScanning = false
     
     var body: some View {
-        TabView {
-            // General Settings Tab
-            generalSettingsView
-                .tabItem {
-                    Label("General", systemImage: "gear")
-                }
+        ZStack {
+            TabView {
+                // General Settings Tab
+                generalSettingsView
+                    .tabItem {
+                        Label("General", systemImage: "gear")
+                    }
+                
+                // Library Management Tab
+                libraryManagementView
+                    .tabItem {
+                        Label("Library", systemImage: "music.note.list")
+                    }
+                
+                // About Tab
+                aboutView
+                    .tabItem {
+                        Label("About", systemImage: "info.circle")
+                    }
+            }
+            .padding(20)
+            .frame(width: 600, height: 600)
+            .background(Color.clear)
+            .disabled(isScanning || libraryManager.isScanning)  // Disable UI during scanning
+            .blur(radius: (isScanning || libraryManager.isScanning) ? 3 : 0)  // Blur effect
             
-            // Library Management Tab
-            libraryManagementView
-                .tabItem {
-                    Label("Library", systemImage: "music.note.list")
+            // Local scanning overlay
+            if isScanning || libraryManager.isScanning {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .progressViewStyle(.circular)
+                    
+                    Text("Scanning Music Library")
+                        .font(.headline)
+                    
+                    if !libraryManager.scanStatusMessage.isEmpty {
+                        Text(libraryManager.scanStatusMessage)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 300)
+                    }
+                    
+                    if libraryManager.scanProgress > 0 {
+                        ProgressView(value: libraryManager.scanProgress)
+                            .progressViewStyle(.linear)
+                            .frame(width: 250)
+                    }
                 }
-            
-            // About Tab
-            aboutView
-                .tabItem {
-                    Label("About", systemImage: "info.circle")
-                }
+                .padding(40)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                        .shadow(radius: 10)
+                )
+            }
         }
-        .padding(20)
-        .frame(width: 600, height: 600)
-        .background(Color.clear)
+        .onReceive(libraryManager.$isScanning) { scanning in
+            isScanning = scanning
+        }
         .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Remove", role: .destructive) {
@@ -100,7 +143,7 @@ struct SettingsView: View {
                     Label("Refresh Library", systemImage: "arrow.clockwise")
                 }
                 .disabled(libraryManager.isScanning)
-
+                
                 Button(action: { libraryManager.addFolder() }) {
                     Label("Add Folder", systemImage: "plus")
                 }
@@ -343,17 +386,20 @@ struct SettingsView: View {
     // MARK: - Helper Methods
     
     private func resetLibraryData() {
-        // Clear all saved data
+        // Clear UserDefaults settings
         UserDefaults.standard.removeObject(forKey: "SavedMusicFolders")
         UserDefaults.standard.removeObject(forKey: "SavedMusicTracks")
         UserDefaults.standard.removeObject(forKey: "SecurityBookmarks")
         UserDefaults.standard.removeObject(forKey: "LastScanDate")
         
-        // Clear in-memory data
-        libraryManager.folders.removeAll()
-        libraryManager.tracks.removeAll()
-        
-        print("All library data has been reset")
+        Task {
+            do {
+                try await libraryManager.resetAllData()
+                print("All library data has been reset")
+            } catch {
+                print("Failed to reset library data: \(error)")
+            }
+        }
     }
 }
 

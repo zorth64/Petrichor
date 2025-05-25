@@ -12,7 +12,7 @@ struct SimpleFolderListView: View {
         List(folders, id: \.id, selection: $selectedFolder) { folder in
             SimpleFolderRow(
                 folder: folder,
-                trackCount: libraryManager.getTracksInFolder(folder).count
+                trackCount: libraryManager.getTrackCountForFolder(folder)
             )
             .tag(folder)
             .listRowSeparatorTint(Color(NSColor.separatorColor).opacity(0.3))

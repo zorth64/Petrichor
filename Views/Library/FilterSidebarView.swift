@@ -4,6 +4,8 @@ struct FilterSidebarView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @Binding var selectedFilterType: LibraryFilterType
     @Binding var selectedFilterItem: LibraryFilterItem?
+    @State private var filteredItems: [LibraryFilterItem] = []
+    @State private var cachedFilterItems: [LibraryFilterType: [LibraryFilterItem]] = [:]
     @State private var searchText = ""
     @State private var selectedItemName: String = ""
     
@@ -23,6 +25,8 @@ struct FilterSidebarView: View {
             filterItemsList
         }
         .onChange(of: searchText) { newSearchText in
+            updateFilteredItems()
+            
             // If we have a search and the currently selected item is no longer visible,
             // reset to "All" item
             if !newSearchText.isEmpty {
@@ -44,6 +48,8 @@ struct FilterSidebarView: View {
             }
         }
         .onChange(of: selectedFilterType) { newFilterType in
+            updateFilteredItems()
+            
             // Reset selection when filter type changes
             let allItem = LibraryFilterItem.allItem(for: newFilterType, totalCount: libraryManager.tracks.count)
             selectedFilterItem = allItem
@@ -53,7 +59,13 @@ struct FilterSidebarView: View {
         .onChange(of: selectedFilterItem) { newItem in
             selectedItemName = newItem?.name ?? ""
         }
+        .onChange(of: libraryManager.tracks) { _ in
+            cachedFilterItems.removeAll()
+            updateFilteredItems()
+        }
         .onAppear {
+            updateFilteredItems()
+            
             // Initialize selection if not set
             if selectedFilterItem == nil {
                 let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
@@ -133,139 +145,96 @@ struct FilterSidebarView: View {
     // MARK: - Filter Items List
     
     private var filterItemsList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                // "All" item - always show unless we're searching and it doesn't match
-                let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
-                let showAllItem = searchText.isEmpty || allItem.name.localizedCaseInsensitiveContains(searchText)
-                
-                if showAllItem {
-                    FilterItemRow(
-                        item: allItem,
-                        isSelected: selectedItemName == allItem.name,
-                        onTap: {
-                            selectedFilterItem = allItem
-                            selectedItemName = allItem.name
-                            print("Selected: \(allItem.name)")
-                        }
-                    )
-                    
-                    // Add divider after "All" item if there are other items
-                    if !filteredItems.isEmpty {
-                        Divider()
-                            .opacity(0.3)
-                            .padding(.horizontal, 16)
-                    }
-                }
-                
-                // Individual filter items
-                if filteredItems.isEmpty && !searchText.isEmpty {
-                    // Empty search results
-                    VStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 24))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No results found")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                        
-                        Text("Try a different search term")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                } else {
-                    ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                        FilterItemRow(
-                            item: item,
-                            isSelected: selectedItemName == item.name,
-                            onTap: {
-                                selectedFilterItem = item
-                                selectedItemName = item.name
-                                print("Selected: \(item.name)")
-                            }
-                        )
-                        
-                        // Add divider between items (but not after the last item)
-                        if index < filteredItems.count - 1 {
-                            Divider()
-                                .opacity(0.3)
-                                .padding(.horizontal, 16)
-                        }
-                    }
-                }
+        List(selection: $selectedFilterItem) {  // Bind directly to selectedFilterItem
+            // "All" item
+            let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+            let showAllItem = searchText.isEmpty || allItem.name.localizedCaseInsensitiveContains(searchText)
+            
+            if showAllItem {
+                Text(allItem.name)
+                    .font(.system(size: 13))
+                    .tag(allItem)  // Use the item itself as the tag
             }
-            .padding(.vertical, 4)
+            
+            // Filter items
+            ForEach(filteredItems) { item in
+                Text(item.name)
+                    .font(.system(size: 13))
+                    .tag(item)  // Use the item itself as the tag
+            }
         }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
         .background(Color(NSColor.textBackgroundColor))
     }
     
-    // MARK: - Computed Properties
+    // MARK: - Helper Methods
     
-    private var filteredItems: [LibraryFilterItem] {
+    private func updateFilteredItems() {
         if searchText.isEmpty {
-            return getFilterItems(for: selectedFilterType)
+            filteredItems = getFilterItems(for: selectedFilterType)
         } else {
             let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmedSearch.isEmpty {
-                return getFilterItems(for: selectedFilterType)
-            }
-            
-            // Special handling for artist search to support partial matching
-            if selectedFilterType == .artists {
-                return getArtistItemsForSearch(trimmedSearch)
+                filteredItems = getFilterItems(for: selectedFilterType)
+            } else if selectedFilterType == .artists {
+                filteredItems = getArtistItemsForSearch(trimmedSearch)
             } else {
-                // For other filter types, use exact string matching
                 let allItems = getFilterItems(for: selectedFilterType)
-                return allItems.filter { item in
+                filteredItems = allItems.filter { item in
                     item.name.localizedCaseInsensitiveContains(trimmedSearch)
                 }
             }
         }
     }
     
-    // MARK: - Helper Methods
-    
     private func getFilterItems(for filterType: LibraryFilterType) -> [LibraryFilterItem] {
+        // Check cache first
+        if let cached = cachedFilterItems[filterType] {
+            return cached
+        }
+        
+        // Compute items
+        let items: [LibraryFilterItem]
         let tracks = libraryManager.tracks
         
         switch filterType {
         case .artists:
-            // For artists, we want to show both individual artists and collaborative entries
             let allArtistStrings = tracks.map { $0.artist }
             let artistCounts = Dictionary(grouping: allArtistStrings, by: { $0 })
                 .mapValues { $0.count }
             
-            return artistCounts.map { artist, count in
+            items = artistCounts.map { artist, count in
                 LibraryFilterItem(name: artist, count: count, filterType: filterType)
             }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             
         case .albums:
             let albumCounts = Dictionary(grouping: tracks, by: { $0.album })
                 .mapValues { $0.count }
-            return albumCounts.map { album, count in
+            items = albumCounts.map { album, count in
                 LibraryFilterItem(name: album, count: count, filterType: filterType)
             }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             
         case .genres:
             let genreCounts = Dictionary(grouping: tracks, by: { $0.genre })
                 .mapValues { $0.count }
-            return genreCounts.map { genre, count in
+            items = genreCounts.map { genre, count in
                 LibraryFilterItem(name: genre, count: count, filterType: filterType)
             }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             
         case .years:
             let yearCounts = Dictionary(grouping: tracks, by: { $0.year })
                 .mapValues { $0.count }
-            return yearCounts.map { year, count in
+            items = yearCounts.map { year, count in
                 LibraryFilterItem(name: year, count: count, filterType: filterType)
             }.sorted { year1, year2 in
-                // Sort years in descending order (newest first)
                 year1.name.localizedStandardCompare(year2.name) == .orderedDescending
             }
         }
+        
+        // Cache the result
+        cachedFilterItems[filterType] = items
+        return items
     }
     
     private func getFilteredTracksForArtistSearch(_ searchTerm: String) -> [Track] {

@@ -14,15 +14,10 @@ class LibraryManager: ObservableObject {
     private var fileWatcherTimer: Timer?
     private let userDefaults = UserDefaults.standard
     private var securityBookmarks: [URL: Data] = [:]
+    private var folderTrackCounts: [Int64: Int] = [:]
     
     // Database manager
-    private let databaseManager = DatabaseManager()
-    
-    // Cache manager
-    private let cacheManager = TrackCacheManager()
-    
-    // Cache for database folders only
-    private var databaseFolders: [DatabaseFolder] = []
+    private let databaseManager: DatabaseManager
     
     // Keys for UserDefaults
     private enum UserDefaultsKeys {
@@ -33,6 +28,13 @@ class LibraryManager: ObservableObject {
     // MARK: - Initialization
     init() {
         print("LibraryManager: Initializing...")
+            
+        do {
+            // Initialize  database manager
+            databaseManager = try DatabaseManager()
+        } catch {
+            fatalError("Failed to initialize database: \(error)")
+        }
         
         // Observe database manager scanning state
         databaseManager.$isScanning
@@ -175,12 +177,6 @@ class LibraryManager: ObservableObject {
     }
     
     func removeFolder(_ folder: Folder) {
-        // Find the corresponding database folder
-        guard let dbFolder = databaseFolders.first(where: { $0.path == folder.url.path }) else {
-            print("LibraryManager: Folder not found in database")
-            return
-        }
-        
         // Stop accessing the security scoped resource
         if securityBookmarks[folder.url] != nil {
             folder.url.stopAccessingSecurityScopedResource()
@@ -189,7 +185,7 @@ class LibraryManager: ObservableObject {
         }
         
         // Remove from database
-        databaseManager.removeFolder(dbFolder) { [weak self] result in
+        databaseManager.removeFolder(folder) { [weak self] result in
             switch result {
             case .success:
                 print("LibraryManager: Successfully removed folder from database")
@@ -205,20 +201,12 @@ class LibraryManager: ObservableObject {
     func loadMusicLibrary() {
         print("LibraryManager: Loading music library from database...")
         
-        // Clear caches when reloading
-        cacheManager.clearAllCaches()
+        // Clear caches
+        folderTrackCounts.removeAll()
         
-        // Load folders from database
-        databaseFolders = databaseManager.getAllFolders()
-        folders = databaseFolders.map { dbFolder in
-            Folder(url: URL(fileURLWithPath: dbFolder.path))
-        }
-        
-        // Load lightweight tracks from database (without artwork)
-        let dbTracks = databaseManager.getAllTracksLightweight()
-        tracks = dbTracks.map { dbTrack in
-            cacheManager.getTrack(from: dbTrack, using: databaseManager)
-        }
+        // Load folders and tracks directly from database
+        folders = databaseManager.getAllFolders()
+        tracks = databaseManager.getAllTracks()
         
         print("LibraryManager: Loaded \(folders.count) folders and \(tracks.count) tracks from database")
         
@@ -244,40 +232,51 @@ class LibraryManager: ObservableObject {
     // MARK: - Track Management
     
     func getTracksInFolder(_ folder: Folder) -> [Track] {
-        // Find the corresponding database folder
-        guard let dbFolder = databaseFolders.first(where: { $0.path == folder.url.path }) else {
-            print("LibraryManager: Folder not found in database")
+        guard let folderId = folder.id else {
+            print("LibraryManager: Folder has no ID")
             return []
         }
         
-        // Get lightweight tracks from database and use cache
-        let dbTracks = databaseManager.getTracksForFolderLightweight(dbFolder.id)
-        return cacheManager.getTracksForFolder(dbFolder.id, from: dbTracks, using: databaseManager)
+        return databaseManager.getTracksForFolder(folderId)
+    }
+    
+    func getTrackCountForFolder(_ folder: Folder) -> Int {
+        guard let folderId = folder.id else { return 0 }
+        
+        // Check cache first
+        if let cachedCount = folderTrackCounts[folderId] {
+            return cachedCount
+        }
+        
+        // Get count from database (this should be a fast query)
+        let tracks = databaseManager.getTracksForFolder(folderId)
+        let count = tracks.count
+        
+        // Cache it
+        folderTrackCounts[folderId] = count
+        
+        return count
     }
     
     func getTracksByArtist(_ artist: String) -> [Track] {
-        let dbTracks = databaseManager.getTracksByArtistLightweight(artist)
-        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
+        return databaseManager.getTracksByArtist(artist)
+    }
+
+    func getTracksByAlbum(_ album: String) -> [Track] {
+        return databaseManager.getTracksByAlbum(album)
+    }
+
+    func getTracksByGenre(_ genre: String) -> [Track] {
+        return databaseManager.getTracksByGenre(genre)
+    }
+
+    func getTracksByYear(_ year: String) -> [Track] {
+        return databaseManager.getTracksByYear(year)
     }
     
     func getTracksByArtistContaining(_ artistName: String) -> [Track] {
         // The database method already uses LIKE with wildcards
         return getTracksByArtist(artistName)
-    }
-    
-    func getTracksByAlbum(_ album: String) -> [Track] {
-        let dbTracks = databaseManager.getTracksByAlbumLightweight(album)
-        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
-    }
-    
-    func getTracksByGenre(_ genre: String) -> [Track] {
-        let dbTracks = databaseManager.getTracksByGenre(genre)
-        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
-    }
-    
-    func getTracksByYear(_ year: String) -> [Track] {
-        let dbTracks = databaseManager.getTracksByYear(year)
-        return dbTracks.map { cacheManager.getTrack(from: $0, using: databaseManager) }
     }
     
     func getAllArtists() -> [String] {
@@ -302,13 +301,13 @@ class LibraryManager: ObservableObject {
         print("LibraryManager: Refreshing library...")
         
         // For each folder, trigger a refresh in the database
-        for dbFolder in databaseFolders {
-            databaseManager.refreshFolder(dbFolder) { result in
+        for folder in folders {
+            databaseManager.refreshFolder(folder) { result in
                 switch result {
                 case .success:
-                    print("LibraryManager: Successfully refreshed folder \(dbFolder.name)")
+                    print("LibraryManager: Successfully refreshed folder \(folder.name)")
                 case .failure(let error):
-                    print("LibraryManager: Failed to refresh folder \(dbFolder.name): \(error)")
+                    print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
                 }
             }
         }
@@ -320,35 +319,26 @@ class LibraryManager: ObservableObject {
     }
     
     func refreshFolder(_ folder: Folder) {
-        // Find the corresponding database folder
-        guard let dbFolder = databaseFolders.first(where: { $0.path == folder.url.path }) else {
-            print("LibraryManager: Folder not found in database")
-            return
-        }
-        
-        // Clear cache for this folder
-        cacheManager.clearFolderCache(dbFolder.id)
-        
         // Delegate to database manager for refresh
-        databaseManager.refreshFolder(dbFolder) { [weak self] result in
+        databaseManager.refreshFolder(folder) { [weak self] result in
             switch result {
             case .success:
-                print("LibraryManager: Successfully refreshed folder \(dbFolder.name)")
+                print("LibraryManager: Successfully refreshed folder \(folder.name)")
                 // Reload the library to reflect changes
                 self?.loadMusicLibrary()
             case .failure(let error):
-                print("LibraryManager: Failed to refresh folder \(dbFolder.name): \(error)")
+                print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
             }
         }
     }
     
     func cleanupMissingFolders() {
         // Check each folder to see if it still exists
-        var foldersToRemove: [DatabaseFolder] = []
+        var foldersToRemove: [Folder] = []
         
-        for dbFolder in databaseFolders {
-            if !fileManager.fileExists(atPath: dbFolder.path) {
-                foldersToRemove.append(dbFolder)
+        for folder in folders {
+            if !fileManager.fileExists(atPath: folder.url.path) {
+                foldersToRemove.append(folder)
             }
         }
         
@@ -365,30 +355,55 @@ class LibraryManager: ObservableObject {
             }
         }
     }
+
+    // MARK: - Database Management
+
+    func resetAllData() async throws {
+        // Use the existing resetDatabase method
+        try databaseManager.resetDatabase()
+        
+        // Ensure UI updates happen on main thread
+        await MainActor.run {
+            // Clear in-memory data
+            folders.removeAll()
+            tracks.removeAll()
+            
+            // Clear security bookmarks
+            for (url, _) in securityBookmarks {
+                url.stopAccessingSecurityScopedResource()
+            }
+            securityBookmarks.removeAll()
+            saveSecurityBookmarks()
+            
+            // Clear UserDefaults
+            UserDefaults.standard.removeObject(forKey: "LastScanDate")
+        }
+    }
     
     // MARK: - Memory Management
     
     @objc private func handleMemoryPressure() {
         print("LibraryManager: Handling memory pressure")
-        cacheManager.handleMemoryPressure()
         
-        // Clear artwork from tracks that aren't currently playing
+        // With GRDB, we can simply reload data when needed
+        // Clear the in-memory arrays to free memory
         if let coordinator = AppCoordinator.shared,
            let currentTrack = coordinator.audioPlayerManager.currentTrack {
-            // Clear artwork from all tracks except the current one
-            for track in tracks {
-                if track.id != currentTrack.id,
-                   let lightweightTrack = track as? LightweightTrack {
-                    lightweightTrack.clearArtwork()
-                }
-            }
+            // Keep track of current track ID
+            let currentTrackId = currentTrack.trackId
+            
+            // Clear all tracks from memory
+            tracks.removeAll()
+            
+            // Reload just the essential data
+            folders = databaseManager.getAllFolders()
+            
+            print("LibraryManager: Cleared tracks from memory, keeping folders")
         } else {
-            // No track playing, clear all artwork
-            for track in tracks {
-                if let lightweightTrack = track as? LightweightTrack {
-                    lightweightTrack.clearArtwork()
-                }
-            }
+            // No track playing, we can clear everything and reload when needed
+            tracks.removeAll()
+            folders.removeAll()
+            print("LibraryManager: Cleared all data from memory")
         }
     }
 }
