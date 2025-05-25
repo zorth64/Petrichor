@@ -7,6 +7,7 @@ class AppCoordinator: ObservableObject {
     let playlistManager: PlaylistManager
     let audioPlayerManager: AudioPlayerManager
     let nowPlayingManager: NowPlayingManager
+    let menuBarManager: MenuBarManager
     
     // MARK: - Initialization
     
@@ -25,6 +26,10 @@ class AppCoordinator: ObservableObject {
         // Setup now playing
         nowPlayingManager = NowPlayingManager()
         nowPlayingManager.connectRemoteCommandCenter(audioPlayer: audioPlayerManager, playlistManager: playlistManager)
+        
+        // Setup menubar
+        menuBarManager = MenuBarManager(audioPlayerManager: audioPlayerManager, playlistManager: playlistManager)
+        
         Self.shared = self
     }
 }
