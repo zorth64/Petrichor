@@ -35,6 +35,17 @@ struct PetrichorApp: App {
                 }
                 .keyboardShortcut("p", modifiers: [.command])
             }
+            
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit Petrichor") {
+                    // Ensure database is saved before quitting
+                    if let coordinator = AppCoordinator.shared {
+                        coordinator.libraryManager.databaseManager.checkpoint()
+                    }
+                    NSApp.terminate(nil)
+                }
+                .keyboardShortcut("q", modifiers: .command)
+            }
         }
         
 #if os(macOS)

@@ -7,6 +7,9 @@ struct PlaylistDetailView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @State private var selectedTrackID: UUID?
+    @State private var showingCreatePlaylistWithTrack = false
+    @State private var trackToAddToNewPlaylist: Track?
+    @State private var newPlaylistName = ""
     @State private var showingAddSongs = false
     
     // Get the current playlist from the manager
@@ -67,6 +70,12 @@ struct PlaylistDetailView: View {
             .onChange(of: playlistID) { _ in
                 // Reset selection when playlist changes
                 selectedTrackID = nil
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreatePlaylistWithTrack"))) { notification in
+                if let track = notification.userInfo?["track"] as? Track {
+                    trackToAddToNewPlaylist = track
+                    showingCreatePlaylistWithTrack = true
+                }
             }
         } else {
             // Playlist not found
@@ -301,45 +310,12 @@ struct PlaylistDetailView: View {
     private func createPlaylistContextMenu(for track: Track) -> [ContextMenuItem] {
         guard let playlist = playlist else { return [] }
         
-        var items: [ContextMenuItem] = []
-        
-        items.append(.button(title: "Play") {
-            if let index = playlist.tracks.firstIndex(of: track) {
-                playlistManager.playTrackFromPlaylist(playlist, at: index)
-                selectedTrackID = track.id
-            }
-        })
-        
-        items.append(.button(title: "Play Next") {
-            // TODO: Implement play next functionality
-        })
-        
-        items.append(.divider)
-        
-        // Add to other playlists
-        let otherPlaylists = playlistManager.playlists.filter {
-            $0.id != playlist.id && $0.type == .regular
-        }
-        
-        if !otherPlaylists.isEmpty {
-            let playlistItems = otherPlaylists.map { otherPlaylist in
-                ContextMenuItem.button(title: otherPlaylist.name) {
-                    playlistManager.addTrackToPlaylist(track: track, playlistID: otherPlaylist.id)
-                }
-            }
-            
-            items.append(.menu(title: "Add to Playlist", items: playlistItems))
-        }
-        
-        // Remove from playlist (only for regular playlists)
-        if playlist.type == .regular {
-            items.append(.divider)
-            items.append(.button(title: "Remove from Playlist", role: .destructive) {
-                playlistManager.removeTrackFromPlaylist(track: track, playlistID: playlist.id)
-            })
-        }
-        
-        return items
+        return TrackContextMenu.createMenuItems(
+            for: track,
+            audioPlayerManager: audioPlayerManager,
+            playlistManager: playlistManager,
+            currentContext: .playlist(playlist)
+        )
     }
 }
 

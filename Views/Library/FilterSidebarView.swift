@@ -8,16 +8,11 @@ struct FilterSidebarView: View {
     @State private var cachedFilterItems: [LibraryFilterType: [LibraryFilterItem]] = [:]
     @State private var searchText = ""
     @State private var selectedItemName: String = ""
+    @State private var sortAscending = true
     
     var body: some View {
         VStack(spacing: 0) {
-            // Filter type selector
-            filterTypeSelector
-            
-            Divider()
-            
-            // Search bar
-            searchBar
+            filterSidebarHeader
             
             Divider()
             
@@ -77,69 +72,77 @@ struct FilterSidebarView: View {
         }
     }
     
-    // MARK: - Filter Type Selector
+    // MARK: - Filter Sidebar Header
     
-    private var filterTypeSelector: some View {
-        HStack {
-            Picker("Filter by", selection: $selectedFilterType) {
+    private var filterSidebarHeader: some View {
+        HStack(spacing: 8) {
+            // Filter type dropdown
+            Picker("", selection: $selectedFilterType) {
                 ForEach(LibraryFilterType.allCases, id: \.self) { filterType in
-                    HStack {
+                    HStack(spacing: 4) {
                         Image(systemName: filterType.icon)
-                            .font(.system(size: 12))
+                            .font(.system(size: 11))
                         Text(filterType.rawValue)
-                            .font(.system(size: 13))
+                            .font(.system(size: 12))
                     }
                     .tag(filterType)
                 }
             }
             .pickerStyle(.menu)
-            .frame(maxWidth: .infinity)
+            .frame(width: 90)
+            .labelsHidden()
+            
+            // Search bar with sort button (matching Folders view exactly)
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                
+                TextField("Search...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                        // When clearing search, reset to "All" if current selection is not visible
+                        let allItems = getFilterItems(for: selectedFilterType)
+                        let isCurrentSelectionStillVisible = allItems.contains { item in
+                            item.name == selectedItemName
+                        }
+                        
+                        if !isCurrentSelectionStillVisible && !selectedItemName.hasPrefix("All") {
+                            let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+                            selectedFilterItem = allItem
+                            selectedItemName = allItem.name
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            .padding(.horizontal, 6)  // Match Folders view
+            .padding(.vertical, 2)    // Match Folders view
+            .background(Color(NSColor.textBackgroundColor))
+            .cornerRadius(4)
+            
+            // Sort button (matching Folders view style)
+            Button(action: {
+                sortAscending.toggle()
+                updateFilteredItems()
+            }) {
+                Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+            .help("Sort \(sortAscending ? "descending" : "ascending")")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-    }
-    
-    // MARK: - Search Bar
-    
-    private var searchBar: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-                .font(.system(size: 12))
-            
-            TextField("Filter \(selectedFilterType.rawValue.lowercased())...", text: $searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-            
-            if !searchText.isEmpty {
-                Button(action: {
-                    searchText = ""
-                    // When clearing search, reset to "All" if current selection is not visible
-                    let allItems = getFilterItems(for: selectedFilterType)
-                    let isCurrentSelectionStillVisible = allItems.contains { item in
-                        item.name == selectedItemName
-                    }
-                    
-                    if !isCurrentSelectionStillVisible && !selectedItemName.hasPrefix("All") {
-                        let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
-                        selectedFilterItem = allItem
-                        selectedItemName = allItem.name
-                    }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 10))
-                }
-                .buttonStyle(.borderless)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color(NSColor.textBackgroundColor))
-        .cornerRadius(4)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
     
     // MARK: - Filter Items List
@@ -171,19 +174,30 @@ struct FilterSidebarView: View {
     // MARK: - Helper Methods
     
     private func updateFilteredItems() {
+        var items: [LibraryFilterItem]
+        
         if searchText.isEmpty {
-            filteredItems = getFilterItems(for: selectedFilterType)
+            items = getFilterItems(for: selectedFilterType)
         } else {
             let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmedSearch.isEmpty {
-                filteredItems = getFilterItems(for: selectedFilterType)
+                items = getFilterItems(for: selectedFilterType)
             } else if selectedFilterType == .artists {
-                filteredItems = getArtistItemsForSearch(trimmedSearch)
+                items = getArtistItemsForSearch(trimmedSearch)
             } else {
                 let allItems = getFilterItems(for: selectedFilterType)
-                filteredItems = allItems.filter { item in
+                items = allItems.filter { item in
                     item.name.localizedCaseInsensitiveContains(trimmedSearch)
                 }
+            }
+        }
+        
+        // Apply sorting
+        filteredItems = items.sorted { item1, item2 in
+            if sortAscending {
+                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            } else {
+                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedDescending
             }
         }
     }

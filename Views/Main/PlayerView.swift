@@ -4,35 +4,23 @@ import Foundation
 struct PlayerView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
+    @Binding var showingQueue: Bool
     
     @State private var isDraggingProgress = false
     @State private var tempProgressValue: Double = 0
+    @State private var currentTrackId: UUID? = nil
+    @State private var cachedArtworkImage: NSImage? = nil
     
     var body: some View {
+        let trackArtworkInfo = audioPlayerManager.currentTrack.map { track in
+            TrackArtworkInfo(id: track.id, artworkData: track.artworkData)
+        }
+
         VStack(spacing: 0) {
             // Track info section
             HStack(spacing: 16) {
-                // Album art with proper clipping
-                ZStack {
-                    if let artworkData = audioPlayerManager.currentTrack?.artworkData,
-                       let nsImage = NSImage(data: artworkData) {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 100, height: 100)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                    } else {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.secondary.opacity(0.15))
-                            .frame(width: 80, height: 80)
-                            .overlay(
-                                Image(systemName: "music.note")
-                                    .font(.system(size: 24, weight: .light))
-                                    .foregroundColor(.secondary)
-                            )
-                    }
-                }
+                PlayerAlbumArtView(trackInfo: trackArtworkInfo)
+                    .equatable()
                 
                 // Track details with favorite button
                 VStack(alignment: .leading, spacing: 4) {
@@ -73,21 +61,42 @@ struct PlayerView: View {
                 
                 Spacer()
                 
-                // Volume control
-                HStack(spacing: 8) {
-                    Image(systemName: audioPlayerManager.volume < 0.01 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                // Queue and volume controls
+                VStack(alignment: .trailing, spacing: 12) {
+                    // Queue button
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showingQueue.toggle()
+                        }
+                    }) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 16))
+                            .foregroundColor(showingQueue ? .white : .secondary)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                Circle()
+                                    .fill(showingQueue ? Color.accentColor : Color.secondary.opacity(0.1))
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help(showingQueue ? "Hide Queue" : "Show Queue")
                     
-                    Slider(
-                        value: Binding(
-                            get: { audioPlayerManager.volume },
-                            set: { audioPlayerManager.setVolume($0) }
-                        ),
-                        in: 0...1
-                    )
-                    .frame(width: 80)
-                    .controlSize(.small)
+                    // Volume control
+                    HStack(spacing: 8) {
+                        Image(systemName: audioPlayerManager.volume < 0.01 ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        
+                        Slider(
+                            value: Binding(
+                                get: { audioPlayerManager.volume },
+                                set: { audioPlayerManager.setVolume($0) }
+                            ),
+                            in: 0...1
+                        )
+                        .frame(width: 80)
+                        .controlSize(.small)
+                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -165,7 +174,7 @@ struct PlayerView: View {
                 }
             }
             .padding(.horizontal, 20)
-
+            
             // Control buttons section
             HStack(spacing: 15) {
                 // Shuffle button
@@ -247,6 +256,14 @@ struct PlayerView: View {
         }
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity) // Ensure it doesn't exceed window bounds
+        .onAppear {
+            // Initialize the cached album art
+            if let artworkData = audioPlayerManager.currentTrack?.artworkData,
+               let image = NSImage(data: artworkData) {
+                cachedArtworkImage = image
+                currentTrackId = audioPlayerManager.currentTrack?.id
+            }
+        }
     }
     
     // MARK: - State Variables
@@ -279,6 +296,48 @@ struct PlayerView: View {
     }
 }
 
+// MARK: - Album Art
+
+struct TrackArtworkInfo: Equatable {
+    let id: UUID
+    let artworkData: Data?
+    
+    static func == (lhs: TrackArtworkInfo, rhs: TrackArtworkInfo) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+struct PlayerAlbumArtView: View, Equatable {
+    let trackInfo: TrackArtworkInfo?
+    
+    static func == (lhs: PlayerAlbumArtView, rhs: PlayerAlbumArtView) -> Bool {
+        lhs.trackInfo == rhs.trackInfo
+    }
+    
+    var body: some View {
+        ZStack {
+            if let artworkData = trackInfo?.artworkData,
+               let nsImage = NSImage(data: artworkData) {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 100, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.secondary.opacity(0.15))
+                    .frame(width: 100, height: 100)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .font(.system(size: 24, weight: .light))
+                            .foregroundColor(.secondary)
+                    )
+            }
+        }
+    }
+}
+
 // MARK: - Custom Button Style
 
 struct ControlButtonStyle: ButtonStyle {
@@ -291,14 +350,22 @@ struct ControlButtonStyle: ButtonStyle {
 }
 
 #Preview {
-    PlayerView()
-        .environmentObject({
-            let coordinator = AppCoordinator()
-            return coordinator.audioPlayerManager
-        }())
-        .environmentObject({
-            let coordinator = AppCoordinator()
-            return coordinator.playlistManager
-        }())
-        .frame(height: 200)
+    struct PreviewWrapper: View {
+        @State private var showingQueue = false
+        
+        var body: some View {
+            PlayerView(showingQueue: $showingQueue)
+                .environmentObject({
+                    let coordinator = AppCoordinator()
+                    return coordinator.audioPlayerManager
+                }())
+                .environmentObject({
+                    let coordinator = AppCoordinator()
+                    return coordinator.playlistManager
+                }())
+                .frame(height: 200)
+        }
+    }
+    
+    return PreviewWrapper()
 }

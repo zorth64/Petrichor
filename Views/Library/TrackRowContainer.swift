@@ -45,18 +45,6 @@ struct TrackRowContainer: View {
                 Spacer()
                     .frame(width: 20)
             }
-            // Static Playback Indicator
-//            if isPlaying {
-//                Image(systemName: "speaker.wave.2.fill")
-//                    .foregroundColor(.accentColor)
-//                    .font(.system(size: 12))
-//                    .frame(width: 16)
-//                    .padding(.trailing, 4)
-//            } else {
-//                // Empty space to maintain alignment
-//                Spacer()
-//                    .frame(width: 20)
-//            }
             
             // Track content
             Group {
@@ -147,7 +135,7 @@ struct TrackRowContainer: View {
         
         TrackRowContainer(
             track: sampleTrack,
-            isPlaying: true,
+            isPlaying: false,
             isSelected: false,
             onSelect: { print("Selected") },
             onPlay: { print("Play") }
