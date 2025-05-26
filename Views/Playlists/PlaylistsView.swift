@@ -1,82 +1,67 @@
 import SwiftUI
 
 struct PlaylistsView: View {
+    let viewType: LibraryViewType
+
     @EnvironmentObject var playlistManager: PlaylistManager
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @State private var selectedPlaylist: Playlist?
-    @State private var showingCreatePlaylist = false
+    @AppStorage("playlistSplitPosition") private var splitPosition: Double = 250
     
     var body: some View {
-        VStack {
-            if playlistManager.playlists.isEmpty {
-                // Empty state
-                VStack(spacing: 20) {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
-                    
-                    Text("No Playlists")
-                        .font(.headline)
-                    
-                    Text("Create playlists to organize your music")
-                        .foregroundColor(.secondary)
-                    
-                    Button("Create Playlist") {
-                        showingCreatePlaylist = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Playlists grid
-                ScrollView {
-                    LazyVGrid(columns: [
-                        GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 16)
-                    ], spacing: 16) {
-                        ForEach(playlistManager.playlists) { playlist in
-                            PlaylistCard(playlist: playlist) {
-                                selectedPlaylist = playlist
-                            }
-                        }
-                        
-                        // Add new playlist card
-                        Button(action: { showingCreatePlaylist = true }) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.accentColor)
-                                
-                                Text("New Playlist")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                            }
-                            .frame(height: 120)
-                            .frame(maxWidth: .infinity)
-                            .background(Color.secondary.opacity(0.1))
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                    .padding()
+        HSplitView {
+            // Left sidebar - Playlists list
+            PlaylistSidebarView(selectedPlaylist: $selectedPlaylist)
+                .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
+            
+            // Right side - Playlist content
+            VStack(spacing: 0) {
+                if let playlist = selectedPlaylist {
+                    PlaylistDetailView(playlistID: playlist.id, viewType: viewType)
+                } else {
+                    emptySelectionView
                 }
             }
+            .frame(minWidth: 400)
         }
-        .sheet(isPresented: $showingCreatePlaylist) {
-            CreatePlaylistSheet()
+        .onAppear {
+            // Select first playlist by default if none selected
+            if selectedPlaylist == nil && !playlistManager.playlists.isEmpty {
+                selectedPlaylist = playlistManager.playlists.first
+            }
         }
-        .sheet(item: $selectedPlaylist) { playlist in
-            PlaylistDetailSheet(playlist: playlist)
+        .onChange(of: playlistManager.playlists.count) { _ in
+            // Update selection if current playlist was removed
+            if let selected = selectedPlaylist,
+               !playlistManager.playlists.contains(where: { $0.id == selected.id }) {
+                selectedPlaylist = playlistManager.playlists.first
+            }
         }
+    }
+    
+    // MARK: - Empty Selection View
+    
+    private var emptySelectionView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "music.note.list")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            
+            Text("Select a Playlist")
+                .font(.headline)
+            
+            Text("Choose a playlist from the sidebar to view its contents")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.textBackgroundColor))
     }
 }
 
-#Preview {
-    PlaylistsView()
+#Preview("List View") {
+    PlaylistsView(viewType: .list)
         .environmentObject({
             let manager = PlaylistManager()
             return manager
@@ -85,4 +70,18 @@ struct PlaylistsView: View {
             let coordinator = AppCoordinator()
             return coordinator.audioPlayerManager
         }())
+        .frame(width: 800, height: 600)
+}
+
+#Preview("Grid View") {
+    PlaylistsView(viewType: .grid)
+        .environmentObject({
+            let manager = PlaylistManager()
+            return manager
+        }())
+        .environmentObject({
+            let coordinator = AppCoordinator()
+            return coordinator.audioPlayerManager
+        }())
+        .frame(width: 800, height: 600)
 }

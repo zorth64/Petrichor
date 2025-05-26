@@ -10,6 +10,9 @@ struct FolderTracksContainer: View {
     @State private var selectedTrackID: UUID?
     @State private var folderTracks: [Track] = []
     @State private var isLoadingTracks = false
+    @State private var showingCreatePlaylistWithTrack = false
+    @State private var trackToAddToNewPlaylist: Track?
+    @State private var newPlaylistName = ""
     
     var body: some View {
         Group {
@@ -73,6 +76,9 @@ struct FolderTracksContainer: View {
             folderTracks.removeAll()
             isLoadingTracks = false
         }
+        .sheet(isPresented: $showingCreatePlaylistWithTrack) {
+            createPlaylistSheet
+        }
     }
     
     private func loadTracksIfNeeded() {
@@ -101,8 +107,13 @@ struct FolderTracksContainer: View {
             selectedTrackID = track.id
         })
         
-        if !playlistManager.playlists.isEmpty {
-            let playlistItems = playlistManager.playlists.map { playlist in
+        items.append(.divider)
+        
+        // Get regular playlists (exclude smart playlists)
+        let regularPlaylists = playlistManager.playlists.filter { $0.type == .regular }
+        
+        if !regularPlaylists.isEmpty {
+            let playlistItems = regularPlaylists.map { playlist in
                 ContextMenuItem.button(title: playlist.name) {
                     playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
                 }
@@ -111,15 +122,23 @@ struct FolderTracksContainer: View {
             var allPlaylistItems = playlistItems
             allPlaylistItems.append(.divider)
             allPlaylistItems.append(.button(title: "New Playlist...") {
-                // TODO: Implement new playlist creation
+                trackToAddToNewPlaylist = track
+                showingCreatePlaylistWithTrack = true
             })
             
             items.append(.menu(title: "Add to Playlist", items: allPlaylistItems))
         } else {
             items.append(.button(title: "Create Playlist with This Track") {
-                // TODO: Implement playlist creation
+                let newPlaylist = playlistManager.createPlaylist(name: "New Playlist", tracks: [track])
+                print("Created new playlist with track: \(track.title)")
             })
         }
+        
+        // Add favorite toggle
+        items.append(.divider)
+        items.append(.button(title: track.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
+            playlistManager.toggleFavorite(for: track)
+        })
         
         items.append(.divider)
         items.append(.button(title: "Show in Finder") {
@@ -127,6 +146,48 @@ struct FolderTracksContainer: View {
         })
         
         return items
+    }
+    
+    private var createPlaylistSheet: some View {
+        VStack(spacing: 20) {
+            Text("New Playlist")
+                .font(.headline)
+            
+            TextField("Playlist Name", text: $newPlaylistName)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 250)
+            
+            if let track = trackToAddToNewPlaylist {
+                Text("Will add: \(track.title)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    newPlaylistName = ""
+                    trackToAddToNewPlaylist = nil
+                    showingCreatePlaylistWithTrack = false
+                }
+                .keyboardShortcut(.escape)
+                
+                Button("Create") {
+                    if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
+                        let newPlaylist = playlistManager.createPlaylist(
+                            name: newPlaylistName,
+                            tracks: [track]
+                        )
+                        newPlaylistName = ""
+                        trackToAddToNewPlaylist = nil
+                        showingCreatePlaylistWithTrack = false
+                    }
+                }
+                .keyboardShortcut(.return)
+                .disabled(newPlaylistName.isEmpty)
+            }
+        }
+        .padding(30)
+        .frame(width: 350)
     }
 }
 

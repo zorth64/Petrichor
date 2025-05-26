@@ -7,6 +7,9 @@ struct LibraryView: View {
     @State private var selectedTrackID: UUID?
     @State private var selectedFilterType: LibraryFilterType = .artists
     @State private var selectedFilterItem: LibraryFilterItem?
+    @State private var showingCreatePlaylistWithTrack = false
+    @State private var trackToAddToNewPlaylist: Track?
+    @State private var newPlaylistName = ""
     @AppStorage("libraryViewSplitPosition") private var splitPosition: Double = 250
     
     let viewType: LibraryViewType
@@ -42,6 +45,9 @@ struct LibraryView: View {
                     if let currentItem = selectedFilterItem, currentItem.name.hasPrefix("All") {
                         selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: tracks.count)
                     }
+                }
+                .sheet(isPresented: $showingCreatePlaylistWithTrack) {
+                    createPlaylistSheet
                 }
             }
         }
@@ -251,8 +257,11 @@ struct LibraryView: View {
         
         items.append(.divider)
         
-        if !playlistManager.playlists.isEmpty {
-            let playlistItems = playlistManager.playlists.map { playlist in
+        // Get regular playlists (exclude smart playlists)
+        let regularPlaylists = playlistManager.playlists.filter { $0.type == .regular }
+        
+        if !regularPlaylists.isEmpty {
+            let playlistItems = regularPlaylists.map { playlist in
                 ContextMenuItem.button(title: playlist.name) {
                     playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
                 }
@@ -261,15 +270,23 @@ struct LibraryView: View {
             var allPlaylistItems = playlistItems
             allPlaylistItems.append(.divider)
             allPlaylistItems.append(.button(title: "New Playlist...") {
-                // TODO: Implement new playlist creation
+                trackToAddToNewPlaylist = track
+                showingCreatePlaylistWithTrack = true
             })
             
             items.append(.menu(title: "Add to Playlist", items: allPlaylistItems))
         } else {
             items.append(.button(title: "Create Playlist with This Track") {
-                // TODO: Implement playlist creation
+                let newPlaylist = playlistManager.createPlaylist(name: "New Playlist", tracks: [track])
+                print("Created new playlist with track: \(track.title)")
             })
         }
+        
+        // Add favorite toggle
+        items.append(.divider)
+        items.append(.button(title: track.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
+            playlistManager.toggleFavorite(for: track)
+        })
         
         // Add filter-specific options
         if let filterItem = selectedFilterItem, !filterItem.name.hasPrefix("All") {
@@ -296,6 +313,50 @@ struct LibraryView: View {
         }
         
         return items
+    }
+    
+    // MARK: - Create Playlist Sheet
+    
+    private var createPlaylistSheet: some View {
+        VStack(spacing: 20) {
+            Text("New Playlist")
+                .font(.headline)
+            
+            TextField("Playlist Name", text: $newPlaylistName)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 250)
+            
+            if let track = trackToAddToNewPlaylist {
+                Text("Will add: \(track.title)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    newPlaylistName = ""
+                    trackToAddToNewPlaylist = nil
+                    showingCreatePlaylistWithTrack = false
+                }
+                .keyboardShortcut(.escape)
+                
+                Button("Create") {
+                    if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
+                        let newPlaylist = playlistManager.createPlaylist(
+                            name: newPlaylistName,
+                            tracks: [track]
+                        )
+                        newPlaylistName = ""
+                        trackToAddToNewPlaylist = nil
+                        showingCreatePlaylistWithTrack = false
+                    }
+                }
+                .keyboardShortcut(.return)
+                .disabled(newPlaylistName.isEmpty)
+            }
+        }
+        .padding(30)
+        .frame(width: 350)
     }
 }
 
