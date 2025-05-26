@@ -14,9 +14,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         print("App is terminating...")
+        
         // Stop audio playback gracefully to prevent clicks/pops
         if let coordinator = AppCoordinator.shared {
             coordinator.audioPlayerManager.stopGracefully()
+            
+            // Force a database checkpoint to ensure all data is persisted
+            coordinator.libraryManager.databaseManager.checkpoint()
         }
     }
     

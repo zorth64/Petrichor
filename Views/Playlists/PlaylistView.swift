@@ -4,6 +4,9 @@ struct PlaylistView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @State private var selectedTrackID: UUID?
+    @State private var showingCreatePlaylistWithTrack = false
+    @State private var trackToAddToNewPlaylist: Track?
+    @State private var newPlaylistName = ""
     let playlist: Playlist
     
     var body: some View {
@@ -18,6 +21,15 @@ struct PlaylistView: View {
                 emptyPlaylistView
             } else {
                 tracksListView
+            }
+        }
+        .sheet(isPresented: $showingCreatePlaylistWithTrack) {
+            createPlaylistSheet
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreatePlaylistWithTrack"))) { notification in
+            if let track = notification.userInfo?["track"] as? Track {
+                trackToAddToNewPlaylist = track
+                showingCreatePlaylistWithTrack = true
             }
         }
     }
@@ -199,64 +211,59 @@ struct PlaylistView: View {
         .listStyle(.plain)
     }
     
+    // MARK: - Create Playlist Sheet
+
+    private var createPlaylistSheet: some View {
+        VStack(spacing: 20) {
+            Text("New Playlist")
+                .font(.headline)
+            
+            TextField("Playlist Name", text: $newPlaylistName)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 250)
+            
+            if let track = trackToAddToNewPlaylist {
+                Text("Will add: \(track.title)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    newPlaylistName = ""
+                    trackToAddToNewPlaylist = nil
+                    showingCreatePlaylistWithTrack = false
+                }
+                .keyboardShortcut(.escape)
+                
+                Button("Create") {
+                    if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
+                        let newPlaylist = playlistManager.createPlaylist(
+                            name: newPlaylistName,
+                            tracks: [track]
+                        )
+                        newPlaylistName = ""
+                        trackToAddToNewPlaylist = nil
+                        showingCreatePlaylistWithTrack = false
+                    }
+                }
+                .keyboardShortcut(.return)
+                .disabled(newPlaylistName.isEmpty)
+            }
+        }
+        .padding(30)
+        .frame(width: 350)
+    }
+    
     // MARK: - Context Menu Helper
     
     private func createPlaylistContextMenu(for track: Track, at index: Int) -> [ContextMenuItem] {
-        var items: [ContextMenuItem] = []
-        
-        items.append(.button(title: "Play") {
-            playlistManager.playTrackFromPlaylist(playlist, at: index)
-            selectedTrackID = track.id
-        })
-        
-        items.append(.button(title: "Play Next") {
-            // TODO: Implement play next functionality
-        })
-        
-        items.append(.divider)
-        
-        // Add to other playlists
-        let otherPlaylists = playlistManager.playlists.filter { $0.id != playlist.id }
-        if !otherPlaylists.isEmpty {
-            let playlistItems = otherPlaylists.map { otherPlaylist in
-                ContextMenuItem.button(title: otherPlaylist.name) {
-                    playlistManager.addTrackToPlaylist(track: track, playlistID: otherPlaylist.id)
-                }
-            }
-            
-            var allPlaylistItems = playlistItems
-            allPlaylistItems.append(.divider)
-            allPlaylistItems.append(.button(title: "New Playlist...") {
-                // TODO: Implement new playlist creation
-            })
-            
-            items.append(.menu(title: "Add to Playlist", items: allPlaylistItems))
-            items.append(.divider)
-        }
-        
-        // Track reordering
-        items.append(.button(title: "Move Up") {
-            if index > 0 {
-                var updatedPlaylist = playlist
-                updatedPlaylist.moveTrack(from: index, to: index - 1)
-                playlistManager.updatePlaylist(updatedPlaylist)
-            }
-        })
-        
-        items.append(.button(title: "Move Down") {
-            if index < playlist.tracks.count - 1 {
-                var updatedPlaylist = playlist
-                updatedPlaylist.moveTrack(from: index, to: index + 1)
-                playlistManager.updatePlaylist(updatedPlaylist)
-            }
-        })
-        
-        items.append(.divider)
-        items.append(.button(title: "Remove from Playlist", role: .destructive) {
-            playlistManager.removeTrackFromPlaylist(track: track, playlistID: playlist.id)
-        })
-        
-        return items
+        return TrackContextMenu.createMenuItems(
+            for: track,
+            audioPlayerManager: audioPlayerManager,
+            playlistManager: playlistManager,
+            currentContext: .playlist(playlist)
+        )
     }
 }
 

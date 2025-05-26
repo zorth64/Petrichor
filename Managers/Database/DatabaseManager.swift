@@ -33,6 +33,10 @@ class DatabaseManager: ObservableObject {
         config.prepareDatabase { db in
             // Set journal mode to WAL
             try db.execute(sql: "PRAGMA journal_mode = WAL")
+            // Enable synchronous mode for better durability
+            try db.execute(sql: "PRAGMA synchronous = NORMAL")
+            // Set a reasonable busy timeout
+            try db.execute(sql: "PRAGMA busy_timeout = 5000")
         }
         
         // Initialize database queue with configuration
@@ -107,6 +111,17 @@ class DatabaseManager: ObservableObject {
             try db.create(index: "idx_tracks_genre", on: "tracks", columns: ["genre"], ifNotExists: true)
             try db.create(index: "idx_tracks_year", on: "tracks", columns: ["year"], ifNotExists: true)
             try db.create(index: "idx_playlist_tracks_playlist_id", on: "playlist_tracks", columns: ["playlist_id"], ifNotExists: true)
+        }
+    }
+    
+    func checkpoint() {
+        do {
+            try dbQueue.writeWithoutTransaction { db in
+                try db.execute(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
+            }
+            print("DatabaseManager: WAL checkpoint completed")
+        } catch {
+            print("DatabaseManager: WAL checkpoint failed: \(error)")
         }
     }
     
@@ -708,10 +723,19 @@ class DatabaseManager: ObservableObject {
                 arguments: [playlist.id.uuidString]
             )
             
+            // Check how many were deleted (for debugging)
+            let deletedCount = db.changesCount
+            print("DatabaseManager: Deleted \(deletedCount) existing track associations")
+            
             // Insert track associations (only for regular playlists)
             if playlist.type == .regular {
+                print("DatabaseManager: Saving \(playlist.tracks.count) tracks for playlist '\(playlist.name)'")
+                
                 for (index, track) in playlist.tracks.enumerated() {
-                    guard let trackId = track.trackId else { continue }
+                    guard let trackId = track.trackId else {
+                        print("DatabaseManager: WARNING - Track '\(track.title)' has no database ID, skipping")
+                        continue
+                    }
                     
                     try db.execute(
                         sql: """
@@ -720,7 +744,17 @@ class DatabaseManager: ObservableObject {
                             """,
                         arguments: [playlist.id.uuidString, trackId, index]
                     )
+                    print("DatabaseManager: Saved track '\(track.title)' (ID: \(trackId)) at position \(index)")
                 }
+                
+                // Verify the save
+                let savedCount = try Int.fetchOne(
+                    db,
+                    sql: "SELECT COUNT(*) FROM playlist_tracks WHERE playlist_id = ?",
+                    arguments: [playlist.id.uuidString]
+                ) ?? 0
+                
+                print("DatabaseManager: Verified \(savedCount) tracks saved for playlist in database")
             }
         }
     }

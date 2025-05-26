@@ -33,7 +33,7 @@ struct VirtualizedTrackList: View {
                     .id(track.id)
                 }
             }
-            .padding(.vertical, 1) // Small padding to prevent edge clipping
+            .padding(5) // Small padding to prevent edge clipping
         }
 
     }

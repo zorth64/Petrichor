@@ -7,6 +7,7 @@ struct ContentView: View {
     
     @State private var selectedTab: MainTab = .library
     @State private var showingSettings = false
+    @State private var showingQueue = false
     @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .list
     
     var body: some View {
@@ -19,24 +20,34 @@ struct ContentView: View {
             
             Divider()
             
-            // Main Content Area
-            VStack {
-                // Content based on selected tab
-                Group {
-                    switch selectedTab {
-                        case .library:
-                            LibraryView(viewType: globalViewType)
-                        case .folders:
-                            FoldersView(viewType: globalViewType)
-                        case .playlists:
-                            PlaylistsView(viewType: globalViewType)
+            // Main Content Area with Queue
+            HSplitView {
+                // Main content
+                VStack {
+                    // Content based on selected tab
+                    Group {
+                        switch selectedTab {
+                            case .library:
+                                LibraryView(viewType: globalViewType)
+                            case .folders:
+                                FoldersView(viewType: globalViewType)
+                            case .playlists:
+                                PlaylistsView(viewType: globalViewType)
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: 400)
                 
-                // Player controls at bottom
-                PlayerView()
+                // Queue sidebar
+                if showingQueue {
+                    PlayQueueView()
+                        .frame(width: 350)
+                }
             }
+            
+            // Player controls at bottom
+            PlayerView(showingQueue: $showingQueue)
         }
         .frame(minWidth: 800, minHeight: 600)
         .navigationTitle("") // Remove any automatic title
@@ -61,7 +72,7 @@ struct ContentView: View {
             SettingsView()
                 .environmentObject(libraryManager)
         }
-        .scanningOverlay() // Add the scanning overlay
+        .scanningOverlay()
     }
 }
 

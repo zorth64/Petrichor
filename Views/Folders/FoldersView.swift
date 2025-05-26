@@ -66,13 +66,6 @@ struct FoldersView: View {
                     }
                     .buttonStyle(.borderless)
                     .help("Sort folders \(sortAscending ? "descending" : "ascending")")
-                    
-                    Spacer()
-                    
-                    // Folder count
-                    Text("\(filteredAndSortedFolders.count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)

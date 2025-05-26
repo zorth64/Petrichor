@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var showingCreatePlaylistWithTrack = false
     @State private var trackToAddToNewPlaylist: Track?
     @State private var newPlaylistName = ""
+    @State private var cachedFilteredTracks: [Track] = []
     @AppStorage("libraryViewSplitPosition") private var splitPosition: Double = 250
     
     let viewType: LibraryViewType
@@ -39,6 +40,7 @@ struct LibraryView: View {
                     if selectedFilterItem == nil {
                         selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
                     }
+                    updateFilteredTracks()
                 }
                 .onChange(of: libraryManager.tracks) { tracks in
                     // Update filter item when tracks change
@@ -46,8 +48,24 @@ struct LibraryView: View {
                         selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: tracks.count)
                     }
                 }
+                .onChange(of: selectedFilterItem) { _ in
+                    updateFilteredTracks()
+                }
+                .onChange(of: selectedFilterType) { _ in
+                    updateFilteredTracks()
+                }
+                .onChange(of: libraryManager.tracks.count) { _ in
+                    // Only update if the number of tracks changed (tracks added/removed)
+                    updateFilteredTracks()
+                }
                 .sheet(isPresented: $showingCreatePlaylistWithTrack) {
                     createPlaylistSheet
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreatePlaylistWithTrack"))) { notification in
+                    if let track = notification.userInfo?["track"] as? Track {
+                        trackToAddToNewPlaylist = track
+                        showingCreatePlaylistWithTrack = true
+                    }
                 }
             }
         }
@@ -103,7 +121,7 @@ struct LibraryView: View {
             Divider()
             
             // Tracks list content
-            if filteredTracks.isEmpty {
+            if cachedFilteredTracks.isEmpty {
                 emptyFilterView
             } else {
                 Group {
@@ -123,10 +141,11 @@ struct LibraryView: View {
     
     private var tracksListContent: some View {
         VirtualizedTrackList(
-            tracks: filteredTracks,
+            tracks: cachedFilteredTracks,
             selectedTrackID: $selectedTrackID,
             onPlayTrack: { track in
-                playlistManager.playTrack(track)
+                playlistManager.playTrack(track, fromTracks: cachedFilteredTracks)
+                playlistManager.currentQueueSource = .library
             },
             contextMenuItems: { track in
                 createLibraryContextMenu(for: track)
@@ -138,10 +157,11 @@ struct LibraryView: View {
     
     private var tracksGridContent: some View {
         VirtualizedTrackGrid(
-            tracks: filteredTracks,
+            tracks: cachedFilteredTracks,
             selectedTrackID: $selectedTrackID,
             onPlayTrack: { track in
-                playlistManager.playTrack(track)
+                playlistManager.playTrack(track, fromTracks: cachedFilteredTracks)
+                playlistManager.currentQueueSource = .library
             },
             contextMenuItems: { track in
                 createLibraryContextMenu(for: track)
@@ -172,7 +192,7 @@ struct LibraryView: View {
             
             Spacer()
             
-            Text("\(filteredTracks.count) tracks")
+            Text("\(cachedFilteredTracks.count) tracks")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .padding(.trailing, 16)
@@ -207,22 +227,22 @@ struct LibraryView: View {
         .padding()
     }
     
-    // MARK: - Computed Properties
+    // MARK: - Filtering Tracks Helper
     
-    private var filteredTracks: [Track] {
+    private func updateFilteredTracks() {
         guard let filterItem = selectedFilterItem else {
-            return libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            cachedFilteredTracks = libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            return
         }
         
         if filterItem.name.hasPrefix("All") {
-            return libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            cachedFilteredTracks = libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            return
         }
         
         let unsortedTracks: [Track]
         switch selectedFilterType {
         case .artists:
-            // For artists, check if the filter item name appears anywhere in the track's artist field
-            // This handles both exact matches and collaborations
             unsortedTracks = libraryManager.tracks.filter { track in
                 track.artist.localizedCaseInsensitiveContains(filterItem.name) ||
                 track.artist == filterItem.name
@@ -235,84 +255,18 @@ struct LibraryView: View {
             unsortedTracks = libraryManager.getTracksByYear(filterItem.name)
         }
         
-        return unsortedTracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        cachedFilteredTracks = unsortedTracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
     
     // MARK: - Context Menu Helper
     
     private func createLibraryContextMenu(for track: Track) -> [ContextMenuItem] {
-        var items: [ContextMenuItem] = []
-        
-        items.append(.button(title: "Play") {
-            playlistManager.playTrack(track)
-            selectedTrackID = track.id
-        })
-        
-        items.append(.button(title: "Play Next") {
-            // For now, just play the track directly
-            // In a future update, we could implement proper "play next" functionality
-            playlistManager.playTrack(track)
-            selectedTrackID = track.id
-        })
-        
-        items.append(.divider)
-        
-        // Get regular playlists (exclude smart playlists)
-        let regularPlaylists = playlistManager.playlists.filter { $0.type == .regular }
-        
-        if !regularPlaylists.isEmpty {
-            let playlistItems = regularPlaylists.map { playlist in
-                ContextMenuItem.button(title: playlist.name) {
-                    playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
-                }
-            }
-            
-            var allPlaylistItems = playlistItems
-            allPlaylistItems.append(.divider)
-            allPlaylistItems.append(.button(title: "New Playlist...") {
-                trackToAddToNewPlaylist = track
-                showingCreatePlaylistWithTrack = true
-            })
-            
-            items.append(.menu(title: "Add to Playlist", items: allPlaylistItems))
-        } else {
-            items.append(.button(title: "Create Playlist with This Track") {
-                let newPlaylist = playlistManager.createPlaylist(name: "New Playlist", tracks: [track])
-                print("Created new playlist with track: \(track.title)")
-            })
-        }
-        
-        // Add favorite toggle
-        items.append(.divider)
-        items.append(.button(title: track.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
-            playlistManager.toggleFavorite(for: track)
-        })
-        
-        // Add filter-specific options
-        if let filterItem = selectedFilterItem, !filterItem.name.hasPrefix("All") {
-            items.append(.divider)
-            
-            switch selectedFilterType {
-            case .artists:
-                items.append(.button(title: "Show All by \(filterItem.name)") {
-                    // Already filtered, maybe scroll to top or show info
-                })
-            case .albums:
-                items.append(.button(title: "Show Album: \(filterItem.name)") {
-                    // Already filtered, maybe scroll to top or show info
-                })
-            case .genres:
-                items.append(.button(title: "Show All \(filterItem.name)") {
-                    // Already filtered, maybe scroll to top or show info
-                })
-            case .years:
-                items.append(.button(title: "Show All from \(filterItem.name)") {
-                    // Already filtered, maybe scroll to top or show info
-                })
-            }
-        }
-        
-        return items
+        return TrackContextMenu.createMenuItems(
+            for: track,
+            audioPlayerManager: audioPlayerManager,
+            playlistManager: playlistManager,
+            currentContext: .library
+        )
     }
     
     // MARK: - Create Playlist Sheet

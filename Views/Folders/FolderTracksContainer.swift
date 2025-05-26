@@ -43,8 +43,7 @@ struct FolderTracksContainer: View {
                             tracks: folderTracks,
                             selectedTrackID: $selectedTrackID,
                             onPlayTrack: { track in
-                                playlistManager.setCurrentQueue(fromFolder: folder)
-                                audioPlayerManager.playTrack(track)
+                                playlistManager.playTrackFromFolder(track, folder: folder, folderTracks: folderTracks)
                                 selectedTrackID = track.id
                             },
                             contextMenuItems: { track in
@@ -56,8 +55,7 @@ struct FolderTracksContainer: View {
                             tracks: folderTracks,
                             selectedTrackID: $selectedTrackID,
                             onPlayTrack: { track in
-                                playlistManager.setCurrentQueue(fromFolder: folder)
-                                audioPlayerManager.playTrack(track)
+                                playlistManager.playTrackFromFolder(track, folder: folder, folderTracks: folderTracks)
                                 selectedTrackID = track.id
                             },
                             contextMenuItems: { track in
@@ -79,6 +77,12 @@ struct FolderTracksContainer: View {
         .sheet(isPresented: $showingCreatePlaylistWithTrack) {
             createPlaylistSheet
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreatePlaylistWithTrack"))) { notification in
+            if let track = notification.userInfo?["track"] as? Track {
+                trackToAddToNewPlaylist = track
+                showingCreatePlaylistWithTrack = true
+            }
+        }
     }
     
     private func loadTracksIfNeeded() {
@@ -99,53 +103,12 @@ struct FolderTracksContainer: View {
     }
     
     private func createFolderContextMenu(for track: Track) -> [ContextMenuItem] {
-        var items: [ContextMenuItem] = []
-        
-        items.append(.button(title: "Play") {
-            playlistManager.setCurrentQueue(fromFolder: folder)
-            audioPlayerManager.playTrack(track)
-            selectedTrackID = track.id
-        })
-        
-        items.append(.divider)
-        
-        // Get regular playlists (exclude smart playlists)
-        let regularPlaylists = playlistManager.playlists.filter { $0.type == .regular }
-        
-        if !regularPlaylists.isEmpty {
-            let playlistItems = regularPlaylists.map { playlist in
-                ContextMenuItem.button(title: playlist.name) {
-                    playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
-                }
-            }
-            
-            var allPlaylistItems = playlistItems
-            allPlaylistItems.append(.divider)
-            allPlaylistItems.append(.button(title: "New Playlist...") {
-                trackToAddToNewPlaylist = track
-                showingCreatePlaylistWithTrack = true
-            })
-            
-            items.append(.menu(title: "Add to Playlist", items: allPlaylistItems))
-        } else {
-            items.append(.button(title: "Create Playlist with This Track") {
-                let newPlaylist = playlistManager.createPlaylist(name: "New Playlist", tracks: [track])
-                print("Created new playlist with track: \(track.title)")
-            })
-        }
-        
-        // Add favorite toggle
-        items.append(.divider)
-        items.append(.button(title: track.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
-            playlistManager.toggleFavorite(for: track)
-        })
-        
-        items.append(.divider)
-        items.append(.button(title: "Show in Finder") {
-            NSWorkspace.shared.selectFile(track.url.path, inFileViewerRootedAtPath: folder.url.path)
-        })
-        
-        return items
+        return TrackContextMenu.createMenuItems(
+            for: track,
+            audioPlayerManager: audioPlayerManager,
+            playlistManager: playlistManager,
+            currentContext: .folder(folder)
+        )
     }
     
     private var createPlaylistSheet: some View {

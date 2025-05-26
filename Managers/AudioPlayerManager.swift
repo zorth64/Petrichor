@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 
-class AudioPlayerManager: ObservableObject {
+class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     // MARK: - Published Properties
     @Published var currentTrack: Track?
     @Published var isPlaying: Bool = false {
@@ -40,11 +40,25 @@ class AudioPlayerManager: ObservableObject {
     // MARK: - Playback Controls
     func playTrack(_ track: Track) {
         do {
+            // Stop any current playback gracefully first
+            if let currentPlayer = player {
+                currentPlayer.setVolume(0, fadeDuration: 0.1)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    currentPlayer.stop()
+                }
+            }
+            
             // Create and prepare player
             player = try AVAudioPlayer(contentsOf: track.url)
+            player?.delegate = self
             player?.prepareToPlay()
-            player?.volume = volume
+            
+            // Start with zero volume to prevent pop
+            player?.volume = 0
             player?.play()
+            
+            // Fade in to desired volume
+            player?.setVolume(volume, fadeDuration: 0.2)
             
             // Update state
             currentTrack = track
@@ -55,11 +69,6 @@ class AudioPlayerManager: ObservableObject {
             timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
                 guard let self = self, let player = self.player else { return }
                 self.currentTime = player.currentTime
-                
-                // Check if track finished
-                if player.duration > 0 && player.currentTime >= player.duration - 0.1 {
-                    self.playlistManager.handleTrackCompletion()
-                }
             }
             
             // Update now playing info
@@ -70,15 +79,36 @@ class AudioPlayerManager: ObservableObject {
     }
     
     func togglePlayPause() {
+        guard let player = player else { return }
+        
         if isPlaying {
-            player?.pause()
+            // Fade out before pausing
+            player.setVolume(0, fadeDuration: 0.1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                player.pause()
+                // Restore volume for next play
+                player.volume = self.volume
+            }
         } else {
-            player?.play()
+            // Fade in when resuming
+            player.volume = 0
+            player.play()
+            player.setVolume(volume, fadeDuration: 0.1)
         }
+        
         isPlaying.toggle()
         
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: currentTime, isPlaying: isPlaying)
+        }
+    }
+    
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        if flag {
+            // Add a small delay to prevent clicks between tracks
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.playlistManager.handleTrackCompletion()
+            }
         }
     }
     
@@ -95,24 +125,25 @@ class AudioPlayerManager: ObservableObject {
     
     // Graceful stop with fade out for app termination
     func stopGracefully() {
-        if let player = player, player.isPlaying {
-            // Store original volume
-            let originalVolume = player.volume
-            
-            // Quickly fade out to prevent pops
-            player.setVolume(0, fadeDuration: 0.1)
-            
-            // Wait for fade to complete
-            Thread.sleep(forTimeInterval: 0.1)
-            
-            // Now stop
-            player.stop()
-            player.volume = originalVolume // Restore for next use
+        guard let player = player, player.isPlaying else {
+            isPlaying = false
+            currentTime = 0
+            timer?.invalidate()
+            return
         }
         
-        isPlaying = false
-        currentTime = 0
-        timer?.invalidate()
+        // Fade out
+        player.setVolume(0, fadeDuration: 0.1)
+        
+        // Stop after fade completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            player.stop()
+            player.volume = self.volume // Restore volume for next use
+            
+            self.isPlaying = false
+            self.currentTime = 0
+            self.timer?.invalidate()
+        }
     }
     
     func seekTo(time: Double) {
