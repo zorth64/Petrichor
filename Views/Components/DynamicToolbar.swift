@@ -3,7 +3,7 @@ import SwiftUI
 struct DynamicToolbar: View {
     let selectedTab: MainTab
     @EnvironmentObject var libraryManager: LibraryManager
-    @Binding var libraryViewType: LibraryViewType
+    @Binding var viewType: LibraryViewType
     
     var body: some View {
         HStack {
@@ -29,28 +29,28 @@ struct DynamicToolbar: View {
             
             // View toggle button (Finder-style)
             HStack(spacing: 0) {
-                Button(action: { libraryViewType = .list }) {
+                Button(action: { viewType = .list }) {
                     Image(systemName: "list.bullet")
                         .font(.system(size: 14, weight: .medium))
                         .frame(width: 28, height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(libraryViewType == .list ? Color.accentColor : Color.clear)
+                                .fill(viewType == .list ? Color.accentColor : Color.clear)
                         )
-                        .foregroundColor(libraryViewType == .list ? .white : .primary)
+                        .foregroundColor(viewType == .list ? .white : .primary)
                 }
                 .buttonStyle(.borderless)
                 .help("List View")
                 
-                Button(action: { libraryViewType = .grid }) {
+                Button(action: { viewType = .grid }) {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(size: 14, weight: .medium))
                         .frame(width: 28, height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(libraryViewType == .grid ? Color.accentColor : Color.clear)
+                                .fill(viewType == .grid ? Color.accentColor : Color.clear)
                         )
-                        .foregroundColor(libraryViewType == .grid ? .white : .primary)
+                        .foregroundColor(viewType == .grid ? .white : .primary)
                 }
                 .buttonStyle(.borderless)
                 .help("Grid View")
@@ -77,28 +77,28 @@ struct DynamicToolbar: View {
             
             // View toggle button (same as library)
             HStack(spacing: 0) {
-                Button(action: { libraryViewType = .list }) {
+                Button(action: { viewType = .list }) {
                     Image(systemName: "list.bullet")
                         .font(.system(size: 14, weight: .medium))
                         .frame(width: 28, height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(libraryViewType == .list ? Color.accentColor : Color.clear)
+                                .fill(viewType == .list ? Color.accentColor : Color.clear)
                         )
-                        .foregroundColor(libraryViewType == .list ? .white : .primary)
+                        .foregroundColor(viewType == .list ? .white : .primary)
                 }
                 .buttonStyle(.borderless)
                 .help("List View")
                 
-                Button(action: { libraryViewType = .grid }) {
+                Button(action: { viewType = .grid }) {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(size: 14, weight: .medium))
                         .frame(width: 28, height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(libraryViewType == .grid ? Color.accentColor : Color.clear)
+                                .fill(viewType == .grid ? Color.accentColor : Color.clear)
                         )
-                        .foregroundColor(libraryViewType == .grid ? .white : .primary)
+                        .foregroundColor(viewType == .grid ? .white : .primary)
                 }
                 .buttonStyle(.borderless)
                 .help("Grid View")
@@ -121,35 +121,59 @@ struct DynamicToolbar: View {
     
     private var playlistsToolbar: some View {
         HStack {
-            Button(action: {
-                // TODO: Implement create playlist
-            }) {
-                Label("New Playlist", systemImage: "plus")
-                    .font(.system(size: 13))
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            
             Spacer()
             
-            // Playlist stats (placeholder)
-            Text("Coming soon...")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // View toggle button (same as library)
+            HStack(spacing: 0) {
+                Button(action: { viewType = .list }) {
+                    Image(systemName: "list.bullet")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 28, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(viewType == .list ? Color.accentColor : Color.clear)
+                        )
+                        .foregroundColor(viewType == .list ? .white : .primary)
+                }
+                .buttonStyle(.borderless)
+                .help("List View")
+                
+                Button(action: { viewType = .grid }) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 28, height: 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(viewType == .grid ? Color.accentColor : Color.clear)
+                        )
+                        .foregroundColor(viewType == .grid ? .white : .primary)
+                }
+                .buttonStyle(.borderless)
+                .help("Grid View")
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                    )
+            )
+            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 0.5)
+            
+            Spacer()
         }
     }
 }
 
 #Preview {
-    @State var libraryViewType: LibraryViewType = .list
+    @State var viewType: LibraryViewType = .list
+    let libraryManager = LibraryManager()
     
-    return VStack(spacing: 0) {
-        DynamicToolbar(selectedTab: .library, libraryViewType: $libraryViewType)
-        DynamicToolbar(selectedTab: .folders, libraryViewType: $libraryViewType)
-        DynamicToolbar(selectedTab: .playlists, libraryViewType: $libraryViewType)
+    VStack(spacing: 0) {
+        DynamicToolbar(selectedTab: .library, viewType: $viewType)
+        DynamicToolbar(selectedTab: .folders, viewType: $viewType)
+        DynamicToolbar(selectedTab: .playlists, viewType: $viewType)
     }
-    .environmentObject({
-        let manager = LibraryManager()
-        return manager
-    }())
+    .environmentObject(libraryManager)
 }

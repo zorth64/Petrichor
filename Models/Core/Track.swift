@@ -14,6 +14,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     @Published var duration: Double
     @Published var artworkData: Data?
     @Published var isMetadataLoaded: Bool = false
+    @Published var isFavorite: Bool = false
+    @Published var playCount: Int = 0
+    @Published var lastPlayedDate: Date?
     let format: String
     var folderId: Int64?
     
@@ -52,6 +55,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let dateAdded = Column("date_added")
         static let dateModified = Column("date_modified")
         static let artworkData = Column("artwork_data")
+        static let isFavorite = Column("is_favorite")
+        static let playCount = Column("play_count")
+        static let lastPlayedDate = Column("last_played_date")
     }
     
     // MARK: - FetchableRecord
@@ -71,6 +77,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         duration = row[Columns.duration] ?? 0
         format = row[Columns.format] ?? url.pathExtension
         artworkData = row[Columns.artworkData]
+        isFavorite = row[Columns.isFavorite] ?? false
+        playCount = row[Columns.playCount] ?? 0
+        lastPlayedDate = row[Columns.lastPlayedDate]
         isMetadataLoaded = true
     }
     
@@ -90,6 +99,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         container[Columns.format] = format
         container[Columns.dateAdded] = Date()
         container[Columns.artworkData] = artworkData
+        container[Columns.isFavorite] = isFavorite
+        container[Columns.playCount] = playCount
+        container[Columns.lastPlayedDate] = lastPlayedDate
     }
     
     // Update if exists based on path

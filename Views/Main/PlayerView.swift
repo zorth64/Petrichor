@@ -34,12 +34,31 @@ struct PlayerView: View {
                     }
                 }
                 
-                // Track details
+                // Track details with favorite button
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(audioPlayerManager.currentTrack?.title ?? "")
-                        .font(.system(size: 16, weight: .medium))
-                        .lineLimit(1)
-                        .foregroundColor(.primary)
+                    // Title row with favorite button
+                    HStack(alignment: .center, spacing: 8) {
+                        Text(audioPlayerManager.currentTrack?.title ?? "")
+                            .font(.system(size: 16, weight: .medium))
+                            .lineLimit(1)
+                            .foregroundColor(.primary)
+                        
+                        // Favorite button
+                        if let track = audioPlayerManager.currentTrack {
+                            Button(action: {
+                                playlistManager.toggleFavorite(for: track)
+                            }) {
+                                Image(systemName: track.isFavorite ? "star.fill" : "star")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(track.isFavorite ? .yellow : .secondary)
+                                    .animation(.easeInOut(duration: 0.2), value: track.isFavorite)
+                            }
+                            .buttonStyle(.plain)
+                            .help(track.isFavorite ? "Remove from Favorites" : "Add to Favorites")
+                        }
+                        
+                        Spacer()
+                    }
                     
                     Text(audioPlayerManager.currentTrack?.artist ?? "")
                         .font(.system(size: 14))

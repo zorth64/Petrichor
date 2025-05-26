@@ -17,7 +17,7 @@ class LibraryManager: ObservableObject {
     private var folderTrackCounts: [Int64: Int] = [:]
     
     // Database manager
-    private let databaseManager: DatabaseManager
+    let databaseManager: DatabaseManager
     
     // Keys for UserDefaults
     private enum UserDefaultsKeys {
@@ -212,6 +212,11 @@ class LibraryManager: ObservableObject {
         
         // Update last scan date
         userDefaults.set(Date(), forKey: UserDefaultsKeys.lastScanDate)
+        
+        // Notify playlist manager to update smart playlists
+        if let coordinator = AppCoordinator.shared {
+            coordinator.playlistManager.updateSmartPlaylists()
+        }
     }
     
     // MARK: - File Watching
