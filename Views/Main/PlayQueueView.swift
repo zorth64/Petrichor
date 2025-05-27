@@ -13,6 +13,8 @@ struct PlayQueueView: View {
             queueHeader
             
             Divider()
+                .frame(height: 1)
+                .overlay(Color(NSColor.controlColor).opacity(0.2))
             
             // Queue list
             if playlistManager.currentQueue.isEmpty {
@@ -42,7 +44,7 @@ struct PlayQueueView: View {
                     .font(.headline)
             }
             .padding(.leading, 15)
-            .padding(.vertical, 10)
+            .padding(.vertical, 8)
             
             Spacer()
             
@@ -64,8 +66,8 @@ struct PlayQueueView: View {
                     .help("Clear Queue")
                 }
             }
-            .padding(.trailing, 15)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 15)
+            .padding(.vertical, 5)
         }
         .background(Color(NSColor.windowBackgroundColor))
     }

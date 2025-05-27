@@ -124,8 +124,8 @@ struct FilterSidebarView: View {
                     .buttonStyle(.borderless)
                 }
             }
-            .padding(.horizontal, 6)  // Match Folders view
-            .padding(.vertical, 2)    // Match Folders view
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(Color(NSColor.textBackgroundColor))
             .cornerRadius(4)
             
@@ -140,8 +140,8 @@ struct FilterSidebarView: View {
             .buttonStyle(.borderless)
             .help("Sort \(sortAscending ? "descending" : "ascending")")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
     }
     

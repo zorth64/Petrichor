@@ -187,15 +187,15 @@ struct LibraryView: View {
                         .font(.headline)
                 }
             }
-            .padding(.leading, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 15)
+            .padding(.vertical, 8)
             
             Spacer()
             
             Text("\(cachedFilteredTracks.count) tracks")
                 .font(.caption)
                 .foregroundColor(.secondary)
-                .padding(.trailing, 16)
+                .padding(.trailing, 15)
                 .padding(.vertical, 10)
         }
     }
