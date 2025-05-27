@@ -219,7 +219,7 @@ private struct TrackListRow: View {
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(backgroundColor)
-                .animation(.easeInOut(duration: 0.1), value: isSelected)
+                .animation(.easeInOut(duration: 0.15), value: isSelected)
                 .animation(.easeInOut(duration: 0.1), value: isHovered)
         )
         .overlay(
@@ -249,9 +249,9 @@ private struct TrackListRow: View {
     
     private var backgroundColor: Color {
         if isSelected {
-            return Color.accentColor.opacity(0.1)
+            return Color.accentColor.opacity(0.25)
         } else if isHovered {
-            return Color.gray.opacity(0.05)
+            return Color(NSColor.selectedContentBackgroundColor).opacity(0.15)
         } else {
             return Color.clear
         }
@@ -413,7 +413,15 @@ private struct TrackGridItem: View {
                         .fill(Color.black.opacity(0.4))
                         .frame(width: 160, height: 160)
                         .overlay(
-                            Button(action: onPlay) {
+                            Button(action: {
+                                if isCurrentTrack {
+                                    // Toggle play/pause for current track
+                                    audioPlayerManager.togglePlayPause()
+                                } else {
+                                    // Play this track
+                                    onPlay()
+                                }
+                            }) {
                                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                                     .font(.system(size: 24, weight: .medium))
                                     .foregroundColor(.white)
@@ -473,7 +481,7 @@ private struct TrackGridItem: View {
         .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+                .fill(isSelected ? Color.accentColor.opacity(0.25) : Color.clear)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)

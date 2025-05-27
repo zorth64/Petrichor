@@ -266,7 +266,7 @@ struct PlayQueueRow: View {
     
     private var backgroundColor: Color {
         if isCurrentTrack {
-            return Color.accentColor.opacity(0.1)
+            return Color.accentColor.opacity(0.25)
         } else if isHovered {
             return Color.gray.opacity(0.05)
         } else {

@@ -12,6 +12,8 @@ struct PlayerView: View {
     @State private var cachedArtworkImage: NSImage? = nil
     @State private var hoveredOverProgress = false
     @State private var playButtonPressed = false
+    @State private var isMuted = false
+    @State private var previousVolume: Float = 0.7
     
     var body: some View {
         let trackArtworkInfo = audioPlayerManager.currentTrack.map { track in
@@ -217,19 +219,32 @@ struct PlayerView: View {
             HStack(spacing: 12) {
                 // Volume control
                 HStack(spacing: 8) {
-                    Image(systemName: audioPlayerManager.volume < 0.01 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
+                    Button(action: toggleMute) {
+                        Image(systemName: volumeIcon)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(isMuted ? "Unmute" : "Mute")
                     
                     Slider(
                         value: Binding(
                             get: { audioPlayerManager.volume },
-                            set: { audioPlayerManager.setVolume($0) }
+                            set: { newVolume in
+                                audioPlayerManager.setVolume(newVolume)
+                                // If user moves slider, unmute
+                                if isMuted && newVolume > 0 {
+                                    isMuted = false
+                                }
+                            }
                         ),
                         in: 0...1
                     )
                     .frame(width: 100)
                     .controlSize(.small)
+                    .disabled(isMuted)
                 }
                 
                 // Queue button
@@ -262,6 +277,13 @@ struct PlayerView: View {
                 cachedArtworkImage = image
                 currentTrackId = audioPlayerManager.currentTrack?.id
             }
+
+            if audioPlayerManager.volume < 0.01 {
+                isMuted = true
+                previousVolume = 0.7
+            } else {
+                previousVolume = audioPlayerManager.volume
+            }
         }
     }
     
@@ -271,6 +293,18 @@ struct PlayerView: View {
         guard let duration = audioPlayerManager.currentTrack?.duration, duration > 0 else { return 0 }
         let currentTime = isDraggingProgress ? tempProgressValue : audioPlayerManager.currentTime
         return min(1, max(0, currentTime / duration))
+    }
+    
+    private var volumeIcon: String {
+        if isMuted || audioPlayerManager.volume < 0.01 {
+            return "speaker.slash.fill"
+        } else if audioPlayerManager.volume < 0.33 {
+            return "speaker.fill"
+        } else if audioPlayerManager.volume < 0.66 {
+            return "speaker.wave.1.fill"
+        } else {
+            return "speaker.wave.2.fill"
+        }
     }
     
     // MARK: - Helper Methods
@@ -287,6 +321,19 @@ struct PlayerView: View {
         case .off: return "repeat"
         case .one: return "repeat.1"
         case .all: return "repeat"
+        }
+    }
+    
+    private func toggleMute() {
+        if isMuted {
+            // Unmute - restore previous volume
+            audioPlayerManager.setVolume(previousVolume)
+            isMuted = false
+        } else {
+            // Mute - save current volume and set to 0
+            previousVolume = audioPlayerManager.volume
+            audioPlayerManager.setVolume(0)
+            isMuted = true
         }
     }
 }

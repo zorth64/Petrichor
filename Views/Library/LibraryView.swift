@@ -25,7 +25,7 @@ struct LibraryView: View {
                 // Main library view with sidebar
                 HSplitView {
                     // Left sidebar - Filter view
-                    FilterSidebarView(
+                    LibrarySidebarView(
                         selectedFilterType: $selectedFilterType,
                         selectedFilterItem: $selectedFilterItem
                     )
