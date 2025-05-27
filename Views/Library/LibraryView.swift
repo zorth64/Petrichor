@@ -124,49 +124,26 @@ struct LibraryView: View {
             if cachedFilteredTracks.isEmpty {
                 emptyFilterView
             } else {
-                Group {
-                    switch viewType {
-                    case .list:
-                        tracksListContent
-                    case .grid:
-                        tracksGridContent
+                TrackView(
+                    tracks: cachedFilteredTracks,
+                    viewType: viewType,
+                    selectedTrackID: $selectedTrackID,
+                    onPlayTrack: { track in
+                        playlistManager.playTrack(track, fromTracks: cachedFilteredTracks)
+                        playlistManager.currentQueueSource = .library
+                    },
+                    contextMenuItems: { track in
+                        TrackContextMenu.createMenuItems(
+                            for: track,
+                            audioPlayerManager: audioPlayerManager,
+                            playlistManager: playlistManager,
+                            currentContext: .library
+                        )
                     }
-                }
+                )
                 .background(Color(NSColor.textBackgroundColor))
             }
         }
-    }
-    
-    // MARK: - List Content with Virtualization
-    
-    private var tracksListContent: some View {
-        VirtualizedTrackList(
-            tracks: cachedFilteredTracks,
-            selectedTrackID: $selectedTrackID,
-            onPlayTrack: { track in
-                playlistManager.playTrack(track, fromTracks: cachedFilteredTracks)
-                playlistManager.currentQueueSource = .library
-            },
-            contextMenuItems: { track in
-                createLibraryContextMenu(for: track)
-            }
-        )
-    }
-    
-    // MARK: - Grid Content with Virtualization
-    
-    private var tracksGridContent: some View {
-        VirtualizedTrackGrid(
-            tracks: cachedFilteredTracks,
-            selectedTrackID: $selectedTrackID,
-            onPlayTrack: { track in
-                playlistManager.playTrack(track, fromTracks: cachedFilteredTracks)
-                playlistManager.currentQueueSource = .library
-            },
-            contextMenuItems: { track in
-                createLibraryContextMenu(for: track)
-            }
-        )
     }
     
     // MARK: - Tracks List Header

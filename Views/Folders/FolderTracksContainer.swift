@@ -36,34 +36,23 @@ struct FolderTracksContainer: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding()
             } else {
-                Group {
-                    switch viewType {
-                    case .list:
-                        VirtualizedTrackList(
-                            tracks: folderTracks,
-                            selectedTrackID: $selectedTrackID,
-                            onPlayTrack: { track in
-                                playlistManager.playTrackFromFolder(track, folder: folder, folderTracks: folderTracks)
-                                selectedTrackID = track.id
-                            },
-                            contextMenuItems: { track in
-                                createFolderContextMenu(for: track)
-                            }
-                        )
-                    case .grid:
-                        VirtualizedTrackGrid(
-                            tracks: folderTracks,
-                            selectedTrackID: $selectedTrackID,
-                            onPlayTrack: { track in
-                                playlistManager.playTrackFromFolder(track, folder: folder, folderTracks: folderTracks)
-                                selectedTrackID = track.id
-                            },
-                            contextMenuItems: { track in
-                                createFolderContextMenu(for: track)
-                            }
+                TrackView(
+                    tracks: folderTracks,
+                    viewType: viewType,
+                    selectedTrackID: $selectedTrackID,
+                    onPlayTrack: { track in
+                        playlistManager.playTrackFromFolder(track, folder: folder, folderTracks: folderTracks)
+                        selectedTrackID = track.id
+                    },
+                    contextMenuItems: { track in
+                        TrackContextMenu.createMenuItems(
+                            for: track,
+                            audioPlayerManager: audioPlayerManager,
+                            playlistManager: playlistManager,
+                            currentContext: .folder(folder)
                         )
                     }
-                }
+                )
             }
         }
         .onAppear {
@@ -100,15 +89,6 @@ struct FolderTracksContainer: View {
                 self.isLoadingTracks = false
             }
         }
-    }
-    
-    private func createFolderContextMenu(for track: Track) -> [ContextMenuItem] {
-        return TrackContextMenu.createMenuItems(
-            for: track,
-            audioPlayerManager: audioPlayerManager,
-            playlistManager: playlistManager,
-            currentContext: .folder(folder)
-        )
     }
     
     private var createPlaylistSheet: some View {

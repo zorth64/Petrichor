@@ -183,40 +183,30 @@ struct PlaylistDetailView: View {
             if playlist?.tracks.isEmpty ?? true {
                 emptyPlaylistView
             } else {
-                Group {
-                    switch viewType {
-                    case .list:
-                        VirtualizedTrackList(
-                            tracks: playlist?.tracks ?? [],
-                            selectedTrackID: $selectedTrackID,
-                            onPlayTrack: { track in
-                                if let playlist = playlist,
-                                   let index = playlist.tracks.firstIndex(of: track) {
-                                    playlistManager.playTrackFromPlaylist(playlist, at: index)
-                                    selectedTrackID = track.id
-                                }
-                            },
-                            contextMenuItems: { track in
-                                createPlaylistContextMenu(for: track)
-                            }
-                        )
-                    case .grid:
-                        VirtualizedTrackGrid(
-                            tracks: playlist?.tracks ?? [],
-                            selectedTrackID: $selectedTrackID,
-                            onPlayTrack: { track in
-                                if let playlist = playlist,
-                                   let index = playlist.tracks.firstIndex(of: track) {
-                                    playlistManager.playTrackFromPlaylist(playlist, at: index)
-                                    selectedTrackID = track.id
-                                }
-                            },
-                            contextMenuItems: { track in
-                                createPlaylistContextMenu(for: track)
-                            }
-                        )
+                TrackView(
+                    tracks: playlist?.tracks ?? [],
+                    viewType: viewType,
+                    selectedTrackID: $selectedTrackID,
+                    onPlayTrack: { track in
+                        if let playlist = playlist,
+                           let index = playlist.tracks.firstIndex(of: track) {
+                            playlistManager.playTrackFromPlaylist(playlist, at: index)
+                            selectedTrackID = track.id
+                        }
+                    },
+                    contextMenuItems: { track in
+                        if let playlist = playlist {
+                            return TrackContextMenu.createMenuItems(
+                                for: track,
+                                audioPlayerManager: audioPlayerManager,
+                                playlistManager: playlistManager,
+                                currentContext: .playlist(playlist)
+                            )
+                        } else {
+                            return []
+                        }
                     }
-                }
+                )
                 .background(Color(NSColor.textBackgroundColor))
             }
         }
@@ -384,19 +374,6 @@ struct PlaylistDetailView: View {
         guard let playlist = playlist, !playlist.tracks.isEmpty else { return }
         playlistManager.toggleShuffle()
         playlistManager.playTrackFromPlaylist(playlist, at: 0)
-    }
-    
-    // MARK: - Context Menu
-    
-    private func createPlaylistContextMenu(for track: Track) -> [ContextMenuItem] {
-        guard let playlist = playlist else { return [] }
-        
-        return TrackContextMenu.createMenuItems(
-            for: track,
-            audioPlayerManager: audioPlayerManager,
-            playlistManager: playlistManager,
-            currentContext: .playlist(playlist)
-        )
     }
 }
 
