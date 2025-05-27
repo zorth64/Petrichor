@@ -8,195 +8,110 @@ struct PlaylistSidebarView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with create button
             sidebarHeader
             
             Divider()
             
-            // Playlists list
-            List(selection: $selectedPlaylist) {
-                // Smart playlists section - keep as is
-                Section {
-                    ForEach(smartPlaylists) { playlist in
-                        PlaylistSidebarRow(playlist: playlist)
-                            .tag(playlist)
-                    }
-                }
-                
-                // Regular playlists section - simplified
-                if !regularPlaylists.isEmpty {
-                    Section("My Playlists") {
-                        ForEach(regularPlaylists) { playlist in
-                            EditablePlaylistRow(playlist: playlist)
-                                .tag(playlist)  // This is what makes it selectable
-                        }
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            .background(Color(NSColor.textBackgroundColor))
+            playlistsList
         }
         .sheet(isPresented: $showingCreatePlaylist) {
             createPlaylistSheet
         }
     }
     
-    struct EditablePlaylistRow: View {
-        let playlist: Playlist
-        @EnvironmentObject var playlistManager: PlaylistManager
-        @State private var isEditing = false
-        @State private var editingName = ""
-        @FocusState private var isNameFieldFocused: Bool
-        
-        // Get the current playlist from the manager (this includes updated track count)
-        private var currentPlaylist: Playlist? {
-            playlistManager.playlists.first { $0.id == playlist.id }
-        }
-        
-        var body: some View {
-            HStack(spacing: 12) {
-                // Icon
-                Image(systemName: playlistIcon)
-                    .font(.system(size: 16))
-                    .foregroundColor(iconColor)
-                    .frame(width: 20)
-                
-                if isEditing {
-                    // Edit mode
-                    TextField("Playlist Name", text: $editingName)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 13))
-                        .focused($isNameFieldFocused)
-                        .onSubmit {
-                            commitRename()
-                        }
-                        .onExitCommand {
-                            cancelEditing()
-                        }
-                } else {
-                    // Normal mode
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(currentPlaylist?.name ?? playlist.name)
-                            .font(.system(size: 13))
-                            .lineLimit(1)
-                        
-                        // Use currentPlaylist for track count
-                        Text("\((currentPlaylist ?? playlist).tracks.count) songs")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                }
-            }
-            .padding(.vertical, 2)
-            .contextMenu {
-                if playlist.isUserEditable {
-                    Button("Rename") {
-                        startEditing()
-                    }
-                    
-                    Divider()
-                    
-                    Button("Delete", role: .destructive) {
-                        playlistManager.deletePlaylist(playlist)
-                    }
-                }
-            }
-        }
-        
-        private func startEditing() {
-            editingName = currentPlaylist?.name ?? playlist.name
-            isEditing = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isNameFieldFocused = true
-            }
-        }
-        
-        private func commitRename() {
-            let trimmedName = editingName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedName.isEmpty && trimmedName != (currentPlaylist?.name ?? playlist.name) {
-                playlistManager.renamePlaylist(playlist, newName: trimmedName)
-            }
-            isEditing = false
-        }
-        
-        private func cancelEditing() {
-            isEditing = false
-            editingName = currentPlaylist?.name ?? playlist.name
-        }
-        
-        private var playlistIcon: String {
-            switch playlist.smartType {
-            case .favorites: return "star.fill"
-            case .mostPlayed: return "play.circle.fill"
-            case .recentlyPlayed: return "clock.fill"
-            case .custom, .none: return "music.note.list"
-            }
-        }
-        
-        private var iconColor: Color {
-            switch playlist.smartType {
-            case .favorites: return .yellow
-            case .mostPlayed: return .blue
-            case .recentlyPlayed: return .purple
-            case .custom, .none: return .secondary
-            }
-        }
-    }
-    
-    // MARK: - Subviews
+    // MARK: - Sidebar Header
     
     private var sidebarHeader: some View {
-        HStack {
+        ListHeader {
             Text("Playlists")
-                .font(.headline)
+                .headerTitleStyle()
             
             Spacer()
             
-            Button(action: { showingCreatePlaylist = true }) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14))
-            }
-            .buttonStyle(.borderless)
-            .help("Create New Playlist")
+            createPlaylistButton
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
     }
+    
+    private var createPlaylistButton: some View {
+        Button(action: { showingCreatePlaylist = true }) {
+            Image(systemName: "plus")
+                .font(.system(size: 14))
+        }
+        .buttonStyle(.borderless)
+        .help("Create New Playlist")
+    }
+    
+    // MARK: - Playlists List
+    
+    private var playlistsList: some View {
+        List(selection: $selectedPlaylist) {
+            smartPlaylistsSection
+            regularPlaylistsSection
+        }
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(Color(NSColor.textBackgroundColor))
+    }
+    
+    private var smartPlaylistsSection: some View {
+        Section {
+            ForEach(smartPlaylists) { playlist in
+                PlaylistSidebarRow(playlist: playlist)
+                    .tag(playlist)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var regularPlaylistsSection: some View {
+        if !regularPlaylists.isEmpty {
+            Section("My Playlists") {
+                ForEach(regularPlaylists) { playlist in
+                    EditablePlaylistRow(playlist: playlist)
+                        .tag(playlist)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Create Playlist Sheet
     
     private var createPlaylistSheet: some View {
         VStack(spacing: 20) {
-            Text("New Playlist")
-                .font(.headline)
+            sheetHeader
             
-            TextField("Playlist Name", text: $newPlaylistName)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 250)
+            playlistNameField
             
-            HStack(spacing: 12) {
-                Button("Cancel") {
-                    newPlaylistName = ""
-                    showingCreatePlaylist = false
-                }
-                .keyboardShortcut(.escape)
-                
-                Button("Create") {
-                    if !newPlaylistName.isEmpty {
-                        let newPlaylist = playlistManager.createPlaylist(name: newPlaylistName)
-                        selectedPlaylist = newPlaylist
-                        newPlaylistName = ""
-                        showingCreatePlaylist = false
-                    }
-                }
-                .keyboardShortcut(.return)
-                .disabled(newPlaylistName.isEmpty)
-            }
+            sheetButtons
         }
         .padding(30)
         .frame(width: 350)
+    }
+    
+    private var sheetHeader: some View {
+        Text("New Playlist")
+            .font(.headline)
+    }
+    
+    private var playlistNameField: some View {
+        TextField("Playlist Name", text: $newPlaylistName)
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 250)
+    }
+    
+    private var sheetButtons: some View {
+        HStack(spacing: 12) {
+            Button("Cancel") {
+                handleCancelCreatePlaylist()
+            }
+            .keyboardShortcut(.escape)
+            
+            Button("Create") {
+                handleCreatePlaylist()
+            }
+            .keyboardShortcut(.return)
+            .disabled(newPlaylistName.isEmpty)
+        }
     }
     
     // MARK: - Computed Properties
@@ -207,6 +122,149 @@ struct PlaylistSidebarView: View {
     
     private var regularPlaylists: [Playlist] {
         playlistManager.playlists.filter { $0.type == .regular }
+    }
+    
+    // MARK: - Action Methods
+    
+    private func handleCreatePlaylist() {
+        guard !newPlaylistName.isEmpty else { return }
+        
+        let newPlaylist = playlistManager.createPlaylist(name: newPlaylistName)
+        selectedPlaylist = newPlaylist
+        newPlaylistName = ""
+        showingCreatePlaylist = false
+    }
+    
+    private func handleCancelCreatePlaylist() {
+        newPlaylistName = ""
+        showingCreatePlaylist = false
+    }
+}
+
+// MARK: - Editable Playlist Row
+
+struct EditablePlaylistRow: View {
+    let playlist: Playlist
+    @EnvironmentObject var playlistManager: PlaylistManager
+    @State private var isEditing = false
+    @State private var editingName = ""
+    @FocusState private var isNameFieldFocused: Bool
+    
+    // Get the current playlist from the manager (this includes updated track count)
+    private var currentPlaylist: Playlist? {
+        playlistManager.playlists.first { $0.id == playlist.id }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            playlistIcon
+            
+            if isEditing {
+                editingContent
+            } else {
+                normalContent
+            }
+        }
+        .padding(.vertical, 2)
+        .contextMenu {
+            contextMenuContent
+        }
+    }
+    
+    // MARK: - Row Components
+    
+    private var playlistIcon: some View {
+        Image(systemName: playlistIconName)
+            .font(.system(size: 16))
+            .foregroundColor(iconColor)
+            .frame(width: 20)
+    }
+    
+    private var editingContent: some View {
+        TextField("Playlist Name", text: $editingName)
+            .textFieldStyle(.plain)
+            .font(.system(size: 13))
+            .focused($isNameFieldFocused)
+            .onSubmit {
+                commitRename()
+            }
+            .onExitCommand {
+                cancelEditing()
+            }
+    }
+    
+    private var normalContent: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(currentPlaylist?.name ?? playlist.name)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                
+                Text("\((currentPlaylist ?? playlist).tracks.count) songs")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+    }
+    
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        if playlist.isUserEditable {
+            Button("Rename") {
+                startEditing()
+            }
+            
+            Divider()
+            
+            Button("Delete", role: .destructive) {
+                playlistManager.deletePlaylist(playlist)
+            }
+        }
+    }
+    
+    // MARK: - Helper Properties
+    
+    private var playlistIconName: String {
+        switch playlist.smartType {
+        case .favorites: return "star.fill"
+        case .mostPlayed: return "play.circle.fill"
+        case .recentlyPlayed: return "clock.fill"
+        case .custom, .none: return "music.note.list"
+        }
+    }
+    
+    private var iconColor: Color {
+        switch playlist.smartType {
+        case .favorites: return .yellow
+        case .mostPlayed: return .blue
+        case .recentlyPlayed: return .purple
+        case .custom, .none: return .secondary
+        }
+    }
+    
+    // MARK: - Action Methods
+    
+    private func startEditing() {
+        editingName = currentPlaylist?.name ?? playlist.name
+        isEditing = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isNameFieldFocused = true
+        }
+    }
+    
+    private func commitRename() {
+        let trimmedName = editingName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedName.isEmpty && trimmedName != (currentPlaylist?.name ?? playlist.name) {
+            playlistManager.renamePlaylist(playlist, newName: trimmedName)
+        }
+        isEditing = false
+    }
+    
+    private func cancelEditing() {
+        isEditing = false
+        editingName = currentPlaylist?.name ?? playlist.name
     }
 }
 
@@ -223,25 +281,32 @@ struct PlaylistSidebarRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // Icon based on playlist type
-            Image(systemName: playlistIcon)
-                .font(.system(size: 16))
-                .foregroundColor(iconColor)
-                .frame(width: 20)
+            playlistIcon
             
-            VStack(alignment: .leading, spacing: 2) {
-                Text(currentPlaylist?.name ?? playlist.name)
-                    .font(.system(size: 13))
-                    .lineLimit(1)
-                
-                Text(trackCountText)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
+            playlistInfo
             
             Spacer()
         }
         .padding(.vertical, 2)
+    }
+    
+    private var playlistIcon: some View {
+        Image(systemName: playlistIconName)
+            .font(.system(size: 16))
+            .foregroundColor(iconColor)
+            .frame(width: 20)
+    }
+    
+    private var playlistInfo: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(currentPlaylist?.name ?? playlist.name)
+                .font(.system(size: 13))
+                .lineLimit(1)
+            
+            Text(trackCountText)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
     }
     
     private var trackCountText: String {
@@ -254,7 +319,7 @@ struct PlaylistSidebarRow: View {
         }
     }
     
-    private var playlistIcon: String {
+    private var playlistIconName: String {
         switch playlist.smartType {
         case .favorites:
             return "star.fill"
@@ -281,13 +346,66 @@ struct PlaylistSidebarRow: View {
     }
 }
 
-#Preview {
+// MARK: - Preview
+
+#Preview("Playlist Sidebar") {
     @State var selectedPlaylist: Playlist? = nil
     
+    let previewManager = {
+        let manager = PlaylistManager()
+        
+        // Create sample playlists
+        let smartPlaylists = [
+            Playlist(
+                name: "Favorite Songs",
+                smartType: .favorites,
+                criteria: SmartPlaylistCriteria.favoritesPlaylist(),
+                isUserEditable: false
+            ),
+            Playlist(
+                name: "Top 25 Most Played",
+                smartType: .mostPlayed,
+                criteria: SmartPlaylistCriteria.mostPlayedPlaylist(limit: 25),
+                isUserEditable: false
+            ),
+            Playlist(
+                name: "Recently Played",
+                smartType: .recentlyPlayed,
+                criteria: SmartPlaylistCriteria.recentlyPlayedPlaylist(limit: 25, daysBack: 7),
+                isUserEditable: false
+            )
+        ]
+        
+        // Create sample tracks for regular playlists
+        let sampleTrack1 = Track(url: URL(fileURLWithPath: "/sample1.mp3"))
+        sampleTrack1.title = "Sample Song 1"
+        sampleTrack1.artist = "Artist 1"
+        
+        let sampleTrack2 = Track(url: URL(fileURLWithPath: "/sample2.mp3"))
+        sampleTrack2.title = "Sample Song 2"
+        sampleTrack2.artist = "Artist 2"
+        
+        let regularPlaylists = [
+            Playlist(name: "My Favorites", tracks: [sampleTrack1, sampleTrack2]),
+            Playlist(name: "Workout Mix", tracks: [sampleTrack1]),
+            Playlist(name: "Relaxing Music", tracks: [])
+        ]
+        
+        manager.playlists = smartPlaylists + regularPlaylists
+        return manager
+    }()
+    
     return PlaylistSidebarView(selectedPlaylist: $selectedPlaylist)
-        .environmentObject({
-            let manager = PlaylistManager()
-            return manager
-        }())
+        .environmentObject(previewManager)
+        .frame(width: 250, height: 500)
+}
+
+#Preview("Empty Sidebar") {
+    @State var selectedPlaylist: Playlist? = nil
+    
+    let emptyManager = PlaylistManager()
+    
+    return PlaylistSidebarView(selectedPlaylist: $selectedPlaylist)
+        .environmentObject(emptyManager)
         .frame(width: 250, height: 500)
 }

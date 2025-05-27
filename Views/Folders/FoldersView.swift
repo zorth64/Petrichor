@@ -31,200 +31,12 @@ struct FoldersView: View {
     
     var body: some View {
         HSplitView {
-            // Left side - Folders List
-            VStack(alignment: .leading, spacing: 0) {
-                // Folders toolbar
-                HStack(spacing: 8) {
-                    // Search field
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12))
-                        
-                        TextField("Filter folders...", text: $folderSearchText)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 12))
-                        
-                        if !folderSearchText.isEmpty {
-                            Button(action: { folderSearchText = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.secondary)
-                                    .font(.system(size: 10))
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(4)
-                    
-                    // Sort button
-                    Button(action: { sortAscending.toggle() }) {
-                        Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Sort folders \(sortAscending ? "descending" : "ascending")")
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                
-                Divider()
-                
-                // Folders list
-                if libraryManager.folders.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "folder.badge.questionmark")
-                            .font(.system(size: 32))
-                            .foregroundColor(.gray)
-                        
-                        Text("No Folders")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        
-                        Text("Add folders to see your music organized by location")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        
-                        Button("Add Folder") {
-                            libraryManager.addFolder()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding()
-                    .background(Color(NSColor.textBackgroundColor))
-                } else if filteredAndSortedFolders.isEmpty {
-                    // No folders match search
-                    VStack(spacing: 16) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 32))
-                            .foregroundColor(.gray)
-                        
-                        Text("No Results")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        
-                        Text("No folders match your search")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding()
-                    .background(Color(NSColor.textBackgroundColor))
-                } else {
-                    // Simple list with native selection
-                    SimpleFolderListView(
-                        folders: filteredAndSortedFolders,
-                        selectedFolder: $selectedFolder,
-                        onRefresh: { folder in
-                            refreshFolder(folder)
-                        },
-                        onRevealInFinder: { folder in
-                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
-                        },
-                        onRemove: { folder in
-                            folderToRemove = folder
-                            showingRemoveFolderAlert = true
-                        }
-                    )
-                }
-            }
-            .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
-            .onAppear {
-                // Select first folder by default if none selected
-                if selectedFolder == nil && !libraryManager.folders.isEmpty {
-                    selectedFolder = libraryManager.folders.first
-                }
-            }
-            .onChange(of: libraryManager.folders) { folders in
-                // Update selection if current folder was removed
-                if let selected = selectedFolder,
-                   !folders.contains(where: { $0.id == selected.id }) {
-                    selectedFolder = folders.first
-                } else if selectedFolder == nil && !folders.isEmpty {
-                    selectedFolder = folders.first
-                }
-            }
-            .onChange(of: filteredAndSortedFolders) { filteredFolders in
-                // Update selection if current folder is filtered out
-                if let selected = selectedFolder,
-                   !filteredFolders.contains(where: { $0.id == selected.id }),
-                   !filteredFolders.isEmpty {
-                    selectedFolder = filteredFolders.first
-                }
-            }
+            foldersSidebar
+                .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
             
-            // Right side - Tracks in selected folder
-            VStack(alignment: .leading, spacing: 0) {
-                // Tracks list header
-                HStack {
-                    if let folder = selectedFolder {
-                        Text(folder.name)
-                            .font(.headline)
-                            .padding(.leading, 16)
-                            .padding(10)
-                        
-                        Spacer()
-                        
-                        let trackCount = libraryManager.getTracksInFolder(folder).count
-                        Text("\(trackCount) tracks")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.trailing, 16)
-                            .padding(10)
-                    } else {
-                        Text("No Folder Selected")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                            .padding(.leading, 16)
-                            .padding(10)
-                        
-                        Spacer()
-                    }
-                }
-                .background(Color(NSColor.windowBackgroundColor))
-                .overlay(
-                    Rectangle()
-                        .fill(Color(NSColor.separatorColor))
-                        .frame(height: 1),
-                    alignment: .bottom
-                )
-                
-                
-                // Tracks list content
-                if let folder = selectedFolder {
-                    FolderTracksContainer(folder: folder, viewType: viewType)
-                        .id(folder.id) // Force refresh only when folder changes
-                        .background(Color(NSColor.textBackgroundColor))
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "folder")
-                            .font(.system(size: 48))
-                            .foregroundColor(.gray)
-                        
-                        Text("Select a Folder")
-                            .font(.headline)
-                        
-                        Text("Choose a folder from the list to view its music files")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding()
-                    .background(Color(NSColor.textBackgroundColor))
-                }
-            }
-            .frame(minWidth: 300)
-            .background(Color(NSColor.textBackgroundColor))
+            folderTracksView
+                .frame(minWidth: 300)
         }
-        .background(Color(NSColor.windowBackgroundColor))
         .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
             Button("Cancel", role: .cancel) {
                 folderToRemove = nil
@@ -242,11 +54,240 @@ struct FoldersView: View {
         }
     }
     
+    // MARK: - Folders Sidebar
+    
+    private var foldersSidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            foldersHeader
+            
+            Divider()
+            
+            foldersContent
+        }
+        .onAppear {
+            handleSidebarAppear()
+        }
+        .onChange(of: libraryManager.folders) { folders in
+            handleFoldersChange(folders)
+        }
+        .onChange(of: filteredAndSortedFolders) { filteredFolders in
+            handleFilteredFoldersChange(filteredFolders)
+        }
+    }
+    
+    // MARK: - Folders Header
+    
+    private var foldersHeader: some View {
+        ListHeader {
+            searchBar
+            sortButton
+        }
+    }
+    
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+                .font(.system(size: 12))
+            
+            TextField("Filter folders...", text: $folderSearchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+            
+            if !folderSearchText.isEmpty {
+                clearSearchButton
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color(NSColor.textBackgroundColor))
+        .cornerRadius(4)
+    }
+    
+    private var clearSearchButton: some View {
+        Button(action: { folderSearchText = "" }) {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.secondary)
+                .font(.system(size: 10))
+        }
+        .buttonStyle(.borderless)
+    }
+    
+    private var sortButton: some View {
+        Button(action: { sortAscending.toggle() }) {
+            Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
+                .font(.system(size: 11, weight: .medium))
+        }
+        .buttonStyle(.borderless)
+        .help("Sort folders \(sortAscending ? "descending" : "ascending")")
+    }
+    
+    // MARK: - Folders Content
+    
+    private var foldersContent: some View {
+        Group {
+            if libraryManager.folders.isEmpty {
+                emptyFoldersView
+            } else if filteredAndSortedFolders.isEmpty {
+                noSearchResultsView
+            } else {
+                foldersList
+            }
+        }
+    }
+    
+    private var emptyFoldersView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "folder.badge.questionmark")
+                .font(.system(size: 32))
+                .foregroundColor(.gray)
+            
+            Text("No Folders")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            
+            Text("Add folders to see your music organized by location")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Button("Add Folder") {
+                libraryManager.addFolder()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+        .background(Color(NSColor.textBackgroundColor))
+    }
+    
+    private var noSearchResultsView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 32))
+                .foregroundColor(.gray)
+            
+            Text("No Results")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            
+            Text("No folders match your search")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+        .background(Color(NSColor.textBackgroundColor))
+    }
+    
+    private var foldersList: some View {
+        SimpleFolderListView(
+            folders: filteredAndSortedFolders,
+            selectedFolder: $selectedFolder,
+            onRefresh: { folder in
+                refreshFolder(folder)
+            },
+            onRevealInFinder: { folder in
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.url.path)
+            },
+            onRemove: { folder in
+                folderToRemove = folder
+                showingRemoveFolderAlert = true
+            }
+        )
+    }
+    
+    // MARK: - Folder Tracks View
+    
+    private var folderTracksView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            folderTracksHeader
+            
+            Divider()
+            
+            folderTracksContent
+        }
+    }
+    
+    private var folderTracksHeader: some View {
+        Group {
+            if let folder = selectedFolder {
+                TrackListHeader(
+                    title: folder.name,
+                    trackCount: libraryManager.getTracksInFolder(folder).count
+                )
+            } else {
+                TrackListHeader(
+                    title: "No Folder Selected",
+                    trackCount: 0
+                )
+            }
+        }
+    }
+    
+    private var folderTracksContent: some View {
+        Group {
+            if let folder = selectedFolder {
+                FolderTracksContainer(folder: folder, viewType: viewType)
+                    .id(folder.id) // Force refresh only when folder changes
+                    .background(Color(NSColor.textBackgroundColor))
+            } else {
+                noFolderSelectedView
+            }
+        }
+    }
+    
+    private var noFolderSelectedView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "folder")
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+            
+            Text("Select a Folder")
+                .font(.headline)
+            
+            Text("Choose a folder from the list to view its music files")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+        .background(Color(NSColor.textBackgroundColor))
+    }
+    
     // MARK: - Helper Methods
     
     private func refreshFolder(_ folder: Folder) {
-        // Use the new refreshFolder method from LibraryManager
         libraryManager.refreshFolder(folder)
+    }
+    
+    private func handleSidebarAppear() {
+        // Select first folder by default if none selected
+        if selectedFolder == nil && !libraryManager.folders.isEmpty {
+            selectedFolder = libraryManager.folders.first
+        }
+    }
+    
+    private func handleFoldersChange(_ folders: [Folder]) {
+        // Update selection if current folder was removed
+        if let selected = selectedFolder,
+           !folders.contains(where: { $0.id == selected.id }) {
+            selectedFolder = folders.first
+        } else if selectedFolder == nil && !folders.isEmpty {
+            selectedFolder = folders.first
+        }
+    }
+    
+    private func handleFilteredFoldersChange(_ filteredFolders: [Folder]) {
+        // Update selection if current folder is filtered out
+        if let selected = selectedFolder,
+           !filteredFolders.contains(where: { $0.id == selected.id }),
+           !filteredFolders.isEmpty {
+            selectedFolder = filteredFolders.first
+        }
     }
 }
 

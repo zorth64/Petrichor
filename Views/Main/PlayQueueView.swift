@@ -9,22 +9,13 @@ struct PlayQueueView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             queueHeader
             
             Divider()
-                .frame(height: 1)
-                .overlay(Color(NSColor.controlColor).opacity(0.2))
             
-            // Queue list
-            if playlistManager.currentQueue.isEmpty {
-                emptyQueueView
-            } else {
-                Spacer(minLength: 5)
-                queueListView
-            }
+            queueContent
         }
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color(NSColor.windowBackgroundColor))
         .alert("Clear Queue", isPresented: $showingClearConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clear", role: .destructive) {
@@ -36,40 +27,50 @@ struct PlayQueueView: View {
     }
     
     // MARK: - Queue Header
-        
+    
     private var queueHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Play Queue")
-                    .font(.headline)
-            }
-            .padding(.leading, 15)
-            .padding(.vertical, 8)
+        ListHeader {
+            Text("Play Queue")
+                .headerTitleStyle()
             
             Spacer()
             
-            HStack(spacing: 12) {
-                Text("\(playlistManager.currentQueue.count) tracks")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                // Clear queue button
-                if !playlistManager.currentQueue.isEmpty {
-                    Button(action: {
-                        showingClearConfirmation = true
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Clear Queue")
-                }
-            }
-            .padding(.horizontal, 15)
-            .padding(.vertical, 5)
+            queueHeaderControls
         }
-        .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    private var queueHeaderControls: some View {
+        HStack(spacing: 12) {
+            Text("\(playlistManager.currentQueue.count) tracks")
+                .headerSubtitleStyle()
+            
+            if !playlistManager.currentQueue.isEmpty {
+                clearQueueButton
+            }
+        }
+    }
+    
+    private var clearQueueButton: some View {
+        Button(action: { showingClearConfirmation = true }) {
+            Image(systemName: "trash")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.plain)
+        .help("Clear Queue")
+    }
+    
+    // MARK: - Queue Content
+    
+    private var queueContent: some View {
+        Group {
+            if playlistManager.currentQueue.isEmpty {
+                emptyQueueView
+            } else {
+                
+                queueListView
+            }
+        }
     }
     
     // MARK: - Empty Queue View
@@ -98,51 +99,66 @@ struct PlayQueueView: View {
         ScrollViewReader { proxy in
             List {
                 ForEach(Array(playlistManager.currentQueue.enumerated()), id: \.element.id) { index, track in
-                    PlayQueueRow(
-                        track: track,
-                        position: index,
-                        isCurrentTrack: index == playlistManager.currentQueueIndex,
-                        isPlaying: index == playlistManager.currentQueueIndex && audioPlayerManager.isPlaying,
-                        playlistManager: playlistManager,
-                        onRemove: {
-                            playlistManager.removeFromQueue(at: index)
-                        }
-                    )
-                    .id(track.id)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .onDrag {
-                        self.draggedTrack = track
-                        return NSItemProvider(object: track.id.uuidString as NSString)
-                    }
-                    .onDrop(of: [UTType.text], delegate: QueueDropDelegate(
-                        track: track,
-                        tracks: playlistManager.currentQueue,
-                        draggedTrack: $draggedTrack,
-                        playlistManager: playlistManager
-                    ))
+                    queueRow(for: track, at: index)
                 }
             }
+            .padding(.top, 5)
             .padding(.horizontal, -8)
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color(NSColor.textBackgroundColor))
             .onChange(of: playlistManager.currentQueueIndex) { newIndex in
-                // Auto-scroll to current track
-                if newIndex >= 0 && newIndex < playlistManager.currentQueue.count {
-                    withAnimation {
-                        proxy.scrollTo(playlistManager.currentQueue[newIndex].id, anchor: .center)
-                    }
-                }
+                handleQueueIndexChange(newIndex: newIndex, proxy: proxy)
             }
             .onAppear {
-                // Scroll to current track on appear
-                if playlistManager.currentQueueIndex >= 0 &&
-                   playlistManager.currentQueueIndex < playlistManager.currentQueue.count {
-                    proxy.scrollTo(playlistManager.currentQueue[playlistManager.currentQueueIndex].id, anchor: .center)
-                }
+                scrollToCurrentTrack(proxy: proxy)
             }
+        }
+    }
+    
+    private func queueRow(for track: Track, at index: Int) -> some View {
+        PlayQueueRow(
+            track: track,
+            position: index,
+            isCurrentTrack: index == playlistManager.currentQueueIndex,
+            isPlaying: index == playlistManager.currentQueueIndex && audioPlayerManager.isPlaying,
+            playlistManager: playlistManager,
+            onRemove: {
+                playlistManager.removeFromQueue(at: index)
+            }
+        )
+        .id(track.id)
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .onDrag {
+            self.draggedTrack = track
+            return NSItemProvider(object: track.id.uuidString as NSString)
+        }
+        .onDrop(of: [UTType.text], delegate: QueueDropDelegate(
+            track: track,
+            tracks: playlistManager.currentQueue,
+            draggedTrack: $draggedTrack,
+            playlistManager: playlistManager
+        ))
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func handleQueueIndexChange(newIndex: Int, proxy: ScrollViewProxy) {
+        // Auto-scroll to current track
+        if newIndex >= 0 && newIndex < playlistManager.currentQueue.count {
+            withAnimation {
+                proxy.scrollTo(playlistManager.currentQueue[newIndex].id, anchor: .center)
+            }
+        }
+    }
+    
+    private func scrollToCurrentTrack(proxy: ScrollViewProxy) {
+        // Scroll to current track on appear
+        if playlistManager.currentQueueIndex >= 0 &&
+           playlistManager.currentQueueIndex < playlistManager.currentQueue.count {
+            proxy.scrollTo(playlistManager.currentQueue[playlistManager.currentQueueIndex].id, anchor: .center)
         }
     }
 }
@@ -161,64 +177,17 @@ struct PlayQueueRow: View {
     
     var body: some View {
         HStack(spacing: 10) {
-            // Position or playing indicator
-            ZStack {
-                if isCurrentTrack && isPlaying {
-                    PlayingIndicator()
-                        .frame(width: 20)
-                } else if isCurrentTrack {
-                    Image(systemName: "speaker.wave.2")
-                        .font(.system(size: 12))
-                        .foregroundColor(.accentColor)
-                        .frame(width: 20)
-                } else {
-                    Text("\(position + 1)")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .monospacedDigit()
-                        .frame(width: 20)
-                }
-            }
+            positionIndicator
             
-            // Track info
-            VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
-                    .font(.system(size: 13, weight: isCurrentTrack ? .medium : .regular))
-                    .lineLimit(1)
-                    .foregroundColor(isCurrentTrack ? .accentColor : .primary)
-                
-                Text(track.artist)
-                    .font(.system(size: 11))
-                    .lineLimit(1)
-                    .foregroundColor(.secondary)
-            }
+            trackInfo
             
             Spacer()
             
-            // Duration and remove button
-            HStack(spacing: 5) {
-                Text(formatDuration(track.duration))
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .monospacedDigit()
-                
-                if isHovered && !isCurrentTrack {
-                    Button(action: onRemove) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
+            trackControls
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(backgroundColor)
-        )
+        .background(rowBackground)
         .padding(.horizontal, 5)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -227,11 +196,72 @@ struct PlayQueueRow: View {
             }
         }
         .onTapGesture(count: 2) {
-            // Double-click to play
-            if !isCurrentTrack {
-                playlistManager.playFromQueue(at: position)
+            handleDoubleClick()
+        }
+    }
+    
+    // MARK: - Row Components
+    
+    private var positionIndicator: some View {
+        ZStack {
+            if isCurrentTrack && isPlaying {
+                PlayingIndicator()
+                    .frame(width: 20)
+            } else if isCurrentTrack {
+                Image(systemName: "speaker.wave.2")
+                    .font(.system(size: 12))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 20)
+            } else {
+                Text("\(position + 1)")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+                    .frame(width: 20)
             }
         }
+    }
+    
+    private var trackInfo: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(track.title)
+                .font(.system(size: 13, weight: isCurrentTrack ? .medium : .regular))
+                .lineLimit(1)
+                .foregroundColor(isCurrentTrack ? .accentColor : .primary)
+            
+            Text(track.artist)
+                .font(.system(size: 11))
+                .lineLimit(1)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var trackControls: some View {
+        HStack(spacing: 5) {
+            Text(formatDuration(track.duration))
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .monospacedDigit()
+            
+            if isHovered && !isCurrentTrack {
+                removeButton
+            }
+        }
+    }
+    
+    private var removeButton: some View {
+        Button(action: onRemove) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.plain)
+        .transition(.scale.combined(with: .opacity))
+    }
+    
+    private var rowBackground: some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(backgroundColor)
     }
     
     private var backgroundColor: Color {
@@ -244,10 +274,19 @@ struct PlayQueueRow: View {
         }
     }
     
+    // MARK: - Helper Methods
+    
     private func formatDuration(_ seconds: Double) -> String {
         let minutes = Int(seconds) / 60
         let remainingSeconds = Int(seconds) % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
+    }
+    
+    private func handleDoubleClick() {
+        // Double-click to play
+        if !isCurrentTrack {
+            playlistManager.playFromQueue(at: position)
+        }
     }
 }
 

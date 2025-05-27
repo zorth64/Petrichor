@@ -16,133 +16,95 @@ struct FilterSidebarView: View {
             
             Divider()
             
-            // Filter items list
             filterItemsList
         }
         .onChange(of: searchText) { newSearchText in
-            updateFilteredItems()
-            
-            // If we have a search and the currently selected item is no longer visible,
-            // reset to "All" item
-            if !newSearchText.isEmpty {
-                let currentFilteredItems = getFilterItems(for: selectedFilterType).filter { item in
-                    item.name.localizedCaseInsensitiveContains(newSearchText)
-                }
-                
-                // Check if current selection is still visible
-                let isCurrentSelectionVisible = currentFilteredItems.contains { item in
-                    item.name == selectedItemName
-                }
-                
-                // If current selection is not visible and it's not the "All" item, reset to "All"
-                if !isCurrentSelectionVisible && !selectedItemName.hasPrefix("All") {
-                    let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
-                    selectedFilterItem = allItem
-                    selectedItemName = allItem.name
-                }
-            }
+            handleSearchTextChange(newSearchText)
         }
         .onChange(of: selectedFilterType) { newFilterType in
-            updateFilteredItems()
-            
-            // Reset selection when filter type changes
-            let allItem = LibraryFilterItem.allItem(for: newFilterType, totalCount: libraryManager.tracks.count)
-            selectedFilterItem = allItem
-            selectedItemName = allItem.name
-            searchText = ""
+            handleFilterTypeChange(newFilterType)
         }
         .onChange(of: selectedFilterItem) { newItem in
             selectedItemName = newItem?.name ?? ""
         }
         .onChange(of: libraryManager.tracks) { _ in
-            cachedFilterItems.removeAll()
-            updateFilteredItems()
+            handleTracksChange()
         }
         .onAppear {
-            updateFilteredItems()
-            
-            // Initialize selection if not set
-            if selectedFilterItem == nil {
-                let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
-                selectedFilterItem = allItem
-                selectedItemName = allItem.name
-            } else {
-                selectedItemName = selectedFilterItem?.name ?? ""
-            }
+            handleOnAppear()
         }
     }
     
     // MARK: - Filter Sidebar Header
     
     private var filterSidebarHeader: some View {
-        HStack(spacing: 8) {
-            // Filter type dropdown
-            Picker("", selection: $selectedFilterType) {
-                ForEach(LibraryFilterType.allCases, id: \.self) { filterType in
-                    HStack(spacing: 4) {
-                        Image(systemName: filterType.icon)
-                            .font(.system(size: 11))
-                        Text(filterType.rawValue)
-                            .font(.system(size: 12))
-                    }
-                    .tag(filterType)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(width: 90)
-            .labelsHidden()
+        ListHeader {
+            filterTypeDropdown
             
-            // Search bar with sort button (matching Folders view exactly)
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 12))
-                
-                TextField("Search...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                        // When clearing search, reset to "All" if current selection is not visible
-                        let allItems = getFilterItems(for: selectedFilterType)
-                        let isCurrentSelectionStillVisible = allItems.contains { item in
-                            item.name == selectedItemName
-                        }
-                        
-                        if !isCurrentSelectionStillVisible && !selectedItemName.hasPrefix("All") {
-                            let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
-                            selectedFilterItem = allItem
-                            selectedItemName = allItem.name
-                        }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 10))
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Color(NSColor.textBackgroundColor))
-            .cornerRadius(4)
-            
-            // Sort button (matching Folders view style)
-            Button(action: {
-                sortAscending.toggle()
-                updateFilteredItems()
-            }) {
-                Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
-                    .font(.system(size: 11, weight: .medium))
-            }
-            .buttonStyle(.borderless)
-            .help("Sort \(sortAscending ? "descending" : "ascending")")
+            searchBarWithSort
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+    }
+    
+    private var filterTypeDropdown: some View {
+        Picker("", selection: $selectedFilterType) {
+            ForEach(LibraryFilterType.allCases, id: \.self) { filterType in
+                HStack(spacing: 4) {
+                    Image(systemName: filterType.icon)
+                        .font(.system(size: 11))
+                    Text(filterType.rawValue)
+                        .font(.system(size: 12))
+                }
+                .tag(filterType)
+            }
+        }
+        .pickerStyle(.menu)
+        .frame(width: 90)
+        .labelsHidden()
+    }
+    
+    private var searchBarWithSort: some View {
+        HStack(spacing: 8) {
+            searchBar
+            sortButton
+        }
+    }
+    
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+                .font(.system(size: 12))
+            
+            TextField("Search...", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+            
+            if !searchText.isEmpty {
+                clearSearchButton
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color(NSColor.textBackgroundColor))
+        .cornerRadius(4)
+    }
+    
+    private var clearSearchButton: some View {
+        Button(action: clearSearch) {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.secondary)
+                .font(.system(size: 10))
+        }
+        .buttonStyle(.borderless)
+    }
+    
+    private var sortButton: some View {
+        Button(action: toggleSort) {
+            Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
+                .font(.system(size: 11, weight: .medium))
+        }
+        .buttonStyle(.borderless)
+        .help("Sort \(sortAscending ? "descending" : "ascending")")
     }
     
     // MARK: - Filter Items List
@@ -169,6 +131,82 @@ struct FilterSidebarView: View {
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
         .background(Color(NSColor.textBackgroundColor))
+    }
+    
+    // MARK: - Action Methods
+    
+    private func clearSearch() {
+        searchText = ""
+        // When clearing search, reset to "All" if current selection is not visible
+        let allItems = getFilterItems(for: selectedFilterType)
+        let isCurrentSelectionStillVisible = allItems.contains { item in
+            item.name == selectedItemName
+        }
+        
+        if !isCurrentSelectionStillVisible && !selectedItemName.hasPrefix("All") {
+            let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+            selectedFilterItem = allItem
+            selectedItemName = allItem.name
+        }
+    }
+    
+    private func toggleSort() {
+        sortAscending.toggle()
+        updateFilteredItems()
+    }
+    
+    // MARK: - onChange Handlers
+    
+    private func handleSearchTextChange(_ newSearchText: String) {
+        updateFilteredItems()
+        
+        // If we have a search and the currently selected item is no longer visible,
+        // reset to "All" item
+        if !newSearchText.isEmpty {
+            let currentFilteredItems = getFilterItems(for: selectedFilterType).filter { item in
+                item.name.localizedCaseInsensitiveContains(newSearchText)
+            }
+            
+            // Check if current selection is still visible
+            let isCurrentSelectionVisible = currentFilteredItems.contains { item in
+                item.name == selectedItemName
+            }
+            
+            // If current selection is not visible and it's not the "All" item, reset to "All"
+            if !isCurrentSelectionVisible && !selectedItemName.hasPrefix("All") {
+                let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+                selectedFilterItem = allItem
+                selectedItemName = allItem.name
+            }
+        }
+    }
+    
+    private func handleFilterTypeChange(_ newFilterType: LibraryFilterType) {
+        updateFilteredItems()
+        
+        // Reset selection when filter type changes
+        let allItem = LibraryFilterItem.allItem(for: newFilterType, totalCount: libraryManager.tracks.count)
+        selectedFilterItem = allItem
+        selectedItemName = allItem.name
+        searchText = ""
+    }
+    
+    private func handleTracksChange() {
+        cachedFilterItems.removeAll()
+        updateFilteredItems()
+    }
+    
+    private func handleOnAppear() {
+        updateFilteredItems()
+        
+        // Initialize selection if not set
+        if selectedFilterItem == nil {
+            let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+            selectedFilterItem = allItem
+            selectedItemName = allItem.name
+        } else {
+            selectedItemName = selectedFilterItem?.name ?? ""
+        }
     }
     
     // MARK: - Helper Methods
