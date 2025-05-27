@@ -172,31 +172,21 @@ struct LibraryView: View {
     // MARK: - Tracks List Header
     
     private var tracksListHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                if let filterItem = selectedFilterItem {
-                    if filterItem.name.hasPrefix("All") {
-                        Text("All Tracks")
-                            .font(.headline)
-                    } else {
-                        Text(filterItem.name)
-                            .font(.headline)
-                    }
-                } else {
-                    Text("All Tracks")
-                        .font(.headline)
-                }
+        TrackListHeader(
+            title: headerTitle,
+            trackCount: cachedFilteredTracks.count
+        )
+    }
+
+    private var headerTitle: String {
+        if let filterItem = selectedFilterItem {
+            if filterItem.name.hasPrefix("All") {
+                return "All Tracks"
+            } else {
+                return filterItem.name
             }
-            .padding(.horizontal, 15)
-            .padding(.vertical, 8)
-            
-            Spacer()
-            
-            Text("\(cachedFilteredTracks.count) tracks")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.trailing, 15)
-                .padding(.vertical, 10)
+        } else {
+            return "All Tracks"
         }
     }
     
