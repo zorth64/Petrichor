@@ -81,6 +81,24 @@ class DatabaseManager: ObservableObject {
                 t.column("is_favorite", .boolean).notNull().defaults(to: false)
                 t.column("play_count", .integer).notNull().defaults(to: 0)
                 t.column("last_played_date", .datetime)
+                t.column("album_artist", .text)
+                t.column("track_number", .integer)
+                t.column("total_tracks", .integer)
+                t.column("disc_number", .integer)
+                t.column("total_discs", .integer)
+                t.column("rating", .integer) // 0-5 scale
+                t.column("compilation", .boolean).defaults(to: false)
+                t.column("release_date", .text) // Full date string
+                t.column("original_release_date", .text) // For reissues
+                t.column("bpm", .integer)
+                t.column("media_type", .text) // Music, Audiobook, Podcast, etc.
+
+                t.column("sort_title", .text)
+                t.column("sort_artist", .text)
+                t.column("sort_album", .text)
+                t.column("sort_album_artist", .text)
+
+                t.column("extended_metadata", .text) // JSON stored as text
             }
             
             try db.create(table: "playlists", ifNotExists: true) { t in
@@ -112,6 +130,10 @@ class DatabaseManager: ObservableObject {
             try db.create(index: "idx_tracks_composer", on: "tracks", columns: ["composer"], ifNotExists: true)
             try db.create(index: "idx_tracks_genre", on: "tracks", columns: ["genre"], ifNotExists: true)
             try db.create(index: "idx_tracks_year", on: "tracks", columns: ["year"], ifNotExists: true)
+            try db.create(index: "idx_tracks_album_artist", on: "tracks", columns: ["album_artist"], ifNotExists: true)
+            try db.create(index: "idx_tracks_rating", on: "tracks", columns: ["rating"], ifNotExists: true)
+            try db.create(index: "idx_tracks_compilation", on: "tracks", columns: ["compilation"], ifNotExists: true)
+            try db.create(index: "idx_tracks_media_type", on: "tracks", columns: ["media_type"], ifNotExists: true)
             try db.create(index: "idx_playlist_tracks_playlist_id", on: "playlist_tracks", columns: ["playlist_id"], ifNotExists: true)
         }
     }
@@ -316,17 +338,15 @@ class DatabaseManager: ObservableObject {
         
         try await dbQueue.write { db in
             for fileURL in files {
-                // Get file modification date
                 let fileModificationDate = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
                 
                 if let existingTrack = existingTracks[fileURL] {
-                    // Track exists - always re-extract metadata to check for updates
                     let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
                     
                     var hasChanges = false
                     var updatedTrack = existingTrack
                     
-                    // Update all metadata fields if we found better data
+                    // Update all core metadata fields if we found better data
                     if let newTitle = metadata.title,
                        !newTitle.isEmpty && newTitle != existingTrack.title {
                         updatedTrack.title = newTitle
@@ -362,19 +382,111 @@ class DatabaseManager: ObservableObject {
                         updatedTrack.year = newYear
                         hasChanges = true
                     }
-                    
-                    // Update duration if changed
+
                     if metadata.duration > 0 && abs(metadata.duration - existingTrack.duration) > 0.1 {
                         updatedTrack.duration = metadata.duration
                         hasChanges = true
                     }
-                    
-                    // Update artwork if we now have it and didn't before
+
                     if let newArtworkData = metadata.artworkData,
                        existingTrack.artworkData == nil {
                         updatedTrack.artworkData = newArtworkData
                         hasChanges = true
                     }
+
+                    if let newAlbumArtist = metadata.albumArtist,
+                       !newAlbumArtist.isEmpty && newAlbumArtist != existingTrack.albumArtist {
+                        updatedTrack.albumArtist = newAlbumArtist
+                        hasChanges = true
+                    }
+                    
+                    if let newTrackNumber = metadata.trackNumber,
+                       newTrackNumber != existingTrack.trackNumber {
+                        updatedTrack.trackNumber = newTrackNumber
+                        hasChanges = true
+                    }
+                    
+                    if let newTotalTracks = metadata.totalTracks,
+                       newTotalTracks != existingTrack.totalTracks {
+                        updatedTrack.totalTracks = newTotalTracks
+                        hasChanges = true
+                    }
+                    
+                    if let newDiscNumber = metadata.discNumber,
+                       newDiscNumber != existingTrack.discNumber {
+                        updatedTrack.discNumber = newDiscNumber
+                        hasChanges = true
+                    }
+                    
+                    if let newTotalDiscs = metadata.totalDiscs,
+                       newTotalDiscs != existingTrack.totalDiscs {
+                        updatedTrack.totalDiscs = newTotalDiscs
+                        hasChanges = true
+                    }
+                    
+                    if let newRating = metadata.rating,
+                       newRating != existingTrack.rating {
+                        updatedTrack.rating = newRating
+                        hasChanges = true
+                    }
+                    
+                    if metadata.compilation != existingTrack.compilation {
+                        updatedTrack.compilation = metadata.compilation
+                        hasChanges = true
+                    }
+                    
+                    if let newReleaseDate = metadata.releaseDate,
+                       !newReleaseDate.isEmpty && newReleaseDate != existingTrack.releaseDate {
+                        updatedTrack.releaseDate = newReleaseDate
+                        hasChanges = true
+                    }
+                    
+                    if let newOriginalReleaseDate = metadata.originalReleaseDate,
+                       !newOriginalReleaseDate.isEmpty && newOriginalReleaseDate != existingTrack.originalReleaseDate {
+                        updatedTrack.originalReleaseDate = newOriginalReleaseDate
+                        hasChanges = true
+                    }
+                    
+                    if let newBpm = metadata.bpm,
+                       newBpm != existingTrack.bpm {
+                        updatedTrack.bpm = newBpm
+                        hasChanges = true
+                    }
+                    
+                    if let newMediaType = metadata.mediaType,
+                       !newMediaType.isEmpty && newMediaType != existingTrack.mediaType {
+                        updatedTrack.mediaType = newMediaType
+                        hasChanges = true
+                    }
+                    
+                    // Update sort fields
+                    if let newSortTitle = metadata.sortTitle,
+                       !newSortTitle.isEmpty && newSortTitle != existingTrack.sortTitle {
+                        updatedTrack.sortTitle = newSortTitle
+                        hasChanges = true
+                    }
+                    
+                    if let newSortArtist = metadata.sortArtist,
+                       !newSortArtist.isEmpty && newSortArtist != existingTrack.sortArtist {
+                        updatedTrack.sortArtist = newSortArtist
+                        hasChanges = true
+                    }
+                    
+                    if let newSortAlbum = metadata.sortAlbum,
+                       !newSortAlbum.isEmpty && newSortAlbum != existingTrack.sortAlbum {
+                        updatedTrack.sortAlbum = newSortAlbum
+                        hasChanges = true
+                    }
+                    
+                    if let newSortAlbumArtist = metadata.sortAlbumArtist,
+                       !newSortAlbumArtist.isEmpty && newSortAlbumArtist != existingTrack.sortAlbumArtist {
+                        updatedTrack.sortAlbumArtist = newSortAlbumArtist
+                        hasChanges = true
+                    }
+                    
+                    // Always update extended metadata
+                    updatedTrack.extendedMetadata = metadata.extended
+                    hasChanges = true
                     
                     // Update in database if there were changes
                     if hasChanges {
@@ -388,6 +500,8 @@ class DatabaseManager: ObservableObject {
                     // Create track
                     var track = Track(url: fileURL)
                     track.folderId = folderId
+                    
+                    // Core fields
                     track.title = metadata.title ?? fileURL.deletingPathExtension().lastPathComponent
                     track.artist = metadata.artist ?? "Unknown Artist"
                     track.album = metadata.album ?? "Unknown Album"
@@ -397,10 +511,48 @@ class DatabaseManager: ObservableObject {
                     track.duration = metadata.duration
                     track.artworkData = metadata.artworkData
                     track.isMetadataLoaded = true
+                    track.albumArtist = metadata.albumArtist
+                    track.trackNumber = metadata.trackNumber
+                    track.totalTracks = metadata.totalTracks
+                    track.discNumber = metadata.discNumber
+                    track.totalDiscs = metadata.totalDiscs
+                    track.rating = metadata.rating
+                    track.compilation = metadata.compilation
+                    track.releaseDate = metadata.releaseDate
+                    track.originalReleaseDate = metadata.originalReleaseDate
+                    track.bpm = metadata.bpm
+                    track.mediaType = metadata.mediaType
+                    
+                    // Sort fields
+                    track.sortTitle = metadata.sortTitle
+                    track.sortArtist = metadata.sortArtist
+                    track.sortAlbum = metadata.sortAlbum
+                    track.sortAlbumArtist = metadata.sortAlbumArtist
+
+                    track.extendedMetadata = metadata.extended
                     
                     // Save to database
                     try track.save(db)
                     print("Added new track: \(track.title)")
+                    
+                    // Log some interesting metadata if present
+                    if let albumArtist = track.albumArtist {
+                        print("  Album Artist: \(albumArtist)")
+                    }
+                    if let trackNum = track.trackNumber {
+                        let totalStr = track.totalTracks.map { "/\($0)" } ?? ""
+                        print("  Track: \(trackNum)\(totalStr)")
+                    }
+                    if let discNum = track.discNumber {
+                        let totalStr = track.totalDiscs.map { "/\($0)" } ?? ""
+                        print("  Disc: \(discNum)\(totalStr)")
+                    }
+                    if track.compilation {
+                        print("  Compilation: Yes")
+                    }
+                    if let mbid = track.extendedMetadata?.musicBrainzTrackId {
+                        print("  MusicBrainz ID: \(mbid)")
+                    }
                 }
             }
         }

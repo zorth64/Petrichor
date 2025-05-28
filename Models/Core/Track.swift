@@ -5,7 +5,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     let id = UUID()
     var trackId: Int64?
     let url: URL
-    
+
     @Published var title: String
     @Published var artist: String
     @Published var album: String
@@ -18,8 +18,27 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     @Published var isFavorite: Bool = false
     @Published var playCount: Int = 0
     @Published var lastPlayedDate: Date?
+
     let format: String
     var folderId: Int64?
+    var albumArtist: String?
+    var trackNumber: Int?
+    var totalTracks: Int?
+    var discNumber: Int?
+    var totalDiscs: Int?
+    var rating: Int?
+    var compilation: Bool = false
+    var releaseDate: String?
+    var originalReleaseDate: String?
+    var bpm: Int?
+    var mediaType: String?
+
+    var sortTitle: String?
+    var sortArtist: String?
+    var sortAlbum: String?
+    var sortAlbumArtist: String?
+
+    var extendedMetadata: ExtendedMetadata?
     
     // MARK: - Initialization
     
@@ -35,6 +54,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         self.year = "Unknown Year"
         self.duration = 0
         self.format = url.pathExtension
+        self.extendedMetadata = ExtendedMetadata()
     }
     
     // MARK: - DB Configuration
@@ -61,6 +81,22 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let isFavorite = Column("is_favorite")
         static let playCount = Column("play_count")
         static let lastPlayedDate = Column("last_played_date")
+        static let albumArtist = Column("album_artist")
+        static let trackNumber = Column("track_number")
+        static let totalTracks = Column("total_tracks")
+        static let discNumber = Column("disc_number")
+        static let totalDiscs = Column("total_discs")
+        static let rating = Column("rating")
+        static let compilation = Column("compilation")
+        static let releaseDate = Column("release_date")
+        static let originalReleaseDate = Column("original_release_date")
+        static let bpm = Column("bpm")
+        static let mediaType = Column("media_type")
+        static let sortTitle = Column("sort_title")
+        static let sortArtist = Column("sort_artist")
+        static let sortAlbum = Column("sort_album")
+        static let sortAlbumArtist = Column("sort_album_artist")
+        static let extendedMetadata = Column("extended_metadata")
     }
     
     // MARK: - FetchableRecord
@@ -88,8 +124,28 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         isFavorite = row[Columns.isFavorite] ?? false
         playCount = row[Columns.playCount] ?? 0
         lastPlayedDate = row[Columns.lastPlayedDate]
+        albumArtist = row[Columns.albumArtist]
+        trackNumber = row[Columns.trackNumber]
+        totalTracks = row[Columns.totalTracks]
+        discNumber = row[Columns.discNumber]
+        totalDiscs = row[Columns.totalDiscs]
+        rating = row[Columns.rating]
+        compilation = row[Columns.compilation] ?? false
+        releaseDate = row[Columns.releaseDate]
+        originalReleaseDate = row[Columns.originalReleaseDate]
+        bpm = row[Columns.bpm]
+        mediaType = row[Columns.mediaType]
+        sortTitle = row[Columns.sortTitle]
+        sortArtist = row[Columns.sortArtist]
+        sortAlbum = row[Columns.sortAlbum]
+        sortAlbumArtist = row[Columns.sortAlbumArtist]
         isMetadataLoaded = true
+        
+        // Load extended metadata
+        let extendedMetadataJSON: String? = row[Columns.extendedMetadata]
+        extendedMetadata = ExtendedMetadata.fromJSON(extendedMetadataJSON)
     }
+    
     // MARK: - PersistableRecord
     
     func encode(to container: inout PersistenceContainer) throws {
@@ -110,6 +166,24 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         container[Columns.isFavorite] = isFavorite
         container[Columns.playCount] = playCount
         container[Columns.lastPlayedDate] = lastPlayedDate
+        container[Columns.albumArtist] = albumArtist
+        container[Columns.trackNumber] = trackNumber
+        container[Columns.totalTracks] = totalTracks
+        container[Columns.discNumber] = discNumber
+        container[Columns.totalDiscs] = totalDiscs
+        container[Columns.rating] = rating
+        container[Columns.compilation] = compilation
+        container[Columns.releaseDate] = releaseDate
+        container[Columns.originalReleaseDate] = originalReleaseDate
+        container[Columns.bpm] = bpm
+        container[Columns.mediaType] = mediaType
+        container[Columns.sortTitle] = sortTitle
+        container[Columns.sortArtist] = sortArtist
+        container[Columns.sortAlbum] = sortAlbum
+        container[Columns.sortAlbumArtist] = sortAlbumArtist
+
+        // Save extended metadata as JSON
+        container[Columns.extendedMetadata] = extendedMetadata?.toJSON()
     }
     
     // Update if exists based on path
