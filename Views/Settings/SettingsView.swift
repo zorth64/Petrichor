@@ -143,6 +143,7 @@ struct SettingsView: View {
                     Label("Refresh Library", systemImage: "arrow.clockwise")
                 }
                 .disabled(libraryManager.isScanning)
+                .help("Scan for new files and update metadata")
                 
                 Button(action: { libraryManager.addFolder() }) {
                     Label("Add Folder", systemImage: "plus")

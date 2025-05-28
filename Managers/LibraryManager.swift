@@ -270,6 +270,10 @@ class LibraryManager: ObservableObject {
     func getTracksByAlbum(_ album: String) -> [Track] {
         return databaseManager.getTracksByAlbum(album)
     }
+    
+    func getTracksByComposer(_ composer: String) -> [Track] {
+        return databaseManager.getTracksByComposer(composer)
+    }
 
     func getTracksByGenre(_ genre: String) -> [Track] {
         return databaseManager.getTracksByGenre(genre)
@@ -290,6 +294,10 @@ class LibraryManager: ObservableObject {
     
     func getAllAlbums() -> [String] {
         return databaseManager.getAllAlbums()
+    }
+    
+    func getAllComposers() -> [String] {
+        return databaseManager.getAllComposers()
     }
     
     func getAllGenres() -> [String] {
