@@ -41,6 +41,10 @@ struct LibrarySidebarView: View {
         .onChange(of: libraryManager.tracks) { _ in
             updateFilteredItems()
         }
+        .onChange(of: sortAscending) { _ in
+            // Re-sort items when sort order changes
+            updateFilteredItems()
+        }
     }
     
     // MARK: - Header Section
@@ -152,13 +156,52 @@ struct LibrarySidebarView: View {
             }
         }
         
-        // Apply sorting
-        filteredItems = items.sorted { item1, item2 in
-            if sortAscending {
-                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+        // Apply custom sorting that puts "Unknown X" items at the top (after "All" items)
+        filteredItems = sortItemsWithUnknownFirst(items)
+    }
+    
+    // MARK: - Custom Sorting
+
+    private func sortItemsWithUnknownFirst(_ items: [LibraryFilterItem]) -> [LibraryFilterItem] {
+        // Separate items into two groups:
+        // 1. "Unknown X" items
+        // 2. Regular items
+        var unknownItems: [LibraryFilterItem] = []
+        var regularItems: [LibraryFilterItem] = []
+        
+        for item in items {
+            if isUnknownItem(item) {
+                unknownItems.append(item)
             } else {
-                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedDescending
+                regularItems.append(item)
             }
+        }
+        
+        // Sort regular items based on sortAscending state
+        regularItems.sort { item1, item2 in
+            let comparison = item1.name.localizedCaseInsensitiveCompare(item2.name)
+            return sortAscending ?
+                comparison == .orderedAscending :
+                comparison == .orderedDescending
+        }
+        
+        // Return with unknown items first, then sorted regular items
+        // (The "All" item is added separately in the SidebarView extension)
+        return unknownItems + regularItems
+    }
+    
+    private func isUnknownItem(_ item: LibraryFilterItem) -> Bool {
+        switch selectedFilterType {
+        case .artists:
+            return item.name == "Unknown Artist"
+        case .albums:
+            return item.name == "Unknown Album"
+        case .composers:
+            return item.name == "Unknown Composer"
+        case .genres:
+            return item.name == "Unknown Genre"
+        case .years:
+            return item.name == "Unknown Year"
         }
     }
     
@@ -167,10 +210,21 @@ struct LibrarySidebarView: View {
         
         switch filterType {
         case .artists:
-            let artistCounts = Dictionary(grouping: tracks, by: { $0.artist })
-                .mapValues { $0.count }
-            return artistCounts.map { artist, count in
-                LibraryFilterItem(name: artist, count: count, filterType: filterType)
+            // Parse multi-artist fields and create individual entries
+            var artistTrackMap: [String: Set<Track>] = [:]
+            
+            for track in tracks {
+                let artists = ArtistParser.parse(track.artist)
+                for artist in artists {
+                    if artistTrackMap[artist] == nil {
+                        artistTrackMap[artist] = []
+                    }
+                    artistTrackMap[artist]?.insert(track)
+                }
+            }
+            
+            return artistTrackMap.map { artist, trackSet in
+                LibraryFilterItem(name: artist, count: trackSet.count, filterType: filterType)
             }
             
         case .albums:
@@ -179,7 +233,14 @@ struct LibrarySidebarView: View {
             return albumCounts.map { album, count in
                 LibraryFilterItem(name: album, count: count, filterType: filterType)
             }
-            
+
+        case .composers:
+            let composerCounts = Dictionary(grouping: tracks, by: { $0.composer })
+                .mapValues { $0.count }
+            return composerCounts.map { composer, count in
+                LibraryFilterItem(name: composer, count: count, filterType: filterType)
+            }
+
         case .genres:
             let genreCounts = Dictionary(grouping: tracks, by: { $0.genre })
                 .mapValues { $0.count }
@@ -200,15 +261,22 @@ struct LibrarySidebarView: View {
         let trimmedSearch = searchTerm.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSearch.isEmpty else { return getFilterItems(for: .artists) }
         
-        let matchingTracks = libraryManager.tracks.filter { track in
-            track.artist.localizedCaseInsensitiveContains(trimmedSearch)
+        var artistTrackMap: [String: Set<Track>] = [:]
+        
+        for track in libraryManager.tracks {
+            let artists = ArtistParser.parse(track.artist)
+            for artist in artists {
+                if artist.localizedCaseInsensitiveContains(trimmedSearch) {
+                    if artistTrackMap[artist] == nil {
+                        artistTrackMap[artist] = []
+                    }
+                    artistTrackMap[artist]?.insert(track)
+                }
+            }
         }
         
-        let artistCounts = Dictionary(grouping: matchingTracks, by: { $0.artist })
-            .mapValues { $0.count }
-        
-        return artistCounts.map { artist, count in
-            LibraryFilterItem(name: artist, count: count, filterType: .artists)
+        return artistTrackMap.map { artist, trackSet in
+            LibraryFilterItem(name: artist, count: trackSet.count, filterType: .artists)
         }
     }
 }

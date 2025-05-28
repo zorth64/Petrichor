@@ -341,7 +341,8 @@ struct LibrarySidebarItem: SidebarItem {
         self.id = filterItem.id  // Use the stable ID from filterItem
         self.title = filterItem.name
         self.subtitle = nil
-        self.icon = "person.fill"
+        // Use the appropriate icon based on filter type
+        self.icon = Self.getIcon(for: filterItem.filterType, isAllItem: false)
         self.count = filterItem.count
         self.filterType = filterItem.filterType
         self.filterName = filterItem.name
@@ -353,10 +354,26 @@ struct LibrarySidebarItem: SidebarItem {
         self.id = UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012d", filterType.hashValue))") ?? UUID()
         self.title = "All \(filterType.rawValue)"
         self.subtitle = nil
-        self.icon = "person.2.fill"
+        // Use a different icon for "All" items
+        self.icon = Self.getIcon(for: filterType, isAllItem: true)
         self.count = count
         self.filterType = filterType
         self.filterName = ""
+    }
+    
+    private static func getIcon(for filterType: LibraryFilterType, isAllItem: Bool) -> String {
+        switch filterType {
+        case .artists:
+            return isAllItem ? "person.2.fill" : "person.fill"
+        case .albums:
+            return isAllItem ? "opticaldisc.fill" : "opticaldisc"
+        case .composers:
+            return isAllItem ? "person.2.fill" : "person.fill"
+        case .years:
+            return isAllItem ? "calendar.circle.fill" : "calendar"
+        case .genres:
+            return isAllItem ? "music.note.list" : "music.note"
+        }
     }
 }
 
@@ -441,14 +458,14 @@ extension SidebarView where Item == LibrarySidebarItem {
         selectedItem: Binding<LibrarySidebarItem?>,
         onItemTap: @escaping (LibrarySidebarItem) -> Void
     ) {
-        // Create items including "All" item
+        // Create items list
         var items: [LibrarySidebarItem] = []
         
-        // Add "All" item
+        // Add "All" item first
         let allItem = LibrarySidebarItem(allItemFor: filterType, count: totalTracksCount)
         items.append(allItem)
         
-        // Add filter items
+        // Add filter items (which should already be sorted with Unknown first)
         items.append(contentsOf: filterItems.map { LibrarySidebarItem(filterItem: $0) })
         
         self.init(

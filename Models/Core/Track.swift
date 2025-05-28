@@ -3,12 +3,13 @@ import GRDB
 
 class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, PersistableRecord {
     let id = UUID()
-    var trackId: Int64?  // Database ID
+    var trackId: Int64?
     let url: URL
     
     @Published var title: String
     @Published var artist: String
     @Published var album: String
+    @Published var composer: String
     @Published var genre: String
     @Published var year: String
     @Published var duration: Double
@@ -29,6 +30,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         self.title = url.deletingPathExtension().lastPathComponent
         self.artist = "Unknown Artist"
         self.album = "Unknown Album"
+        self.composer = "Unknown Composer"
         self.genre = "Unknown Genre"
         self.year = "Unknown Year"
         self.duration = 0
@@ -47,6 +49,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let title = Column("title")
         static let artist = Column("artist")
         static let album = Column("album")
+        static let composer = Column("composer")
         static let genre = Column("genre")
         static let year = Column("year")
         static let duration = Column("duration")
@@ -73,6 +76,11 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         artist = row[Columns.artist] ?? "Unknown Artist"
         album = row[Columns.album] ?? "Unknown Album"
         genre = row[Columns.genre] ?? "Unknown Genre"
+        
+        // Normalize empty composer strings
+        let composerValue = row[Columns.composer] ?? "Unknown Composer"
+        composer = composerValue.isEmpty ? "Unknown Composer" : composerValue
+        
         year = row[Columns.year] ?? ""
         duration = row[Columns.duration] ?? 0
         format = row[Columns.format] ?? url.pathExtension
@@ -82,7 +90,6 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         lastPlayedDate = row[Columns.lastPlayedDate]
         isMetadataLoaded = true
     }
-    
     // MARK: - PersistableRecord
     
     func encode(to container: inout PersistenceContainer) throws {
@@ -93,6 +100,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         container[Columns.title] = title
         container[Columns.artist] = artist
         container[Columns.album] = album
+        container[Columns.composer] = composer
         container[Columns.genre] = genre
         container[Columns.year] = year
         container[Columns.duration] = duration
@@ -121,5 +129,14 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     
     static func == (lhs: Track, rhs: Track) -> Bool {
         return lhs.id == rhs.id
+    }
+}
+
+// MARK: - Hashable Conformance
+
+extension Track: Hashable {
+    func hash(into hasher: inout Hasher) {
+        // Use the unique ID for hashing
+        hasher.combine(id)
     }
 }

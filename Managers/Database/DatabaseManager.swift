@@ -69,6 +69,7 @@ class DatabaseManager: ObservableObject {
                 t.column("title", .text)
                 t.column("artist", .text)
                 t.column("album", .text)
+                t.column("composer", .text)
                 t.column("genre", .text)
                 t.column("year", .text)
                 t.column("duration", .double)
@@ -108,6 +109,7 @@ class DatabaseManager: ObservableObject {
             try db.create(index: "idx_tracks_folder_id", on: "tracks", columns: ["folder_id"], ifNotExists: true)
             try db.create(index: "idx_tracks_artist", on: "tracks", columns: ["artist"], ifNotExists: true)
             try db.create(index: "idx_tracks_album", on: "tracks", columns: ["album"], ifNotExists: true)
+            try db.create(index: "idx_tracks_composer", on: "tracks", columns: ["composer"], ifNotExists: true)
             try db.create(index: "idx_tracks_genre", on: "tracks", columns: ["genre"], ifNotExists: true)
             try db.create(index: "idx_tracks_year", on: "tracks", columns: ["year"], ifNotExists: true)
             try db.create(index: "idx_playlist_tracks_playlist_id", on: "playlist_tracks", columns: ["playlist_id"], ifNotExists: true)
@@ -246,16 +248,28 @@ class DatabaseManager: ObservableObject {
         
         guard let enumerator = fileManager.enumerator(
             at: folder.url,
-            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else { return }
         
+        // Get existing tracks for this folder to check for updates
+        var existingTracks: [URL: Track] = [:]
+        if let folderId = folder.id {
+            let tracks = getTracksForFolder(folderId)
+            for track in tracks {
+                existingTracks[track.url] = track
+            }
+        }
+        
         // Collect all music files first
         var musicFiles: [URL] = []
+        var scannedPaths = Set<URL>()
+        
         for case let fileURL as URL in enumerator {
             let fileExtension = fileURL.pathExtension.lowercased()
             if supportedExtensions.contains(fileExtension) {
                 musicFiles.append(fileURL)
+                scannedPaths.insert(fileURL)
             }
         }
         
@@ -268,7 +282,7 @@ class DatabaseManager: ObservableObject {
         var processedCount = 0
         
         for batch in musicFiles.chunked(into: batchSize) {
-            try await processBatch(batch, folder: folder)
+            try await processBatch(batch, folder: folder, existingTracks: existingTracks)
             processedCount += batch.count
             
             let progress = Double(processedCount) / Double(musicFiles.count)
@@ -277,11 +291,24 @@ class DatabaseManager: ObservableObject {
             }
         }
         
+        // Remove tracks that no longer exist in the folder
+        if let folderId = folder.id {
+            try await dbQueue.write { db in
+                for (url, track) in existingTracks {
+                    if !scannedPaths.contains(url) {
+                        // File no longer exists, remove from database
+                        try track.delete(db)
+                        print("Removed track that no longer exists: \(url.lastPathComponent)")
+                    }
+                }
+            }
+        }
+        
         // Update folder track count
         try await updateFolderTrackCount(folder)
     }
     
-    private func processBatch(_ files: [URL], folder: Folder) async throws {
+    private func processBatch(_ files: [URL], folder: Folder, existingTracks: [URL: Track]) async throws {
         guard let folderId = folder.id else {
             print("ERROR: Folder has no ID! Folder: \(folder.name)")
             return
@@ -289,23 +316,92 @@ class DatabaseManager: ObservableObject {
         
         try await dbQueue.write { db in
             for fileURL in files {
-                // Extract metadata
-                let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+                // Get file modification date
+                let fileModificationDate = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
                 
-                // Create track
-                var track = Track(url: fileURL)
-                track.folderId = folderId  // This should now have a valid ID
-                track.title = metadata.title ?? fileURL.deletingPathExtension().lastPathComponent
-                track.artist = metadata.artist ?? "Unknown Artist"
-                track.album = metadata.album ?? "Unknown Album"
-                track.genre = metadata.genre ?? "Unknown Genre"
-                track.year = metadata.year ?? ""
-                track.duration = metadata.duration
-                track.artworkData = metadata.artworkData
-                track.isMetadataLoaded = true
-                
-                // Save to database
-                try track.save(db)
+                if let existingTrack = existingTracks[fileURL] {
+                    // Track exists - always re-extract metadata to check for updates
+                    let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+                    
+                    var hasChanges = false
+                    var updatedTrack = existingTrack
+                    
+                    // Update all metadata fields if we found better data
+                    if let newTitle = metadata.title,
+                       !newTitle.isEmpty && newTitle != existingTrack.title {
+                        updatedTrack.title = newTitle
+                        hasChanges = true
+                    }
+                    
+                    if let newArtist = metadata.artist,
+                       !newArtist.isEmpty && newArtist != existingTrack.artist {
+                        updatedTrack.artist = newArtist
+                        hasChanges = true
+                    }
+                    
+                    if let newAlbum = metadata.album,
+                       !newAlbum.isEmpty && newAlbum != existingTrack.album {
+                        updatedTrack.album = newAlbum
+                        hasChanges = true
+                    }
+                    
+                    if let newGenre = metadata.genre,
+                       !newGenre.isEmpty && (existingTrack.genre == "Unknown Genre" || existingTrack.genre != newGenre) {
+                        updatedTrack.genre = newGenre
+                        hasChanges = true
+                    }
+                    
+                    if let newComposer = metadata.composer,
+                       !newComposer.isEmpty && (existingTrack.composer == "Unknown Composer" || existingTrack.composer.isEmpty || existingTrack.composer != newComposer) {
+                        updatedTrack.composer = newComposer
+                        hasChanges = true
+                    }
+                    
+                    if let newYear = metadata.year,
+                       !newYear.isEmpty && (existingTrack.year.isEmpty || existingTrack.year == "Unknown Year" || existingTrack.year != newYear) {
+                        updatedTrack.year = newYear
+                        hasChanges = true
+                    }
+                    
+                    // Update duration if changed
+                    if metadata.duration > 0 && abs(metadata.duration - existingTrack.duration) > 0.1 {
+                        updatedTrack.duration = metadata.duration
+                        hasChanges = true
+                    }
+                    
+                    // Update artwork if we now have it and didn't before
+                    if let newArtworkData = metadata.artworkData,
+                       existingTrack.artworkData == nil {
+                        updatedTrack.artworkData = newArtworkData
+                        hasChanges = true
+                    }
+                    
+                    // Update in database if there were changes
+                    if hasChanges {
+                        try updatedTrack.update(db)
+                        print("Updated metadata for: \(updatedTrack.title) - Changes detected")
+                    }
+                } else {
+                    // New track - extract metadata and add to database
+                    let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+                    
+                    // Create track
+                    var track = Track(url: fileURL)
+                    track.folderId = folderId
+                    track.title = metadata.title ?? fileURL.deletingPathExtension().lastPathComponent
+                    track.artist = metadata.artist ?? "Unknown Artist"
+                    track.album = metadata.album ?? "Unknown Album"
+                    track.genre = metadata.genre ?? "Unknown Genre"
+                    track.composer = metadata.composer ?? "Unknown Composer"
+                    track.year = metadata.year ?? ""
+                    track.duration = metadata.duration
+                    track.artworkData = metadata.artworkData
+                    track.isMetadataLoaded = true
+                    
+                    // Save to database
+                    try track.save(db)
+                    print("Added new track: \(track.title)")
+                }
             }
         }
     }
@@ -338,12 +434,7 @@ class DatabaseManager: ObservableObject {
             return []
         }
     }
-    
-    func getAllTracksLightweight() -> [Track] {
-        // For now, same as getAllTracks - we'll optimize later if needed
-        return getAllTracks()
-    }
-    
+
     func getTracksForFolder(_ folderId: Int64) -> [Track] {
         do {
             return try dbQueue.read { db in
@@ -358,36 +449,43 @@ class DatabaseManager: ObservableObject {
         }
     }
     
-    func getTracksForFolderLightweight(_ folderId: Int64) -> [Track] {
-        // For now, same as getTracksForFolder
-        return getTracksForFolder(folderId)
-    }
-    
     func getTracksByArtist(_ artist: String) -> [Track] {
         do {
             return try dbQueue.read { db in
-                try Track
-                    .filter(Track.Columns.artist.like("%\(artist)%"))
-                    .order(Track.Columns.album, Track.Columns.title)
-                    .fetchAll(db)
+                if artist == "Unknown Artist" {
+                    // Query for empty or "Unknown Artist"
+                    return try Track
+                        .filter(Track.Columns.artist == "" || Track.Columns.artist == "Unknown Artist")
+                        .order(Track.Columns.album, Track.Columns.title)
+                        .fetchAll(db)
+                } else {
+                    // For regular artists, use LIKE for partial matching (handles collaborations)
+                    return try Track
+                        .filter(Track.Columns.artist.like("%\(artist)%"))
+                        .order(Track.Columns.album, Track.Columns.title)
+                        .fetchAll(db)
+                }
             }
         } catch {
             print("Failed to fetch tracks by artist: \(error)")
             return []
         }
     }
-    
-    func getTracksByArtistLightweight(_ artist: String) -> [Track] {
-        return getTracksByArtist(artist)
-    }
-    
     func getTracksByAlbum(_ album: String) -> [Track] {
         do {
             return try dbQueue.read { db in
-                try Track
-                    .filter(Track.Columns.album == album)
-                    .order(Track.Columns.title)
-                    .fetchAll(db)
+                if album == "Unknown Album" {
+                    // Query for empty or "Unknown Album"
+                    return try Track
+                        .filter(Track.Columns.album == "" || Track.Columns.album == "Unknown Album")
+                        .order(Track.Columns.title)
+                        .fetchAll(db)
+                } else {
+                    return try Track
+                        .filter(Track.Columns.album == album)
+                        .order(Track.Columns.title)
+                        .fetchAll(db)
+                }
             }
         } catch {
             print("Failed to fetch tracks by album: \(error)")
@@ -395,17 +493,43 @@ class DatabaseManager: ObservableObject {
         }
     }
     
-    func getTracksByAlbumLightweight(_ album: String) -> [Track] {
-        return getTracksByAlbum(album)
+    func getTracksByComposer(_ composer: String) -> [Track] {
+        do {
+            return try dbQueue.read { db in
+                if composer == "Unknown Composer" {
+                    // Query for empty or "Unknown Composer"
+                    return try Track
+                        .filter(Track.Columns.composer == "" || Track.Columns.composer == "Unknown Composer")
+                        .order(Track.Columns.title)
+                        .fetchAll(db)
+                } else {
+                    return try Track
+                        .filter(Track.Columns.composer == composer)
+                        .order(Track.Columns.title)
+                        .fetchAll(db)
+                }
+            }
+        } catch {
+            print("Failed to fetch tracks by composer: \(error)")
+            return []
+        }
     }
     
     func getTracksByGenre(_ genre: String) -> [Track] {
         do {
             return try dbQueue.read { db in
-                try Track
-                    .filter(Track.Columns.genre == genre)
-                    .order(Track.Columns.artist, Track.Columns.title)
-                    .fetchAll(db)
+                if genre == "Unknown Genre" {
+                    // Query for empty or "Unknown Genre"
+                    return try Track
+                        .filter(Track.Columns.genre == "" || Track.Columns.genre == "Unknown Genre")
+                        .order(Track.Columns.artist, Track.Columns.title)
+                        .fetchAll(db)
+                } else {
+                    return try Track
+                        .filter(Track.Columns.genre == genre)
+                        .order(Track.Columns.artist, Track.Columns.title)
+                        .fetchAll(db)
+                }
             }
         } catch {
             print("Failed to fetch tracks by genre: \(error)")
@@ -416,10 +540,18 @@ class DatabaseManager: ObservableObject {
     func getTracksByYear(_ year: String) -> [Track] {
         do {
             return try dbQueue.read { db in
-                try Track
-                    .filter(Track.Columns.year == year)
-                    .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
-                    .fetchAll(db)
+                if year == "Unknown Year" {
+                    // Query for empty or "Unknown Year"
+                    return try Track
+                        .filter(Track.Columns.year == "" || Track.Columns.year == "Unknown Year")
+                        .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
+                        .fetchAll(db)
+                } else {
+                    return try Track
+                        .filter(Track.Columns.year == year)
+                        .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
+                        .fetchAll(db)
+                }
             }
         } catch {
             print("Failed to fetch tracks by year: \(error)")
@@ -457,6 +589,26 @@ class DatabaseManager: ObservableObject {
             }
         } catch {
             print("Failed to fetch albums: \(error)")
+            return []
+        }
+    }
+    
+    func getAllComposers() -> [String] {
+        do {
+            return try dbQueue.read { db in
+                let composers = try Track
+                    .select(Track.Columns.composer, as: String.self)
+                    .distinct()
+                    .filter(Track.Columns.composer != nil)
+                    .fetchAll(db)
+                
+                // Normalize empty strings to "Unknown Composer"
+                return composers.map { composer in
+                    composer.isEmpty ? "Unknown Composer" : composer
+                }.removingDuplicates()
+            }
+        } catch {
+            print("Failed to fetch composers: \(error)")
             return []
         }
     }
@@ -519,14 +671,7 @@ class DatabaseManager: ObservableObject {
                     self.scanStatusMessage = "Refreshing \(folder.name)..."
                 }
                 
-                // Delete existing tracks for this folder
-                try await dbQueue.write { db in
-                    try Track
-                        .filter(Track.Columns.folderId == folder.id)
-                        .deleteAll(db)
-                }
-                
-                // Rescan the folder
+                // Scan the folder - this will now always check for metadata updates
                 try await scanSingleFolder(folder, supportedExtensions: ["mp3", "m4a", "wav", "aac", "aiff", "flac"])
                 
                 await MainActor.run {
@@ -543,7 +688,7 @@ class DatabaseManager: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Track Property Updates
     
     // Updates a track's favorite status
@@ -868,6 +1013,17 @@ extension Array {
     func chunked(into size: Int) -> [[Element]] {
         return stride(from: 0, to: count, by: size).map {
             Array(self[$0 ..< Swift.min($0 + size, count)])
+        }
+    }
+}
+
+extension Array where Element: Hashable {
+    func removingDuplicates() -> [Element] {
+        var seen = Set<Element>()
+        return self.filter { element in
+            guard !seen.contains(element) else { return false }
+            seen.insert(element)
+            return true
         }
     }
 }
