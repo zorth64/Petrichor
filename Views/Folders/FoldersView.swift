@@ -35,35 +35,40 @@ struct FoldersView: View {
     }
     
     var body: some View {
-        HSplitView {
-            foldersSidebar
-                .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
-            
-            folderTracksView
-                .frame(minWidth: 300)
-        }
-        .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
-            Button("Cancel", role: .cancel) {
-                folderToRemove = nil
+        if libraryManager.folders.isEmpty {
+            // Show unified empty state when no folders exist
+            NoMusicEmptyStateView(context: .mainWindow)
+        } else {
+            HSplitView {
+                foldersSidebar
+                    .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
+                
+                folderTracksView
+                    .frame(minWidth: 300)
             }
-            Button("Remove", role: .destructive) {
-                if let folder = folderToRemove {
-                    libraryManager.removeFolder(folder)
+            .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
+                Button("Cancel", role: .cancel) {
                     folderToRemove = nil
                 }
+                Button("Remove", role: .destructive) {
+                    if let folder = folderToRemove {
+                        libraryManager.removeFolder(folder)
+                        folderToRemove = nil
+                    }
+                }
+            } message: {
+                if let folder = folderToRemove {
+                    Text("Are you sure you want to remove \"\(folder.name)\" from your library? This will remove all tracks from this folder but won't delete the actual files.")
+                }
             }
-        } message: {
-            if let folder = folderToRemove {
-                Text("Are you sure you want to remove \"\(folder.name)\" from your library? This will remove all tracks from this folder but won't delete the actual files.")
+            .sheet(isPresented: $showingCreatePlaylistWithTrack) {
+                createPlaylistSheet
             }
-        }
-        .sheet(isPresented: $showingCreatePlaylistWithTrack) {
-            createPlaylistSheet
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreatePlaylistWithTrack"))) { notification in
-            if let track = notification.userInfo?["track"] as? Track {
-                trackToAddToNewPlaylist = track
-                showingCreatePlaylistWithTrack = true
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreatePlaylistWithTrack"))) { notification in
+                if let track = notification.userInfo?["track"] as? Track {
+                    trackToAddToNewPlaylist = track
+                    showingCreatePlaylistWithTrack = true
+                }
             }
         }
     }
