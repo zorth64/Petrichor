@@ -17,10 +17,8 @@ struct LibraryView: View {
     
     var body: some View {
         VStack {
-            if libraryManager.isScanning {
-                scanningView
-            } else if libraryManager.tracks.isEmpty {
-                emptyLibraryView
+            if libraryManager.tracks.isEmpty {
+                NoMusicEmptyStateView(context: .mainWindow)
             } else {
                 // Main library view with sidebar
                 HSplitView {
@@ -69,46 +67,6 @@ struct LibraryView: View {
                 }
             }
         }
-    }
-    
-    // MARK: - Scanning View
-    
-    private var scanningView: some View {
-        VStack(spacing: 20) {
-            ProgressView()
-                .scaleEffect(1.5)
-            
-            Text("Scanning for music files...")
-                .font(.headline)
-            
-            Text("Found \(libraryManager.tracks.count) tracks so far")
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Empty Library View
-    
-    private var emptyLibraryView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "music.note.list")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
-            
-            Text("No music found")
-                .font(.headline)
-            
-            Text("Click 'Add Folder' to add music to your library")
-                .foregroundColor(.secondary)
-            
-            Button(action: { libraryManager.addFolder() }) {
-                Label("Add Folder", systemImage: "folder.badge.plus")
-                    .padding()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Tracks List View

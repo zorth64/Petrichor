@@ -31,9 +31,7 @@ struct FoldersSidebarView: View {
             Divider()
             
             // Sidebar content
-            if libraryManager.folders.isEmpty {
-                emptyFoldersView
-            } else if filteredFolders.isEmpty {
+            if filteredFolders.isEmpty && !searchText.isEmpty {
                 noSearchResultsView
             } else {
                 SidebarView(
@@ -100,34 +98,7 @@ struct FoldersSidebarView: View {
         }
     }
     
-    // MARK: - Empty States
-    
-    private var emptyFoldersView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "folder.badge.questionmark")
-                .font(.system(size: 32))
-                .foregroundColor(.gray)
-            
-            Text("No Folders")
-                .font(.subheadline)
-                .fontWeight(.medium)
-            
-            Text("Add folders to see your music organized by location")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            Button("Add Folder") {
-                libraryManager.addFolder()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .background(Color(NSColor.textBackgroundColor))
-    }
+    // MARK: - No Search Results
     
     private var noSearchResultsView: some View {
         VStack(spacing: 16) {

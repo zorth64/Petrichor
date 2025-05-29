@@ -11,73 +11,30 @@ struct SettingsView: View {
     @State private var showingRemoveFolderAlert = false
     @State private var showingResetConfirmation = false
     @State private var folderToRemove: Folder?
-    @State private var isScanning = false
     
     var body: some View {
-        ZStack {
-            TabView {
-                // General Settings Tab
-                generalSettingsView
-                    .tabItem {
-                        Label("General", systemImage: "gear")
-                    }
-                
-                // Library Management Tab
-                libraryManagementView
-                    .tabItem {
-                        Label("Library", systemImage: "music.note.list")
-                    }
-                
-                // About Tab
-                aboutView
-                    .tabItem {
-                        Label("About", systemImage: "info.circle")
-                    }
-            }
-            .padding(20)
-            .frame(width: 600, height: 600)
-            .background(Color.clear)
-            .disabled(isScanning || libraryManager.isScanning)  // Disable UI during scanning
-            .blur(radius: (isScanning || libraryManager.isScanning) ? 3 : 0)  // Blur effect
-            
-            // Local scanning overlay
-            if isScanning || libraryManager.isScanning {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .progressViewStyle(.circular)
-                    
-                    Text("Scanning Music Library")
-                        .font(.headline)
-                    
-                    if !libraryManager.scanStatusMessage.isEmpty {
-                        Text(libraryManager.scanStatusMessage)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: 300)
-                    }
-                    
-                    if libraryManager.scanProgress > 0 {
-                        ProgressView(value: libraryManager.scanProgress)
-                            .progressViewStyle(.linear)
-                            .frame(width: 250)
-                    }
+        TabView {
+            // General Settings Tab
+            generalSettingsView
+                .tabItem {
+                    Label("General", systemImage: "gear")
                 }
-                .padding(40)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                        .shadow(radius: 10)
-                )
-            }
+            
+            // Library Management Tab
+            libraryManagementView
+                .tabItem {
+                    Label("Library", systemImage: "music.note.list")
+                }
+            
+            // About Tab
+            aboutView
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
         }
-        .onReceive(libraryManager.$isScanning) { scanning in
-            isScanning = scanning
-        }
+        .padding(20)
+        .frame(width: 600, height: 600)
+        .background(Color.clear)
         .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Remove", role: .destructive) {
@@ -125,6 +82,19 @@ struct SettingsView: View {
     
     private var libraryManagementView: some View {
         VStack(spacing: 0) {
+            if libraryManager.folders.isEmpty {
+                // Show our unified empty state when no folders exist
+                NoMusicEmptyStateView(context: .settings)
+            } else {
+                // Show the normal library management UI
+                libraryManagementContent
+            }
+        }
+        .padding(10)
+    }
+    
+    private var libraryManagementContent: some View {
+        VStack(spacing: 0) {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -156,134 +126,103 @@ struct SettingsView: View {
             Divider()
             
             // Folders List
-            if libraryManager.folders.isEmpty {
-                VStack(spacing: 20) {
-                    Spacer()
-                    
-                    Image(systemName: "folder.badge.questionmark")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
-                    
-                    Text("No folders being watched")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                    
-                    Text("Add folders containing your music to get started")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    
-                    Button(action: { libraryManager.addFolder() }) {
-                        Label("Add Your First Folder", systemImage: "folder.badge.plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(libraryManager.folders) { folder in
-                            VStack(spacing: 0) {
-                                SettingsFolderRow(
-                                    folder: folder,
-                                    trackCount: libraryManager.getTracksInFolder(folder).count,
-                                    onRemove: {
-                                        folderToRemove = folder
-                                        showingRemoveFolderAlert = true
-                                    }
-                                )
-                                .padding()
-                                
-                                if folder.id != libraryManager.folders.last?.id {
-                                    Divider()
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(libraryManager.folders) { folder in
+                        VStack(spacing: 0) {
+                            SettingsFolderRow(
+                                folder: folder,
+                                trackCount: libraryManager.getTracksInFolder(folder).count,
+                                onRemove: {
+                                    folderToRemove = folder
+                                    showingRemoveFolderAlert = true
                                 }
+                            )
+                            .padding()
+                            
+                            if folder.id != libraryManager.folders.last?.id {
+                                Divider()
                             }
                         }
                     }
                 }
-                .frame(maxHeight: .infinity)
-                
-                HStack(spacing: 12) {
-                    Button(action: { libraryManager.cleanupMissingFolders() }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "paintbrush")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("Clean Up Missing Folders")
-                                .font(.system(size: 13, weight: .medium))
-                        }
-                        .foregroundColor(.primary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    
-                    Button(action: { showingResetConfirmation = true }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "trash.fill")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("Reset All Library Data")
-                                .font(.system(size: 13, weight: .medium))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                    .controlSize(.regular)
-                }
-                .alert("Reset Library Data", isPresented: $showingResetConfirmation) {
-                    Button("Cancel", role: .cancel) { }
-                    Button("Reset All Data", role: .destructive) {
-                        resetLibraryData()
-                    }
-                } message: {
-                    Text("This will permanently remove all library data, including added folders, tracks, and settings. This action cannot be undone.")
-                }
-                .padding(.horizontal, 20)
-                Spacer()
             }
+            .frame(maxHeight: .infinity)
+            
+            HStack(spacing: 12) {
+                Button(action: { libraryManager.cleanupMissingFolders() }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "paintbrush")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("Clean Up Missing Folders")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                
+                Button(action: { showingResetConfirmation = true }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("Reset All Library Data")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .controlSize(.regular)
+            }
+            .alert("Reset Library Data", isPresented: $showingResetConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Reset All Data", role: .destructive) {
+                    resetLibraryData()
+                }
+            } message: {
+                Text("This will permanently remove all library data, including added folders, tracks, and settings. This action cannot be undone.")
+            }
+            .padding(.horizontal, 20)
+            Spacer()
             
             // Footer Info
-            if !libraryManager.folders.isEmpty {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(libraryManager.folders.count) folders monitored")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Text("\(libraryManager.tracks.count) total tracks")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(libraryManager.folders.count) folders monitored")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     
-                    Spacer()
-                    
-                    if let lastScan = UserDefaults.standard.object(forKey: "LastScanDate") as? Date {
-                        Text("Last scan: \(lastScan, style: .relative) ago")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    if libraryManager.isScanning {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Scanning...")
-                            .font(.caption)
-                            .foregroundColor(Color.clear)
-                    }
+                    Text("\(libraryManager.tracks.count) total tracks")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .padding()
-                .background(Color.clear)
+                
+                Spacer()
+                
+                if let lastScan = UserDefaults.standard.object(forKey: "LastScanDate") as? Date {
+                    Text("Last scan: \(lastScan, style: .relative) ago")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                if libraryManager.isScanning {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Scanning...")
+                        .font(.caption)
+                        .foregroundColor(Color.clear)
+                }
             }
+            .padding()
+            .background(Color.clear)
         }
-        .padding(10)
     }
     
     // MARK: - About

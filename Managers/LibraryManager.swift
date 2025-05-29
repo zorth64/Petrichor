@@ -8,6 +8,7 @@ class LibraryManager: ObservableObject {
     @Published var isScanning: Bool = false
     @Published var scanProgress: Double = 0.0
     @Published var scanStatusMessage: String = ""
+    @Published var isBackgroundScanning: Bool = false
     
     // MARK: - Private Properties
     private let fileManager = FileManager.default
@@ -23,6 +24,12 @@ class LibraryManager: ObservableObject {
     private enum UserDefaultsKeys {
         static let lastScanDate = "LastScanDate"
         static let securityBookmarks = "SecurityBookmarks"
+        static let autoScanInterval = "autoScanInterval"
+    }
+    
+    private var autoScanInterval: AutoScanInterval {
+        let rawValue = userDefaults.string(forKey: UserDefaultsKeys.autoScanInterval) ?? AutoScanInterval.every60Minutes.rawValue
+        return AutoScanInterval(rawValue: rawValue) ?? .every60Minutes
     }
     
     // MARK: - Initialization
@@ -30,7 +37,7 @@ class LibraryManager: ObservableObject {
         print("LibraryManager: Initializing...")
             
         do {
-            // Initialize  database manager
+            // Initialize database manager
             databaseManager = try DatabaseManager()
         } catch {
             fatalError("Failed to initialize database: \(error)")
@@ -58,6 +65,14 @@ class LibraryManager: ObservableObject {
             self,
             selector: #selector(handleMemoryPressure),
             name: NSNotification.Name.NSProcessInfoPowerStateDidChange,
+            object: nil
+        )
+        
+        // Observe auto-scan interval changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(autoScanIntervalDidChange),
+            name: UserDefaults.didChangeNotification,
             object: nil
         )
     }
@@ -222,16 +237,36 @@ class LibraryManager: ObservableObject {
     // MARK: - File Watching
     
     private func startFileWatcher() {
-        // Create a timer that checks for file changes every 5 minutes
-        fileWatcherTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+        // Cancel any existing timer
+        fileWatcherTimer?.invalidate()
+        fileWatcherTimer = nil
+        
+        // Get current auto-scan interval
+        let currentInterval = autoScanInterval
+        
+        // Only start a timer if auto-scan is not set to "only on launch"
+        guard let interval = currentInterval.timeInterval else {
+            print("LibraryManager: Auto-scan set to only on launch, no timer started")
+            return
+        }
+        
+        print("LibraryManager: Starting auto-scan timer with interval: \(interval) seconds (\(currentInterval.displayName))")
+        
+        fileWatcherTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
             // Only refresh if we're not currently scanning
-            if !self.isScanning {
+            if !self.isScanning && !self.isBackgroundScanning {
                 print("LibraryManager: Starting periodic refresh...")
                 self.refreshLibrary()
             }
         }
+    }
+    
+    private func handleAutoScanIntervalChange() {
+        print("LibraryManager: Auto-scan interval changed to: \(autoScanInterval.displayName)")
+        // Restart the file watcher with new interval
+        startFileWatcher()
     }
     
     // MARK: - Track Management
@@ -313,6 +348,9 @@ class LibraryManager: ObservableObject {
     func refreshLibrary() {
         print("LibraryManager: Refreshing library...")
         
+        // Set background scanning flag instead of regular scanning
+        isBackgroundScanning = true
+
         // For each folder, trigger a refresh in the database
         for folder in folders {
             databaseManager.refreshFolder(folder) { result in
@@ -328,10 +366,14 @@ class LibraryManager: ObservableObject {
         // Reload the library after refresh
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             self.loadMusicLibrary()
+            self.isBackgroundScanning = false
         }
     }
     
     func refreshFolder(_ folder: Folder) {
+        // Set background scanning flag
+        isBackgroundScanning = true
+
         // Delegate to database manager for refresh
         databaseManager.refreshFolder(folder) { [weak self] result in
             switch result {
@@ -339,8 +381,10 @@ class LibraryManager: ObservableObject {
                 print("LibraryManager: Successfully refreshed folder \(folder.name)")
                 // Reload the library to reflect changes
                 self?.loadMusicLibrary()
+                self?.isBackgroundScanning = false
             case .failure(let error):
                 print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                self?.isBackgroundScanning = false
             }
         }
     }
@@ -390,6 +434,13 @@ class LibraryManager: ObservableObject {
             
             // Clear UserDefaults
             UserDefaults.standard.removeObject(forKey: "LastScanDate")
+        }
+    }
+    
+    @objc private func autoScanIntervalDidChange(_ notification: Notification) {
+        // Check if the auto-scan interval specifically changed
+        DispatchQueue.main.async { [weak self] in
+            self?.handleAutoScanIntervalChange()
         }
     }
     

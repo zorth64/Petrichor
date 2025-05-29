@@ -12,14 +12,16 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Dynamic Toolbar based on selected tab
-            DynamicToolbar(
-                selectedTab: selectedTab,
-                viewType: $globalViewType
-            )
-            
-            Divider()
-            
+            // Contextual Toolbar - only show when we have music
+            if !libraryManager.tracks.isEmpty {
+                ContextualToolbar(
+                    selectedTab: selectedTab,
+                    viewType: $globalViewType
+                )
+                
+                Divider()
+            }
+
             // Main Content Area with Queue
             HSplitView {
                 // Main content
@@ -59,20 +61,35 @@ struct ContentView: View {
             
             // Right side of title bar
             ToolbarItem(placement: .primaryAction) {
-                Button(action: {
-                    showingSettings = true
-                }) {
-                    Image(systemName: "gear")
-                        .font(.system(size: 16))
+                HStack(alignment: .center, spacing: 8) {
+                    // Background scanning indicator with fixed frame
+                    ZStack {
+                        // Always reserve space for the indicator
+                        Color.clear
+                            .frame(width: 24, height: 24)
+                        
+                        if libraryManager.isBackgroundScanning && !libraryManager.folders.isEmpty {
+                            BackgroundScanningIndicator()
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: libraryManager.isBackgroundScanning)
+                    
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 16))
+                            .frame(width: 24, height: 24) // Fixed frame to match indicator
+                    }
+                    .buttonStyle(.borderless)
                 }
-                .buttonStyle(.borderless)
             }
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
                 .environmentObject(libraryManager)
         }
-        .scanningOverlay()
     }
 }
 
@@ -84,6 +101,9 @@ struct ContentView: View {
         }())
         .environmentObject({
             let coordinator = AppCoordinator()
+            // Set up library manager to show background scanning
+            coordinator.libraryManager.isBackgroundScanning = true
+            coordinator.libraryManager.folders = [Folder(url: URL(fileURLWithPath: "/Music"))]
             return coordinator.libraryManager
         }())
         .environmentObject({
