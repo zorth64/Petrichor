@@ -7,7 +7,7 @@ struct GeneralTabView: View {
     @AppStorage("autoScanInterval") private var autoScanInterval: AutoScanInterval = .every60Minutes
     @AppStorage("colorMode") private var colorMode: ColorMode = .auto
     
-    enum ColorMode: String, CaseIterable {
+    enum ColorMode: String, CaseIterable, TabbedItem {
         case light = "Light"
         case dark = "Dark"
         case auto = "Auto"
@@ -26,6 +26,8 @@ struct GeneralTabView: View {
                 return "circle.lefthalf.filled"
             }
         }
+        
+        var title: String { self.displayName }
     }
     
     var body: some View {
@@ -40,8 +42,12 @@ struct GeneralTabView: View {
                 HStack {
                     Text("Color mode")
                     Spacer()
-                    ColorModeSegmentedControl(selection: $colorMode)
-                        .frame(width: 200)
+                    TabbedButtons(
+                        items: ColorMode.allCases,
+                        selection: $colorMode,
+                        style: .flexible
+                    )
+                    .frame(width: 200)
                 }
             }
             
@@ -79,78 +85,6 @@ struct GeneralTabView: View {
             NSApp.appearance = NSAppearance(named: .darkAqua)
         case .auto:
             NSApp.appearance = nil // Follow system
-        }
-    }
-}
-
-// Custom segmented control that shows icons
-struct ColorModeSegmentedControl: View {
-    @Binding var selection: GeneralTabView.ColorMode
-    
-    var body: some View {
-        HStack(spacing: 1) {
-            ForEach(GeneralTabView.ColorMode.allCases, id: \.self) { mode in
-                ColorModeButton(
-                    mode: mode,
-                    isSelected: selection == mode,
-                    action: { selection = mode }
-                )
-            }
-        }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-        )
-    }
-}
-
-struct ColorModeButton: View {
-    let mode: GeneralTabView.ColorMode
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovered = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: mode.icon)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(
-                        isSelected ? AnyShapeStyle(Color.white) :
-                        isHovered ? AnyShapeStyle(Color.primary) :
-                        AnyShapeStyle(Color.secondary)
-                    )
-                
-                Text(mode.displayName)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(
-                        isSelected ? .white :
-                        isHovered ? .primary :
-                        .secondary
-                    )
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(
-                        isSelected ? Color.accentColor :
-                        isHovered ? Color.primary.opacity(0.06) :
-                        Color.clear
-                    )
-                    .animation(.easeOut(duration: 0.15), value: isSelected)
-                    .animation(.easeOut(duration: 0.1), value: isHovered)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
         }
     }
 }

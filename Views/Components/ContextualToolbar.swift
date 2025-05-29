@@ -36,70 +36,11 @@ struct ContextualToolbar: View {
     // MARK: - View Toggle Buttons
     
     private var viewToggleButtons: some View {
-        HStack(spacing: 1) {
-            ViewToggleButton(
-                icon: "list.bullet",
-                viewType: .list,
-                currentViewType: $viewType
-            )
-            
-            ViewToggleButton(
-                icon: "square.grid.2x2",
-                viewType: .grid,
-                currentViewType: $viewType
-            )
-        }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+        TabbedButtons(
+            items: [LibraryViewType.list, LibraryViewType.grid],
+            selection: $viewType,
+            style: .viewToggle
         )
-    }
-}
-
-// MARK: - View Toggle Button Component
-
-private struct ViewToggleButton: View {
-    let icon: String
-    let viewType: LibraryViewType
-    @Binding var currentViewType: LibraryViewType
-    @State private var isHovered = false
-    
-    var isSelected: Bool {
-        currentViewType == viewType
-    }
-    
-    var body: some View {
-        Button(action: { currentViewType = viewType }) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(
-                    isSelected ? AnyShapeStyle(Color.white) :
-                    isHovered ? AnyShapeStyle(Color.primary) :
-                    AnyShapeStyle(Color.secondary)
-                )
-                .frame(width: 32, height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(
-                            isSelected ? Color.accentColor :
-                            isHovered ? Color.primary.opacity(0.06) :
-                            Color.clear
-                        )
-                        .animation(.easeOut(duration: 0.15), value: isSelected)
-                        .animation(.easeOut(duration: 0.1), value: isHovered)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .help("\(viewType.displayName)")
-        .onHover { hovering in
-            isHovered = hovering
-        }
     }
 }
 
