@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var showingSettings = false
     @State private var showingQueue = false
     @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .list
+    @State private var windowDelegate = WindowDelegate()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -52,6 +53,7 @@ struct ContentView: View {
             PlayerView(showingQueue: $showingQueue)
         }
         .frame(minWidth: 800, minHeight: 600)
+        .background(WindowAccessor(windowDelegate: windowDelegate))
         .navigationTitle("") // Remove any automatic title
         .toolbar {
             // Center tabs in title bar
@@ -163,6 +165,37 @@ struct TitleBarTabButton: View {
             isHovered = hovering
         }
     }
+}
+
+// Helper to access the window
+struct WindowAccessor: NSViewRepresentable {
+    let windowDelegate: WindowDelegate
+    
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window {
+                window.delegate = windowDelegate
+                // Enable window restoration
+                window.identifier = NSUserInterfaceItemIdentifier("MainWindow")
+                window.setFrameAutosaveName("MainWindow")
+                
+                // Store window reference for reuse
+                WindowManager.shared.mainWindow = window
+            }
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+// Window manager to track our main window
+class WindowManager {
+    static let shared = WindowManager()
+    weak var mainWindow: NSWindow?
+    
+    private init() {}
 }
 
 #Preview {

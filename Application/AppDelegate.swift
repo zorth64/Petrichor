@@ -3,6 +3,20 @@ import AppKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Apply color mode very early, before any windows are shown
+        let colorMode = UserDefaults.standard.string(forKey: "colorMode") ?? "auto"
+        
+        switch colorMode {
+        case "Light":
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case "Dark":
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: // "Auto" or any other value
+            NSApp.appearance = nil // Follow system
+        }
+    }
+    
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         // Check user preference for background running
         let closeToMenubar = UserDefaults.standard.bool(forKey: "closeToMenubar")
