@@ -36,7 +36,7 @@ struct ContextualToolbar: View {
     // MARK: - View Toggle Buttons
     
     private var viewToggleButtons: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 1) {
             ViewToggleButton(
                 icon: "list.bullet",
                 viewType: .list,
@@ -49,15 +49,15 @@ struct ContextualToolbar: View {
                 currentViewType: $viewType
             )
         }
+        .padding(4)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(NSColor.controlBackgroundColor))
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                 )
         )
-        .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 0.5)
     }
 }
 
@@ -67,6 +67,7 @@ private struct ViewToggleButton: View {
     let icon: String
     let viewType: LibraryViewType
     @Binding var currentViewType: LibraryViewType
+    @State private var isHovered = false
     
     var isSelected: Bool {
         currentViewType == viewType
@@ -76,28 +77,30 @@ private struct ViewToggleButton: View {
         Button(action: { currentViewType = viewType }) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 28, height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(isSelected ? Color.accentColor : Color.clear)
+                .foregroundStyle(
+                    isSelected ? AnyShapeStyle(Color.white) :
+                    isHovered ? AnyShapeStyle(Color.primary) :
+                    AnyShapeStyle(Color.secondary)
                 )
-                .foregroundColor(isSelected ? .white : .primary)
+                .frame(width: 32, height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(
+                            isSelected ? Color.accentColor :
+                            isHovered ? Color.primary.opacity(0.06) :
+                            Color.clear
+                        )
+                        .animation(.easeOut(duration: 0.15), value: isSelected)
+                        .animation(.easeOut(duration: 0.1), value: isHovered)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 6))
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .help("\(viewType.displayName)")
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
-}
-
-#Preview {
-    @State var viewType: LibraryViewType = .list
-    let libraryManager = LibraryManager()
-    
-    VStack(spacing: 0) {
-        ContextualToolbar(selectedTab: .library, viewType: $viewType)
-        ContextualToolbar(selectedTab: .folders, viewType: $viewType)
-        ContextualToolbar(selectedTab: .playlists, viewType: $viewType)
-    }
-    .environmentObject(libraryManager)
 }
 
 #Preview {
