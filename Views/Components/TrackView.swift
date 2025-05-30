@@ -30,6 +30,46 @@ struct TrackView: View {
     }
 }
 
+// MARK: - Track Context Menu
+struct TrackContextMenuContent: View {
+    let items: [ContextMenuItem]
+    
+    var body: some View {
+        ForEach(items, id: \.id) { item in
+            contextMenuItem(item)
+        }
+    }
+    
+    @ViewBuilder
+    private func contextMenuItem(_ item: ContextMenuItem) -> some View {
+        switch item {
+        case .button(let title, let role, let action):
+            Button(title, role: role, action: action)
+        case .menu(let title, let items):
+            Menu(title) {
+                ForEach(items, id: \.id) { subItem in
+                    switch subItem {
+                    case .button(let subTitle, let subRole, let subAction):
+                        Button(subTitle, role: subRole, action: subAction)
+                    case .menu(let subMenuTitle, let subMenuItems):
+                        Menu(subMenuTitle) {
+                            ForEach(subMenuItems, id: \.id) { nestedItem in
+                                if case .button(let nestedTitle, let nestedRole, let nestedAction) = nestedItem {
+                                    Button(nestedTitle, role: nestedRole, action: nestedAction)
+                                }
+                            }
+                        }
+                    case .divider:
+                        Divider()
+                    }
+                }
+            }
+        case .divider:
+            Divider()
+        }
+    }
+}
+
 // MARK: - List View Implementation
 private struct TrackListView: View {
     let tracks: [Track]
@@ -66,43 +106,12 @@ private struct TrackListView: View {
                         }
                     )
                     .contextMenu {
-                        ForEach(contextMenuItems(track), id: \.id) { item in
-                            contextMenuItem(item)
-                        }
+                        TrackContextMenuContent(items: contextMenuItems(track))
                     }
                     .id(track.id)
                 }
             }
             .padding(5) // Small padding to prevent edge clipping
-        }
-    }
-    
-    @ViewBuilder
-    private func contextMenuItem(_ item: ContextMenuItem) -> some View {
-        switch item {
-        case .button(let title, let role, let action):
-            Button(title, role: role, action: action)
-        case .menu(let title, let items):
-            Menu(title) {
-                ForEach(items, id: \.id) { subItem in
-                    switch subItem {
-                    case .button(let subTitle, let subRole, let subAction):
-                        Button(subTitle, role: subRole, action: subAction)
-                    case .menu(let subMenuTitle, let subMenuItems):
-                        Menu(subMenuTitle) {
-                            ForEach(subMenuItems, id: \.id) { nestedItem in
-                                if case .button(let nestedTitle, let nestedRole, let nestedAction) = nestedItem {
-                                    Button(nestedTitle, role: nestedRole, action: nestedAction)
-                                }
-                            }
-                        }
-                    case .divider:
-                        Divider()
-                    }
-                }
-            }
-        case .divider:
-            Divider()
         }
     }
 }
@@ -334,9 +343,7 @@ private struct TrackGridView: View {
                         )
                         .frame(width: itemWidth, height: itemHeight)
                         .contextMenu {
-                            ForEach(contextMenuItems(track), id: \.id) { item in
-                                contextMenuItem(item)
-                            }
+                            TrackContextMenuContent(items: contextMenuItems(track))
                         }
                     }
                 }
@@ -349,24 +356,6 @@ private struct TrackGridView: View {
             .onChange(of: geometry.size.width) { newWidth in
                 gridWidth = newWidth - 32
             }
-        }
-    }
-    
-    @ViewBuilder
-    private func contextMenuItem(_ item: ContextMenuItem) -> some View {
-        switch item {
-        case .button(let title, let role, let action):
-            Button(title, role: role, action: action)
-        case .menu(let title, let items):
-            Menu(title) {
-                ForEach(items, id: \.id) { subItem in
-                    if case .button(let subTitle, let subRole, let subAction) = subItem {
-                        Button(subTitle, role: subRole, action: subAction)
-                    }
-                }
-            }
-        case .divider:
-            Divider()
         }
     }
 }
