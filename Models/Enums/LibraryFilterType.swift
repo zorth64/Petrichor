@@ -43,6 +43,17 @@ enum LibraryFilterType: String, CaseIterable {
         }
     }
     
+    var singularDisplayName: String {
+        switch self {
+        case .artists: return "Artist"
+        case .albums: return "Album"
+        case .albumArtists: return "Album Artist"
+        case .composers: return "Composer"
+        case .genres: return "Genre"
+        case .years: return "Year"
+        }
+    }
+    
     var allItemIcon: String {
         switch self {
         case .artists, .albumArtists, .composers:
@@ -167,4 +178,9 @@ enum LibraryFilterType: String, CaseIterable {
             return value == filterValue
         }
     }
+}
+
+struct LibraryFilterRequest: Equatable {
+    let filterType: LibraryFilterType
+    let value: String
 }

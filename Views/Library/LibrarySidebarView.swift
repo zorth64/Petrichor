@@ -4,10 +4,12 @@ struct LibrarySidebarView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @Binding var selectedFilterType: LibraryFilterType
     @Binding var selectedFilterItem: LibraryFilterItem?
+    @Binding var pendingSearchText: String?
     
     @State private var filteredItems: [LibraryFilterItem] = []
     @State private var selectedSidebarItem: LibrarySidebarItem?
     @State private var searchText = ""
+    @State private var localSearchText = "" // Required for Go to menu to work
     @State private var sortAscending = true
     
     var body: some View {
@@ -45,6 +47,40 @@ struct LibrarySidebarView: View {
             // Re-sort items when sort order changes
             updateFilteredItems()
         }
+        .onChange(of: pendingSearchText) { newValue in
+            if let searchValue = newValue {
+                // Apply the search
+                searchText = searchValue
+                localSearchText = searchValue
+                // Update filtered items immediately
+                updateFilteredItems()
+                
+                // Clear the pending search
+                pendingSearchText = nil
+                
+                // Wait for the filtered items to update, then select the first match
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    // Check if we have any filtered items that match exactly
+                    if let exactMatch = filteredItems.first(where: { $0.name == searchValue }) {
+                        let sidebarItem = LibrarySidebarItem(filterItem: exactMatch)
+                        handleItemSelection(sidebarItem)
+                    } else if let firstMatch = filteredItems.first {
+                        // Select the first match if no exact match
+                        let sidebarItem = LibrarySidebarItem(filterItem: firstMatch)
+                        handleItemSelection(sidebarItem)
+                    } else {
+                        // Fallback to "All" if no matches
+                        let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+                        let sidebarItem = LibrarySidebarItem(allItemFor: selectedFilterType, count: libraryManager.tracks.count)
+                        handleItemSelection(sidebarItem)
+                        selectedFilterItem = allItem
+                    }
+                }
+            }
+        }
+        .onChange(of: selectedFilterType) { newType in
+            handleFilterTypeChange(newType)
+        }
     }
     
     // MARK: - Header Section
@@ -73,9 +109,24 @@ struct LibrarySidebarView: View {
                     .foregroundColor(.secondary)
                     .font(.system(size: 12))
                 
-                TextField("Search...", text: $searchText)
+                TextField("Filter \(selectedFilterType.rawValue.lowercased())...", text: $localSearchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
+                    .onChange(of: localSearchText) { newValue in
+                        searchText = newValue
+                    }
+                    .onChange(of: searchText) { newValue in
+                        if localSearchText != newValue {
+                            localSearchText = newValue
+                        }
+                        
+                        // When search is cleared, select "All"
+                        if newValue.isEmpty {
+                            let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+                            selectedFilterItem = allItem
+                            selectedSidebarItem = LibrarySidebarItem(allItemFor: selectedFilterType, count: libraryManager.tracks.count)
+                        }
+                    }
                 
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
@@ -236,10 +287,12 @@ struct LibrarySidebarView: View {
 #Preview {
     @State var selectedFilterType: LibraryFilterType = .artists
     @State var selectedFilterItem: LibraryFilterItem? = nil
+    @State var pendingSearchText: String? = nil
     
-    return LibrarySidebarView(
+    LibrarySidebarView(
         selectedFilterType: $selectedFilterType,
-        selectedFilterItem: $selectedFilterItem
+        selectedFilterItem: $selectedFilterItem,
+        pendingSearchText: $pendingSearchText
     )
     .environmentObject(LibraryManager())
     .frame(width: 250, height: 500)

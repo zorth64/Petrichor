@@ -11,7 +11,11 @@ struct LibraryView: View {
     @State private var trackToAddToNewPlaylist: Track?
     @State private var newPlaylistName = ""
     @State private var cachedFilteredTracks: [Track] = []
+    @State private var pendingSearchText: String?
+    @State private var isViewReady = false
     @AppStorage("libraryViewSplitPosition") private var splitPosition: Double = 250
+    
+    @Binding var pendingFilter: LibraryFilterRequest?
     
     let viewType: LibraryViewType
     
@@ -25,7 +29,8 @@ struct LibraryView: View {
                     // Left sidebar - Filter view
                     LibrarySidebarView(
                         selectedFilterType: $selectedFilterType,
-                        selectedFilterItem: $selectedFilterItem
+                        selectedFilterItem: $selectedFilterItem,
+                        pendingSearchText: $pendingSearchText
                     )
                     .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
                     
@@ -39,6 +44,21 @@ struct LibraryView: View {
                         selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
                     }
                     updateFilteredTracks()
+                    
+                    // Mark view as ready
+                    isViewReady = true
+                    
+                    // Check if there's a pending filter to apply
+                    if let request = pendingFilter {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            selectedFilterType = request.filterType
+                            pendingSearchText = request.value
+                            pendingFilter = nil
+                        }
+                    }
+                }
+                .onDisappear {
+                    isViewReady = false
                 }
                 .onChange(of: libraryManager.tracks) { tracks in
                     // Update filter item when tracks change
@@ -56,6 +76,15 @@ struct LibraryView: View {
                     // Only update if the number of tracks changed (tracks added/removed)
                     updateFilteredTracks()
                 }
+                .onChange(of: pendingFilter) { newValue in
+                    if let request = newValue, isViewReady {
+                        print("LibraryView: View is ready, applying filter type: \(request.filterType)")
+                        selectedFilterType = request.filterType
+                        pendingSearchText = request.value
+                        pendingFilter = nil
+                    }
+                    // If view is not ready, onAppear will handle it
+                }
                 .sheet(isPresented: $showingCreatePlaylistWithTrack) {
                     createPlaylistSheet
                 }
@@ -67,6 +96,11 @@ struct LibraryView: View {
                 }
             }
         }
+    }
+    
+    init(viewType: LibraryViewType, pendingFilter: Binding<LibraryFilterRequest?> = .constant(nil)) {
+        self.viewType = viewType
+        self._pendingFilter = pendingFilter
     }
     
     // MARK: - Tracks List View
