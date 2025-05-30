@@ -298,49 +298,27 @@ class LibraryManager: ObservableObject {
         return count
     }
     
-    func getTracksByArtist(_ artist: String) -> [Track] {
-        return databaseManager.getTracksByArtist(artist)
+    // MARK: - Track Queries
+
+    func getTracksBy(filterType: LibraryFilterType, value: String) -> [Track] {
+        if filterType.usesMultiArtistParsing && value != filterType.unknownPlaceholder {
+            return databaseManager.getTracksByColumnContaining(filterType.databaseColumn, value: value)
+        } else {
+            return databaseManager.getTracksByColumn(filterType.databaseColumn, value: value)
+        }
     }
 
-    func getTracksByAlbum(_ album: String) -> [Track] {
-        return databaseManager.getTracksByAlbum(album)
-    }
-    
-    func getTracksByComposer(_ composer: String) -> [Track] {
-        return databaseManager.getTracksByComposer(composer)
-    }
-
-    func getTracksByGenre(_ genre: String) -> [Track] {
-        return databaseManager.getTracksByGenre(genre)
-    }
-
-    func getTracksByYear(_ year: String) -> [Track] {
-        return databaseManager.getTracksByYear(year)
-    }
-    
-    func getTracksByArtistContaining(_ artistName: String) -> [Track] {
-        // The database method already uses LIKE with wildcards
-        return getTracksByArtist(artistName)
-    }
-    
-    func getAllArtists() -> [String] {
-        return databaseManager.getAllArtists()
-    }
-    
-    func getAllAlbums() -> [String] {
-        return databaseManager.getAllAlbums()
-    }
-    
-    func getAllComposers() -> [String] {
-        return databaseManager.getAllComposers()
-    }
-    
-    func getAllGenres() -> [String] {
-        return databaseManager.getAllGenres()
-    }
-    
-    func getAllYears() -> [String] {
-        return databaseManager.getAllYears()
+    func getDistinctValues(for filterType: LibraryFilterType) -> [String] {
+        let values = databaseManager.getDistinctValues(for: filterType.databaseColumn)
+        
+        // For composers, normalize empty strings to "Unknown Composer"
+        if filterType == .composers {
+            return values.map { value in
+                value.isEmpty ? filterType.unknownPlaceholder : value
+            }.removingDuplicates()
+        }
+        
+        return values
     }
     
     // MARK: - Library Maintenance

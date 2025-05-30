@@ -350,8 +350,7 @@ struct LibrarySidebarItem: SidebarItem {
     
     // Special "All" item
     init(allItemFor filterType: LibraryFilterType, count: Int) {
-        // Create a stable ID for "All" items based on filter type
-        self.id = UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012d", filterType.hashValue))") ?? UUID()
+        self.id = UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012d", filterType.stableIndex))") ?? UUID()
         self.title = "All \(filterType.rawValue)"
         self.subtitle = nil
         // Use a different icon for "All" items
@@ -362,18 +361,7 @@ struct LibrarySidebarItem: SidebarItem {
     }
     
     private static func getIcon(for filterType: LibraryFilterType, isAllItem: Bool) -> String {
-        switch filterType {
-        case .artists:
-            return isAllItem ? "person.2.fill" : "person.fill"
-        case .albums:
-            return isAllItem ? "opticaldisc.fill" : "opticaldisc"
-        case .composers:
-            return isAllItem ? "person.2.fill" : "person.fill"
-        case .years:
-            return isAllItem ? "calendar.circle.fill" : "calendar"
-        case .genres:
-            return isAllItem ? "music.note.list" : "music.note"
-        }
+        return isAllItem ? filterType.allItemIcon : filterType.icon
     }
 }
 

@@ -165,60 +165,9 @@ struct LibraryView: View {
             return
         }
         
-        let unsortedTracks: [Track]
-        switch selectedFilterType {
-        case .artists:
-            // For artists, we need to check if the selected artist appears anywhere in the artist field
-            if filterItem.name == "Unknown Artist" {
-                unsortedTracks = libraryManager.tracks.filter { track in
-                    track.artist.isEmpty || track.artist == "Unknown Artist"
-                }
-            } else {
-                // Use the shared parser to check if artist appears in track
-                unsortedTracks = libraryManager.tracks.filter { track in
-                    ArtistParser.trackContainsArtist(track, artistName: filterItem.name)
-                }
-            }
-            
-        case .albums:
-            // Handle "Unknown Album" case
-            if filterItem.name == "Unknown Album" {
-                unsortedTracks = libraryManager.tracks.filter { track in
-                    track.album.isEmpty || track.album == "Unknown Album"
-                }
-            } else {
-                unsortedTracks = libraryManager.getTracksByAlbum(filterItem.name)
-            }
-
-        case .composers:
-            // Handle "Unknown Composer" case
-            if filterItem.name == "Unknown Composer" {
-                unsortedTracks = libraryManager.tracks.filter { track in
-                    track.composer.isEmpty || track.composer == "Unknown Composer"
-                }
-            } else {
-                unsortedTracks = libraryManager.getTracksByComposer(filterItem.name)
-            }
-
-        case .genres:
-            // Handle "Unknown Genre" case
-            if filterItem.name == "Unknown Genre" {
-                unsortedTracks = libraryManager.tracks.filter { track in
-                    track.genre.isEmpty || track.genre == "Unknown Genre"
-                }
-            } else {
-                unsortedTracks = libraryManager.getTracksByGenre(filterItem.name)
-            }
-            
-        case .years:
-            // Handle "Unknown Year" case
-            if filterItem.name == "Unknown Year" {
-                unsortedTracks = libraryManager.tracks.filter { track in
-                    track.year.isEmpty || track.year == "Unknown Year"
-                }
-            } else {
-                unsortedTracks = libraryManager.getTracksByYear(filterItem.name)
-            }
+        // Use the filter type's matching logic
+        let unsortedTracks = libraryManager.tracks.filter { track in
+            selectedFilterType.trackMatches(track, filterValue: filterItem.name)
         }
         
         cachedFilteredTracks = unsortedTracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }

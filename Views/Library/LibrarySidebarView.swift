@@ -104,12 +104,19 @@ struct LibrarySidebarView: View {
     // MARK: - Helper Methods
     
     private func initializeSelection() {
+        // Always ensure we have a selection
         if selectedFilterItem == nil {
             let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
             selectedFilterItem = allItem
-            selectedSidebarItem = LibrarySidebarItem(allItemFor: selectedFilterType, count: libraryManager.tracks.count)
-        } else if let filterItem = selectedFilterItem {
-            selectedSidebarItem = LibrarySidebarItem(filterItem: filterItem)
+        }
+        
+        // Always sync the sidebar selection with the filter selection
+        if let filterItem = selectedFilterItem {
+            if filterItem.name.hasPrefix("All") {
+                selectedSidebarItem = LibrarySidebarItem(allItemFor: selectedFilterType, count: libraryManager.tracks.count)
+            } else {
+                selectedSidebarItem = LibrarySidebarItem(filterItem: filterItem)
+            }
         }
     }
     
@@ -134,7 +141,10 @@ struct LibrarySidebarView: View {
         // Reset selection when filter type changes
         let allItem = LibraryFilterItem.allItem(for: newType, totalCount: libraryManager.tracks.count)
         selectedFilterItem = allItem
+        
+        // Create the corresponding sidebar item with the same ID
         selectedSidebarItem = LibrarySidebarItem(allItemFor: newType, count: libraryManager.tracks.count)
+        
         searchText = ""
         updateFilteredItems()
     }
@@ -170,6 +180,7 @@ struct LibrarySidebarView: View {
         var regularItems: [LibraryFilterItem] = []
         
         for item in items {
+            print("Checking item: '\(item.name)' against placeholder: '\(selectedFilterType.unknownPlaceholder)'")  // Debug line
             if isUnknownItem(item) {
                 unknownItems.append(item)
             } else {
@@ -191,70 +202,11 @@ struct LibrarySidebarView: View {
     }
     
     private func isUnknownItem(_ item: LibraryFilterItem) -> Bool {
-        switch selectedFilterType {
-        case .artists:
-            return item.name == "Unknown Artist"
-        case .albums:
-            return item.name == "Unknown Album"
-        case .composers:
-            return item.name == "Unknown Composer"
-        case .genres:
-            return item.name == "Unknown Genre"
-        case .years:
-            return item.name == "Unknown Year"
-        }
+        return item.name == selectedFilterType.unknownPlaceholder
     }
     
     private func getFilterItems(for filterType: LibraryFilterType) -> [LibraryFilterItem] {
-        let tracks = libraryManager.tracks
-        
-        switch filterType {
-        case .artists:
-            // Parse multi-artist fields and create individual entries
-            var artistTrackMap: [String: Set<Track>] = [:]
-            
-            for track in tracks {
-                let artists = ArtistParser.parse(track.artist)
-                for artist in artists {
-                    if artistTrackMap[artist] == nil {
-                        artistTrackMap[artist] = []
-                    }
-                    artistTrackMap[artist]?.insert(track)
-                }
-            }
-            
-            return artistTrackMap.map { artist, trackSet in
-                LibraryFilterItem(name: artist, count: trackSet.count, filterType: filterType)
-            }
-            
-        case .albums:
-            let albumCounts = Dictionary(grouping: tracks, by: { $0.album })
-                .mapValues { $0.count }
-            return albumCounts.map { album, count in
-                LibraryFilterItem(name: album, count: count, filterType: filterType)
-            }
-
-        case .composers:
-            let composerCounts = Dictionary(grouping: tracks, by: { $0.composer })
-                .mapValues { $0.count }
-            return composerCounts.map { composer, count in
-                LibraryFilterItem(name: composer, count: count, filterType: filterType)
-            }
-
-        case .genres:
-            let genreCounts = Dictionary(grouping: tracks, by: { $0.genre })
-                .mapValues { $0.count }
-            return genreCounts.map { genre, count in
-                LibraryFilterItem(name: genre, count: count, filterType: filterType)
-            }
-            
-        case .years:
-            let yearCounts = Dictionary(grouping: tracks, by: { $0.year })
-                .mapValues { $0.count }
-            return yearCounts.map { year, count in
-                LibraryFilterItem(name: year, count: count, filterType: filterType)
-            }
-        }
+        return filterType.getFilterItems(from: libraryManager.tracks)
     }
     
     private func getArtistItemsForSearch(_ searchTerm: String) -> [LibraryFilterItem] {

@@ -571,6 +571,80 @@ class DatabaseManager: ObservableObject {
         }
     }
     
+    // MARK: - Query Track by Columns
+
+    func getTracksByColumn(_ column: String, value: String) -> [Track] {
+        do {
+            return try dbQueue.read { db in
+                let sql: String
+                
+                // Check if this is an "Unknown" placeholder value
+                if value.starts(with: "Unknown ") {
+                    // Match both empty strings and the placeholder value
+                    sql = """
+                        SELECT * FROM tracks 
+                        WHERE \(column) = '' OR \(column) IS NULL OR \(column) = ?
+                        ORDER BY title
+                        """
+                } else if value.isEmpty {
+                    // Handle empty value queries
+                    sql = """
+                        SELECT * FROM tracks 
+                        WHERE \(column) = '' OR \(column) IS NULL
+                        ORDER BY title
+                        """
+                } else {
+                    // Normal exact match
+                    sql = """
+                        SELECT * FROM tracks 
+                        WHERE \(column) = ?
+                        ORDER BY title
+                        """
+                }
+                
+                return try Track.fetchAll(db, sql: sql, arguments: [value])
+            }
+        } catch {
+            print("Failed to fetch tracks by \(column): \(error)")
+            return []
+        }
+    }
+
+    // For partial matching (like artists with collaborations)
+    func getTracksByColumnContaining(_ column: String, value: String) -> [Track] {
+        do {
+            return try dbQueue.read { db in
+                let sql = """
+                    SELECT * FROM tracks 
+                    WHERE \(column) LIKE ?
+                    ORDER BY title
+                    """
+                return try Track.fetchAll(db, sql: sql, arguments: ["%\(value)%"])
+            }
+        } catch {
+            print("Failed to fetch tracks by \(column) containing '\(value)': \(error)")
+            return []
+        }
+    }
+
+    // Generic method to get distinct values for any column
+    func getDistinctValues(for column: String) -> [String] {
+        do {
+            return try dbQueue.read { db in
+                let sql = """
+                    SELECT DISTINCT \(column) 
+                    FROM tracks 
+                    WHERE \(column) IS NOT NULL
+                    ORDER BY \(column)
+                    """
+                return try String.fetchAll(db, sql: sql)
+            }
+        } catch {
+            print("Failed to fetch distinct values for \(column): \(error)")
+            return []
+        }
+    }
+    
     // MARK: - Track Queries
     
     func getAllTracks() -> [Track] {
@@ -600,205 +674,7 @@ class DatabaseManager: ObservableObject {
             return []
         }
     }
-    
-    func getTracksByArtist(_ artist: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if artist == "Unknown Artist" {
-                    // Query for empty or "Unknown Artist"
-                    return try Track
-                        .filter(Track.Columns.artist == "" || Track.Columns.artist == "Unknown Artist")
-                        .order(Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    // For regular artists, use LIKE for partial matching (handles collaborations)
-                    return try Track
-                        .filter(Track.Columns.artist.like("%\(artist)%"))
-                        .order(Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by artist: \(error)")
-            return []
-        }
-    }
-    func getTracksByAlbum(_ album: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if album == "Unknown Album" {
-                    // Query for empty or "Unknown Album"
-                    return try Track
-                        .filter(Track.Columns.album == "" || Track.Columns.album == "Unknown Album")
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.album == album)
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by album: \(error)")
-            return []
-        }
-    }
-    
-    func getTracksByComposer(_ composer: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if composer == "Unknown Composer" {
-                    // Query for empty or "Unknown Composer"
-                    return try Track
-                        .filter(Track.Columns.composer == "" || Track.Columns.composer == "Unknown Composer")
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.composer == composer)
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by composer: \(error)")
-            return []
-        }
-    }
-    
-    func getTracksByGenre(_ genre: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if genre == "Unknown Genre" {
-                    // Query for empty or "Unknown Genre"
-                    return try Track
-                        .filter(Track.Columns.genre == "" || Track.Columns.genre == "Unknown Genre")
-                        .order(Track.Columns.artist, Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.genre == genre)
-                        .order(Track.Columns.artist, Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by genre: \(error)")
-            return []
-        }
-    }
-    
-    func getTracksByYear(_ year: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if year == "Unknown Year" {
-                    // Query for empty or "Unknown Year"
-                    return try Track
-                        .filter(Track.Columns.year == "" || Track.Columns.year == "Unknown Year")
-                        .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.year == year)
-                        .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by year: \(error)")
-            return []
-        }
-    }
-    
-    // MARK: - Aggregate Queries
-    
-    func getAllArtists() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.artist, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.artist != nil)
-                    .order(Track.Columns.artist)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch artists: \(error)")
-            return []
-        }
-    }
-    
-    func getAllAlbums() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.album, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.album != nil)
-                    .order(Track.Columns.album)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch albums: \(error)")
-            return []
-        }
-    }
-    
-    func getAllComposers() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                let composers = try Track
-                    .select(Track.Columns.composer, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.composer != nil)
-                    .fetchAll(db)
-                
-                // Normalize empty strings to "Unknown Composer"
-                return composers.map { composer in
-                    composer.isEmpty ? "Unknown Composer" : composer
-                }.removingDuplicates()
-            }
-        } catch {
-            print("Failed to fetch composers: \(error)")
-            return []
-        }
-    }
-    
-    func getAllGenres() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.genre, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.genre != nil)
-                    .order(Track.Columns.genre)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch genres: \(error)")
-            return []
-        }
-    }
-    
-    func getAllYears() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.year, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.year != nil)
-                    .filter(Track.Columns.year != "")
-                    .order(Track.Columns.year.desc)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch years: \(error)")
-            return []
-        }
-    }
-    
-    // Get artwork for a specific track when needed
+
     func getArtworkForTrack(_ trackId: Int64) -> Data? {
         do {
             return try dbQueue.read { db in
