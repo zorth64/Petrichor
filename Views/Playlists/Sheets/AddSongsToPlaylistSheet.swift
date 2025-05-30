@@ -370,18 +370,29 @@ struct AddSongsToPlaylistSheet: View {
     }
     
     private func applyChanges() {
-        // Add selected tracks
+        // Collect tracks to add
+        var tracksToAdd: [Track] = []
         for trackId in selectedTracks {
             if let track = libraryManager.tracks.first(where: { $0.id == trackId }) {
-                playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
+                tracksToAdd.append(track)
             }
         }
         
-        // Remove marked tracks - need to find them by database ID
+        // Collect tracks to remove
+        var tracksToRemoveList: [Track] = []
         for trackId in tracksToRemove {
             if let track = libraryManager.tracks.first(where: { $0.id == trackId }) {
-                playlistManager.removeTrackFromPlaylist(track: track, playlistID: playlist.id)
+                tracksToRemoveList.append(track)
             }
+        }
+        
+        // Apply batch operations
+        if !tracksToAdd.isEmpty {
+            playlistManager.addTracksToPlaylist(tracks: tracksToAdd, playlistID: playlist.id)
+        }
+        
+        if !tracksToRemoveList.isEmpty {
+            playlistManager.removeTracksFromPlaylist(tracks: tracksToRemoveList, playlistID: playlist.id)
         }
         
         dismiss()

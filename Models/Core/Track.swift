@@ -60,6 +60,15 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     // MARK: - DB Configuration
     
     static let databaseTableName = "tracks"
+
+    static let columnMap: [String: Column] = [
+        "artist": Columns.artist,
+        "album": Columns.album,
+        "album_artist": Columns.albumArtist,
+        "composer": Columns.composer,
+        "genre": Columns.genre,
+        "year": Columns.year
+    ]
     
     enum Columns {
         static let trackId = Column("id")

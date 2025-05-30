@@ -571,6 +571,86 @@ class DatabaseManager: ObservableObject {
         }
     }
     
+    // MARK: - Query Track by Columns
+    
+    private func columnForFilterType(_ filterType: LibraryFilterType) -> Column? {
+        return Track.columnMap[filterType.databaseColumn]
+    }
+    
+    func getTracksByFilterType(_ filterType: LibraryFilterType, value: String) -> [Track] {
+        guard let dbColumn = columnForFilterType(filterType) else {
+            print("Unknown column for filter type: \(filterType)")
+            return []
+        }
+        
+        do {
+            return try dbQueue.read { db in
+                // Handle special cases for empty/unknown values
+                if value.starts(with: "Unknown ") {
+                    return try Track
+                        .filter(dbColumn == "" || dbColumn == nil || dbColumn == value)
+                        .order(Track.Columns.title)
+                        .fetchAll(db)
+                } else if value.isEmpty {
+                    return try Track
+                        .filter(dbColumn == "" || dbColumn == nil)
+                        .order(Track.Columns.title)
+                        .fetchAll(db)
+                } else {
+                    return try Track
+                        .filter(dbColumn == value)
+                        .order(Track.Columns.title)
+                        .fetchAll(db)
+                }
+            }
+        } catch {
+            print("Failed to fetch tracks by \(filterType): \(error)")
+            return []
+        }
+    }
+    
+    func getTracksByFilterTypeContaining(_ filterType: LibraryFilterType, value: String) -> [Track] {
+        guard let dbColumn = columnForFilterType(filterType) else {
+            print("Unknown column for filter type: \(filterType)")
+            return []
+        }
+        
+        do {
+            return try dbQueue.read { db in
+                return try Track
+                    .filter(dbColumn.like("%\(value)%"))
+                    .order(Track.Columns.title)
+                    .fetchAll(db)
+            }
+        } catch {
+            print("Failed to fetch tracks by \(filterType) containing '\(value)': \(error)")
+            return []
+        }
+    }
+
+    func getDistinctValues(for filterType: LibraryFilterType) -> [String] {
+        guard let dbColumn = columnForFilterType(filterType) else {
+            print("Unknown column for filter type: \(filterType)")
+            return []
+        }
+        
+        do {
+            return try dbQueue.read { db in
+                // Use GRDB's query interface to select distinct values
+                let request = Track
+                    .select(dbColumn, as: String.self)
+                    .filter(dbColumn != nil)
+                    .distinct()
+                    .order(dbColumn)
+                
+                return try request.fetchAll(db)
+            }
+        } catch {
+            print("Failed to fetch distinct values for \(filterType): \(error)")
+            return []
+        }
+    }
+    
     // MARK: - Track Queries
     
     func getAllTracks() -> [Track] {
@@ -600,205 +680,7 @@ class DatabaseManager: ObservableObject {
             return []
         }
     }
-    
-    func getTracksByArtist(_ artist: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if artist == "Unknown Artist" {
-                    // Query for empty or "Unknown Artist"
-                    return try Track
-                        .filter(Track.Columns.artist == "" || Track.Columns.artist == "Unknown Artist")
-                        .order(Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    // For regular artists, use LIKE for partial matching (handles collaborations)
-                    return try Track
-                        .filter(Track.Columns.artist.like("%\(artist)%"))
-                        .order(Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by artist: \(error)")
-            return []
-        }
-    }
-    func getTracksByAlbum(_ album: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if album == "Unknown Album" {
-                    // Query for empty or "Unknown Album"
-                    return try Track
-                        .filter(Track.Columns.album == "" || Track.Columns.album == "Unknown Album")
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.album == album)
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by album: \(error)")
-            return []
-        }
-    }
-    
-    func getTracksByComposer(_ composer: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if composer == "Unknown Composer" {
-                    // Query for empty or "Unknown Composer"
-                    return try Track
-                        .filter(Track.Columns.composer == "" || Track.Columns.composer == "Unknown Composer")
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.composer == composer)
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by composer: \(error)")
-            return []
-        }
-    }
-    
-    func getTracksByGenre(_ genre: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if genre == "Unknown Genre" {
-                    // Query for empty or "Unknown Genre"
-                    return try Track
-                        .filter(Track.Columns.genre == "" || Track.Columns.genre == "Unknown Genre")
-                        .order(Track.Columns.artist, Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.genre == genre)
-                        .order(Track.Columns.artist, Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by genre: \(error)")
-            return []
-        }
-    }
-    
-    func getTracksByYear(_ year: String) -> [Track] {
-        do {
-            return try dbQueue.read { db in
-                if year == "Unknown Year" {
-                    // Query for empty or "Unknown Year"
-                    return try Track
-                        .filter(Track.Columns.year == "" || Track.Columns.year == "Unknown Year")
-                        .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(Track.Columns.year == year)
-                        .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by year: \(error)")
-            return []
-        }
-    }
-    
-    // MARK: - Aggregate Queries
-    
-    func getAllArtists() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.artist, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.artist != nil)
-                    .order(Track.Columns.artist)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch artists: \(error)")
-            return []
-        }
-    }
-    
-    func getAllAlbums() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.album, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.album != nil)
-                    .order(Track.Columns.album)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch albums: \(error)")
-            return []
-        }
-    }
-    
-    func getAllComposers() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                let composers = try Track
-                    .select(Track.Columns.composer, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.composer != nil)
-                    .fetchAll(db)
-                
-                // Normalize empty strings to "Unknown Composer"
-                return composers.map { composer in
-                    composer.isEmpty ? "Unknown Composer" : composer
-                }.removingDuplicates()
-            }
-        } catch {
-            print("Failed to fetch composers: \(error)")
-            return []
-        }
-    }
-    
-    func getAllGenres() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.genre, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.genre != nil)
-                    .order(Track.Columns.genre)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch genres: \(error)")
-            return []
-        }
-    }
-    
-    func getAllYears() -> [String] {
-        do {
-            return try dbQueue.read { db in
-                try Track
-                    .select(Track.Columns.year, as: String.self)
-                    .distinct()
-                    .filter(Track.Columns.year != nil)
-                    .filter(Track.Columns.year != "")
-                    .order(Track.Columns.year.desc)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch years: \(error)")
-            return []
-        }
-    }
-    
-    // Get artwork for a specific track when needed
+
     func getArtworkForTrack(_ trackId: Int64) -> Data? {
         do {
             return try dbQueue.read { db in
@@ -846,20 +728,21 @@ class DatabaseManager: ObservableObject {
     // Updates a track's favorite status
     func updateTrackFavoriteStatus(trackId: Int64, isFavorite: Bool) async throws {
         try await dbQueue.write { db in
-            try db.execute(
-                sql: "UPDATE tracks SET is_favorite = ? WHERE id = ?",
-                arguments: [isFavorite, trackId]
-            )
+            try Track
+                .filter(Track.Columns.trackId == trackId)
+                .updateAll(db, Track.Columns.isFavorite.set(to: isFavorite))
         }
     }
     
     // Updates a track's play count and last played date
     func updateTrackPlayInfo(trackId: Int64, playCount: Int, lastPlayedDate: Date) async throws {
         try await dbQueue.write { db in
-            try db.execute(
-                sql: "UPDATE tracks SET play_count = ?, last_played_date = ? WHERE id = ?",
-                arguments: [playCount, lastPlayedDate, trackId]
-            )
+            try Track
+                .filter(Track.Columns.trackId == trackId)
+                .updateAll(db,
+                    Track.Columns.playCount.set(to: playCount),
+                    Track.Columns.lastPlayedDate.set(to: lastPlayedDate)
+                )
         }
     }
     
@@ -927,198 +810,149 @@ class DatabaseManager: ObservableObject {
     
     func savePlaylistAsync(_ playlist: Playlist) async throws {
         try await dbQueue.write { db in
-            // Convert smart criteria to JSON if present
-            var smartCriteriaJSON: String? = nil
-            if let criteria = playlist.smartCriteria {
-                let encoder = JSONEncoder()
-                if let data = try? encoder.encode(criteria) {
-                    smartCriteriaJSON = String(data: data, encoding: .utf8)
-                }
-            }
-            
-            // Insert or update playlist
-            try db.execute(
-                sql: """
-                    INSERT OR REPLACE INTO playlists 
-                    (id, name, type, smart_type, is_user_editable, is_content_editable, 
-                     date_created, date_modified, cover_artwork_data, smart_criteria)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                arguments: [
-                    playlist.id.uuidString,
-                    playlist.name,
-                    playlist.type.rawValue,
-                    playlist.smartType?.rawValue,
-                    playlist.isUserEditable,
-                    playlist.isContentEditable,
-                    playlist.dateCreated,
-                    playlist.dateModified,
-                    playlist.coverArtworkData,
-                    smartCriteriaJSON
-                ]
-            )
+            // Save the playlist using GRDB's save method
+            try playlist.save(db)
             
             // Delete existing track associations
-            try db.execute(
-                sql: "DELETE FROM playlist_tracks WHERE playlist_id = ?",
-                arguments: [playlist.id.uuidString]
-            )
+            try PlaylistTrack
+                .filter(PlaylistTrack.Columns.playlistId == playlist.id.uuidString)
+                .deleteAll(db)
             
-            // Insert track associations (only for regular playlists)
-            if playlist.type == .regular {
-                for (index, track) in playlist.tracks.enumerated() {
-                    guard let trackId = track.trackId else { continue }
-                    
-                    try db.execute(
-                        sql: """
-                            INSERT INTO playlist_tracks (playlist_id, track_id, position)
-                            VALUES (?, ?, ?)
-                            """,
-                        arguments: [playlist.id.uuidString, trackId, index]
-                    )
-                }
-            }
-        }
-    }
-    
-    func savePlaylist(_ playlist: Playlist) throws {
-        try dbQueue.write { db in
-            // Convert smart criteria to JSON if present
-            var smartCriteriaJSON: String? = nil
-            if let criteria = playlist.smartCriteria {
-                let encoder = JSONEncoder()
-                if let data = try? encoder.encode(criteria) {
-                    smartCriteriaJSON = String(data: data, encoding: .utf8)
-                }
-            }
-            
-            // Insert or update playlist
-            try db.execute(
-                sql: """
-                    INSERT OR REPLACE INTO playlists 
-                    (id, name, type, smart_type, is_user_editable, is_content_editable, 
-                     date_created, date_modified, cover_artwork_data, smart_criteria)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                arguments: [
-                    playlist.id.uuidString,
-                    playlist.name,
-                    playlist.type.rawValue,
-                    playlist.smartType?.rawValue,
-                    playlist.isUserEditable,
-                    playlist.isContentEditable,
-                    playlist.dateCreated,
-                    playlist.dateModified,
-                    playlist.coverArtworkData,
-                    smartCriteriaJSON
-                ]
-            )
-            
-            // Delete existing track associations
-            try db.execute(
-                sql: "DELETE FROM playlist_tracks WHERE playlist_id = ?",
-                arguments: [playlist.id.uuidString]
-            )
-            
-            // Check how many were deleted (for debugging)
             let deletedCount = db.changesCount
             print("DatabaseManager: Deleted \(deletedCount) existing track associations")
             
-            // Insert track associations (only for regular playlists)
-            if playlist.type == .regular {
+            // Batch insert track associations for regular playlists
+            if playlist.type == .regular && !playlist.tracks.isEmpty {
                 print("DatabaseManager: Saving \(playlist.tracks.count) tracks for playlist '\(playlist.name)'")
                 
-                for (index, track) in playlist.tracks.enumerated() {
+                // Create all PlaylistTrack objects at once
+                let playlistTracks = playlist.tracks.enumerated().compactMap { index, track -> PlaylistTrack? in
                     guard let trackId = track.trackId else {
                         print("DatabaseManager: WARNING - Track '\(track.title)' has no database ID, skipping")
-                        continue
+                        return nil
                     }
                     
-                    try db.execute(
-                        sql: """
-                            INSERT INTO playlist_tracks (playlist_id, track_id, position)
-                            VALUES (?, ?, ?)
-                            """,
-                        arguments: [playlist.id.uuidString, trackId, index]
+                    return PlaylistTrack(
+                        playlistId: playlist.id.uuidString,
+                        trackId: trackId,
+                        position: index
                     )
-                    print("DatabaseManager: Saved track '\(track.title)' (ID: \(trackId)) at position \(index)")
+                }
+                
+                // Batch insert all tracks at once
+                if !playlistTracks.isEmpty {
+                    try PlaylistTrack.insertMany(playlistTracks, db: db)
+                    print("DatabaseManager: Batch inserted \(playlistTracks.count) tracks to playlist")
                 }
                 
                 // Verify the save
-                let savedCount = try Int.fetchOne(
-                    db,
-                    sql: "SELECT COUNT(*) FROM playlist_tracks WHERE playlist_id = ?",
-                    arguments: [playlist.id.uuidString]
-                ) ?? 0
+                let savedCount = try PlaylistTrack
+                    .filter(PlaylistTrack.Columns.playlistId == playlist.id.uuidString)
+                    .fetchCount(db)
                 
                 print("DatabaseManager: Verified \(savedCount) tracks saved for playlist in database")
             }
         }
     }
     
+    func savePlaylist(_ playlist: Playlist) throws {
+        try dbQueue.write { db in
+            // Save the playlist using GRDB's save method
+            try playlist.save(db)
+            
+            // Delete existing track associations
+            try PlaylistTrack
+                .filter(PlaylistTrack.Columns.playlistId == playlist.id.uuidString)
+                .deleteAll(db)
+            
+            let deletedCount = db.changesCount
+            print("DatabaseManager: Deleted \(deletedCount) existing track associations")
+            
+            // Batch insert track associations for regular playlists
+            if playlist.type == .regular && !playlist.tracks.isEmpty {
+                print("DatabaseManager: Saving \(playlist.tracks.count) tracks for playlist '\(playlist.name)'")
+                
+                // Create all PlaylistTrack objects at once
+                let playlistTracks = playlist.tracks.enumerated().compactMap { index, track -> PlaylistTrack? in
+                    guard let trackId = track.trackId else {
+                        print("DatabaseManager: WARNING - Track '\(track.title)' has no database ID, skipping")
+                        return nil
+                    }
+                    
+                    return PlaylistTrack(
+                        playlistId: playlist.id.uuidString,
+                        trackId: trackId,
+                        position: index
+                    )
+                }
+                
+                // Batch insert all tracks at once
+                if !playlistTracks.isEmpty {
+                    try PlaylistTrack.insertMany(playlistTracks, db: db)
+                    print("DatabaseManager: Batch inserted \(playlistTracks.count) tracks to playlist")
+                }
+                
+                // Verify the save
+                let savedCount = try PlaylistTrack
+                    .filter(PlaylistTrack.Columns.playlistId == playlist.id.uuidString)
+                    .fetchCount(db)
+                
+                print("DatabaseManager: Verified \(savedCount) tracks saved for playlist in database")
+            }
+        }
+    }
+
     func loadAllPlaylists() -> [Playlist] {
         do {
             return try dbQueue.read { db in
-                // Load playlists
-                let rows = try Row.fetchAll(
-                    db,
-                    sql: "SELECT * FROM playlists ORDER BY date_created"
-                )
+                // Fetch all playlists
+                var playlists = try Playlist.fetchAll(db)
                 
-                var playlists: [Playlist] = []
+                // Get all playlist IDs that need tracks
+                let playlistIDs = playlists
+                    .filter { $0.type == .regular }
+                    .map { $0.id.uuidString }
                 
-                for row in rows {
-                    let id = UUID(uuidString: row["id"]) ?? UUID()
-                    let name: String = row["name"]
-                    let typeRaw: String = row["type"]
-                    let type = PlaylistType(rawValue: typeRaw) ?? .regular
-                    let smartTypeRaw: String? = row["smart_type"]
-                    let smartType = smartTypeRaw.flatMap { SmartPlaylistType(rawValue: $0) }
-                    let isUserEditable: Bool = row["is_user_editable"]
-                    let isContentEditable: Bool = row["is_content_editable"]
-                    let dateCreated: Date = row["date_created"]
-                    let dateModified: Date = row["date_modified"]
-                    let coverArtworkData: Data? = row["cover_artwork_data"]
+                if !playlistIDs.isEmpty {
+                    // Fetch all playlist tracks for all playlists at once
+                    let allPlaylistTracks = try PlaylistTrack
+                        .filter(playlistIDs.contains(PlaylistTrack.Columns.playlistId))
+                        .order(PlaylistTrack.Columns.playlistId, PlaylistTrack.Columns.position)
+                        .fetchAll(db)
                     
-                    // Parse smart criteria if present
-                    var smartCriteria: SmartPlaylistCriteria? = nil
-                    if let criteriaJSON: String = row["smart_criteria"],
-                       let data = criteriaJSON.data(using: .utf8) {
-                        let decoder = JSONDecoder()
-                        smartCriteria = try? decoder.decode(SmartPlaylistCriteria.self, from: data)
+                    // Group by playlist
+                    let tracksByPlaylist: [String: [PlaylistTrack]] = Dictionary(grouping: allPlaylistTracks) { $0.playlistId }
+                    
+                    // Get all unique track IDs
+                    let allTrackIds = Set(allPlaylistTracks.map { $0.trackId })
+                    
+                    // Fetch all tracks at once
+                    let tracks = try Track
+                        .filter(allTrackIds.contains(Track.Columns.trackId))
+                        .fetchAll(db)
+                    
+                    // Create lookup dictionary
+                    var trackLookup = [Int64: Track]()
+                    for track in tracks {
+                        if let id = track.trackId {
+                            trackLookup[id] = track
+                        }
                     }
                     
-                    // Load tracks for regular playlists
-                    var tracks: [Track] = []
-                    if type == .regular {
-                        tracks = try Track
-                            .joining(required: Track.folder)
-                            .filter(sql: """
-                                tracks.id IN (
-                                    SELECT track_id FROM playlist_tracks 
-                                    WHERE playlist_id = ? 
-                                    ORDER BY position
-                                )
-                                """, arguments: [id.uuidString])
-                            .fetchAll(db)
+                    // Assign tracks to each playlist
+                    for index in playlists.indices {
+                        if playlists[index].type == .regular,
+                           let playlistTracks = tracksByPlaylist[playlists[index].id.uuidString] {
+                            
+                            var orderedTracks = [Track]()
+                            for pt in playlistTracks {
+                                if let track = trackLookup[pt.trackId] {
+                                    orderedTracks.append(track)
+                                }
+                            }
+                            playlists[index].tracks = orderedTracks
+                        }
                     }
-                    
-                    // Create playlist using the restoration initializer
-                    let playlist = Playlist(
-                        id: id,
-                        name: name,
-                        tracks: tracks,
-                        dateCreated: dateCreated,
-                        dateModified: dateModified,
-                        coverArtworkData: coverArtworkData,
-                        type: type,
-                        smartType: smartType,
-                        isUserEditable: isUserEditable,
-                        isContentEditable: isContentEditable,
-                        smartCriteria: smartCriteria
-                    )
-                    
-                    playlists.append(playlist)
                 }
                 
                 return playlists
@@ -1131,10 +965,12 @@ class DatabaseManager: ObservableObject {
     
     func deletePlaylist(_ playlistId: UUID) async throws {
         try await dbQueue.write { db in
-            try db.execute(
-                sql: "DELETE FROM playlists WHERE id = ?",
-                arguments: [playlistId.uuidString]
-            )
+            // Use GRDB's model deletion
+            if let playlist = try Playlist
+                .filter(Playlist.Columns.id == playlistId.uuidString)
+                .fetchOne(db) {
+                try playlist.delete(db)
+            }
         }
     }
     

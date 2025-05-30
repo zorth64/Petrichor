@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import GRDB
 
 enum PlaylistType: String, Codable {
     case regular = "regular"
@@ -104,7 +105,7 @@ private class PlaylistArtworkCache {
     }
 }
 
-struct Playlist: Identifiable {
+struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
     let id: UUID
     var name: String
     var tracks: [Track]
@@ -116,6 +117,8 @@ struct Playlist: Identifiable {
     var isUserEditable: Bool  // Can user delete/rename this playlist?
     var isContentEditable: Bool  // Can user add/remove tracks?
     var smartCriteria: SmartPlaylistCriteria?  // Criteria for smart playlists
+    
+    // MARK: - Regular Initializers
     
     // Regular playlist initializer
     init(name: String, tracks: [Track] = [], coverArtworkData: Data? = nil) {
@@ -163,6 +166,78 @@ struct Playlist: Identifiable {
         self.isContentEditable = isContentEditable
         self.smartCriteria = smartCriteria
     }
+    
+    // MARK: - GRDB Support
+    
+    // DB Configuration
+    static let databaseTableName = "playlists"
+    
+    enum Columns {
+        static let id = Column("id")
+        static let name = Column("name")
+        static let type = Column("type")
+        static let smartType = Column("smart_type")
+        static let isUserEditable = Column("is_user_editable")
+        static let isContentEditable = Column("is_content_editable")
+        static let dateCreated = Column("date_created")
+        static let dateModified = Column("date_modified")
+        static let coverArtworkData = Column("cover_artwork_data")
+        static let smartCriteria = Column("smart_criteria")
+    }
+    
+    // FetchableRecord initializer - used by GRDB when loading from database
+    init(row: Row) throws {
+        id = UUID(uuidString: row[Columns.id]) ?? UUID()
+        name = row[Columns.name]
+        type = PlaylistType(rawValue: row[Columns.type]) ?? .regular
+        
+        let smartTypeRaw: String? = row[Columns.smartType]
+        smartType = smartTypeRaw.flatMap { SmartPlaylistType(rawValue: $0) }
+
+        isUserEditable = row[Columns.isUserEditable]
+        isContentEditable = row[Columns.isContentEditable]
+        dateCreated = row[Columns.dateCreated]
+        dateModified = row[Columns.dateModified]
+        coverArtworkData = row[Columns.coverArtworkData]
+        
+        // Parse smart criteria
+        if let criteriaJSON: String = row[Columns.smartCriteria],
+           let data = criteriaJSON.data(using: .utf8) {
+            smartCriteria = try? JSONDecoder().decode(SmartPlaylistCriteria.self, from: data)
+        } else {
+            smartCriteria = nil
+        }
+        
+        // Tracks will be loaded separately with associations
+        tracks = []
+    }
+    
+    // PersistableRecord
+    func encode(to container: inout PersistenceContainer) throws {
+        container[Columns.id] = id.uuidString
+        container[Columns.name] = name
+        container[Columns.type] = type.rawValue
+        container[Columns.smartType] = smartType?.rawValue
+        container[Columns.isUserEditable] = isUserEditable
+        container[Columns.isContentEditable] = isContentEditable
+        container[Columns.dateCreated] = dateCreated
+        container[Columns.dateModified] = dateModified
+        container[Columns.coverArtworkData] = coverArtworkData
+        
+        // Encode smart criteria as JSON
+        if let criteria = smartCriteria {
+            let encoder = JSONEncoder()
+            if let data = try? encoder.encode(criteria) {
+                container[Columns.smartCriteria] = String(data: data, encoding: .utf8)
+            }
+        }
+    }
+    
+    // Associations
+    static let playlistTracks = hasMany(PlaylistTrack.self)
+    static let tracks = hasMany(Track.self, through: playlistTracks, using: PlaylistTrack.track)
+    
+    // MARK: - Business Logic Methods (UNCHANGED)
     
     // Add a track to the playlist (only for regular playlists)
     mutating func addTrack(_ track: Track) {
@@ -389,5 +464,33 @@ extension Playlist: Equatable, Hashable {
     func hash(into hasher: inout Hasher) {
         // Hash by ID since it's unique
         hasher.combine(id)
+    }
+}
+
+extension Playlist {
+    mutating func loadTracks(from db: Database) throws {
+        guard type == .regular else { return }
+        
+        // Get playlist tracks in order
+        let playlistTracks = try PlaylistTrack
+            .filter(PlaylistTrack.Columns.playlistId == id.uuidString)
+            .order(PlaylistTrack.Columns.position)
+            .fetchAll(db)
+        
+        // Get all track IDs
+        let trackIds = playlistTracks.map { $0.trackId }
+        
+        // Fetch all tracks at once
+        let tracksByID: [Int64: Track] = try Track
+            .filter(trackIds.contains(Track.Columns.trackId))
+            .fetchAll(db)
+            .reduce(into: [:]) { dict, track in
+                if let id = track.trackId {
+                    dict[id] = track
+                }
+            }
+        
+        // Reassemble in order
+        self.tracks = playlistTracks.compactMap { tracksByID[$0.trackId] }
     }
 }

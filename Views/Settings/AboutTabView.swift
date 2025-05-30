@@ -64,7 +64,7 @@ struct AboutTabView: View {
                             }
                             
                             VStack(spacing: 4) {
-                                Text("\(libraryManager.getAllArtists().count)")
+                                Text("\(libraryManager.getDistinctValues(for: .artists).count)")
                                     .font(.title2)
                                     .fontWeight(.semibold)
                                 Text("Artists")

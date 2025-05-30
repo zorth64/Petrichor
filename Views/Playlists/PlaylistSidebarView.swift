@@ -103,6 +103,9 @@ struct PlaylistSidebarView: View {
             TextField("Playlist Name", text: $newPlaylistName)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 250)
+                .onSubmit {
+                    createPlaylist()
+                }
             
             HStack(spacing: 12) {
                 Button("Cancel") {
@@ -112,12 +115,7 @@ struct PlaylistSidebarView: View {
                 .keyboardShortcut(.escape)
                 
                 Button("Create") {
-                    if !newPlaylistName.isEmpty {
-                        let newPlaylist = playlistManager.createPlaylist(name: newPlaylistName)
-                        selectedPlaylist = newPlaylist
-                        newPlaylistName = ""
-                        showingCreatePlaylist = false
-                    }
+                    createPlaylist()
                 }
                 .keyboardShortcut(.return)
                 .disabled(newPlaylistName.isEmpty)
@@ -125,6 +123,15 @@ struct PlaylistSidebarView: View {
         }
         .padding(30)
         .frame(width: 350)
+    }
+    
+    private func createPlaylist() {
+        if !newPlaylistName.isEmpty {
+            let newPlaylist = playlistManager.createPlaylist(name: newPlaylistName)
+            selectedPlaylist = newPlaylist
+            newPlaylistName = ""
+            showingCreatePlaylist = false
+        }
     }
 }
 
