@@ -103,10 +103,20 @@ struct FoldersView: View {
     private var folderTracksHeader: some View {
         Group {
             if let folder = selectedFolder {
-                TrackListHeader(
-                    title: folder.name,
-                    trackCount: folderTracks.count
-                )
+                if viewType == .table {
+                    TrackListHeader(
+                        title: folder.name,
+                        trackCount: folderTracks.count,
+                        trailing: {
+                            TrackTableColumnMenu()
+                        }
+                    )
+                } else {
+                    TrackListHeader(
+                        title: folder.name,
+                        trackCount: folderTracks.count
+                    )
+                }
             } else {
                 TrackListHeader(
                     title: "No Folder Selected",

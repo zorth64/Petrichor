@@ -231,7 +231,6 @@ struct LibrarySidebarView: View {
         var regularItems: [LibraryFilterItem] = []
         
         for item in items {
-            print("Checking item: '\(item.name)' against placeholder: '\(selectedFilterType.unknownPlaceholder)'")  // Debug line
             if isUnknownItem(item) {
                 unknownItems.append(item)
             } else {

@@ -37,7 +37,7 @@ struct ContextualToolbar: View {
     
     private var viewToggleButtons: some View {
         TabbedButtons(
-            items: [LibraryViewType.list, LibraryViewType.grid],
+            items: [LibraryViewType.table, LibraryViewType.list, LibraryViewType.grid],
             selection: $viewType,
             style: .viewToggle
         )
