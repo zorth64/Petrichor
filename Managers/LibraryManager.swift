@@ -302,14 +302,14 @@ class LibraryManager: ObservableObject {
 
     func getTracksBy(filterType: LibraryFilterType, value: String) -> [Track] {
         if filterType.usesMultiArtistParsing && value != filterType.unknownPlaceholder {
-            return databaseManager.getTracksByColumnContaining(filterType.databaseColumn, value: value)
+            return databaseManager.getTracksByFilterTypeContaining(filterType, value: value)
         } else {
-            return databaseManager.getTracksByColumn(filterType.databaseColumn, value: value)
+            return databaseManager.getTracksByFilterType(filterType, value: value)
         }
     }
 
     func getDistinctValues(for filterType: LibraryFilterType) -> [String] {
-        let values = databaseManager.getDistinctValues(for: filterType.databaseColumn)
+        let values = databaseManager.getDistinctValues(for: filterType)
         
         // For composers, normalize empty strings to "Unknown Composer"
         if filterType == .composers {
@@ -320,7 +320,7 @@ class LibraryManager: ObservableObject {
         
         return values
     }
-    
+
     // MARK: - Library Maintenance
     
     func refreshLibrary() {

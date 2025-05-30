@@ -133,43 +133,50 @@ struct PlaylistDetailView: View {
     }
     
     private var playlistControls: some View {
-        HStack(spacing: 12) {
+        let buttonWidth: CGFloat = 90
+        let verticalPadding: CGFloat = 6
+        let iconSize: CGFloat = 12
+        let textSize: CGFloat = 13
+        let buttonSpacing: CGFloat = 10
+        let iconTextSpacing: CGFloat = 4
+        
+        return HStack(spacing: buttonSpacing) {
             Button(action: playPlaylist) {
-                HStack {
+                HStack(spacing: iconTextSpacing) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 14))
+                        .font(.system(size: iconSize))
                     Text("Play")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: textSize, weight: .medium))
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
+                .frame(width: buttonWidth)
+                .padding(.vertical, verticalPadding)
             }
             .buttonStyle(.borderedProminent)
             .disabled(playlist?.tracks.isEmpty ?? true)
             
             Button(action: shufflePlaylist) {
-                HStack {
+                HStack(spacing: iconTextSpacing) {
                     Image(systemName: "shuffle")
-                        .font(.system(size: 14))
+                        .font(.system(size: iconSize))
                     Text("Shuffle")
-                        .font(.system(size: 14))
+                        .font(.system(size: textSize, weight: .medium))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .frame(width: buttonWidth)
+                .padding(.vertical, verticalPadding)
             }
             .buttonStyle(.bordered)
             .disabled(playlist?.tracks.isEmpty ?? true)
             
             if playlist?.type == .regular {
                 Button(action: { showingAddSongs = true }) {
-                    HStack {
+                    HStack(spacing: iconTextSpacing) {
                         Image(systemName: "plus.circle")
-                        .font(.system(size: 14))
+                            .font(.system(size: iconSize))
                         Text("Add Songs")
-                        .font(.system(size: 14))
+                            .font(.system(size: textSize, weight: .medium))
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .frame(width: buttonWidth)
+                    .padding(.vertical, verticalPadding)
                 }
                 .buttonStyle(.bordered)
             }
