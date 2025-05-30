@@ -85,8 +85,19 @@ private struct TrackListView: View {
         case .menu(let title, let items):
             Menu(title) {
                 ForEach(items, id: \.id) { subItem in
-                    if case .button(let subTitle, let subRole, let subAction) = subItem {
+                    switch subItem {
+                    case .button(let subTitle, let subRole, let subAction):
                         Button(subTitle, role: subRole, action: subAction)
+                    case .menu(let subMenuTitle, let subMenuItems):
+                        Menu(subMenuTitle) {
+                            ForEach(subMenuItems, id: \.id) { nestedItem in
+                                if case .button(let nestedTitle, let nestedRole, let nestedAction) = nestedItem {
+                                    Button(nestedTitle, role: nestedRole, action: nestedAction)
+                                }
+                            }
+                        }
+                    case .divider:
+                        Divider()
                     }
                 }
             }

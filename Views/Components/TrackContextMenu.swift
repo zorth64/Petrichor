@@ -1,5 +1,9 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let goToLibraryFilter = Notification.Name("GoToLibraryFilter")
+}
+
 struct TrackContextMenu {
     static func createMenuItems(
         for track: Track,
@@ -34,6 +38,63 @@ struct TrackContextMenu {
         items.append(.button(title: "Add to Queue") {
             playlistManager.addToQueue(track)
         })
+        
+        // Go to submenu
+        var goToItems: [ContextMenuItem] = []
+
+        for filterType in LibraryFilterType.allCases {
+            if filterType.usesMultiArtistParsing {
+                // Parse the multi-value field
+                let value = filterType.getValue(from: track)
+                let parsedValues = ArtistParser.parse(value, unknownPlaceholder: filterType.unknownPlaceholder)
+                
+                if parsedValues.count > 1 {
+                    // Multiple values - create submenu
+                    var subItems: [ContextMenuItem] = []
+                    for parsedValue in parsedValues {
+                        subItems.append(.button(title: parsedValue) {
+                            NotificationCenter.default.post(
+                                name: .goToLibraryFilter,
+                                object: nil,
+                                userInfo: [
+                                    "filterType": filterType,
+                                    "filterValue": parsedValue
+                                ]
+                            )
+                        })
+                    }
+                    goToItems.append(.menu(title: filterType.rawValue, items: subItems))
+                } else {
+                    // Single value - create direct menu item
+                    let displayValue = parsedValues.first ?? filterType.unknownPlaceholder
+                    goToItems.append(.button(title: "\(filterType.singularDisplayName): \(displayValue)") {
+                        NotificationCenter.default.post(
+                            name: .goToLibraryFilter,
+                            object: nil,
+                            userInfo: [
+                                "filterType": filterType,
+                                "filterValue": displayValue
+                            ]
+                        )
+                    })
+                }
+            } else {
+                // Non-parsed fields - direct menu item
+                let value = filterType.getValue(from: track)
+                goToItems.append(.button(title: "\(filterType.singularDisplayName): \(value)") {
+                    NotificationCenter.default.post(
+                        name: .goToLibraryFilter,
+                        object: nil,
+                        userInfo: [
+                            "filterType": filterType,
+                            "filterValue": value
+                        ]
+                    )
+                })
+            }
+        }
+
+        items.append(.menu(title: "Go to", items: goToItems))
         
         items.append(.divider)
         

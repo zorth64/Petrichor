@@ -5,10 +5,11 @@ struct ContentView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
     
+    @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .list
     @State private var selectedTab: MainTab = .library
     @State private var showingSettings = false
     @State private var showingQueue = false
-    @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .list
+    @State private var pendingLibraryFilter: LibraryFilterRequest?
     @State private var windowDelegate = WindowDelegate()
     
     var body: some View {
@@ -31,7 +32,10 @@ struct ContentView: View {
                     Group {
                         switch selectedTab {
                             case .library:
-                                LibraryView(viewType: globalViewType)
+                            LibraryView(
+                                viewType: globalViewType,
+                                pendingFilter: $pendingLibraryFilter
+                            )
                             case .folders:
                                 FoldersView(viewType: globalViewType)
                             case .playlists:
@@ -53,6 +57,15 @@ struct ContentView: View {
             PlayerView(showingQueue: $showingQueue)
         }
         .frame(minWidth: 800, minHeight: 600)
+        .onReceive(NotificationCenter.default.publisher(for: .goToLibraryFilter)) { notification in
+            if let filterType = notification.userInfo?["filterType"] as? LibraryFilterType,
+               let filterValue = notification.userInfo?["filterValue"] as? String {
+                // Switch to Library tab
+                selectedTab = .library
+                // Store the filter request
+                pendingLibraryFilter = LibraryFilterRequest(filterType: filterType, value: filterValue)
+            }
+        }
         .background(WindowAccessor(windowDelegate: windowDelegate))
         .navigationTitle("") // Remove any automatic title
         .toolbar {
