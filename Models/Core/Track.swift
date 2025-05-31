@@ -32,6 +32,14 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     var originalReleaseDate: String?
     var bpm: Int?
     var mediaType: String?
+    var bitrate: Int?
+    var sampleRate: Int?
+    var channels: Int?
+    var codec: String?
+    var bitDepth: Int?
+    var fileSize: Int64?
+    var dateAdded: Date?
+    var dateModified: Date?
 
     var sortTitle: String?
     var sortArtist: String?
@@ -101,6 +109,11 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let originalReleaseDate = Column("original_release_date")
         static let bpm = Column("bpm")
         static let mediaType = Column("media_type")
+        static let bitrate = Column("bitrate")
+        static let sampleRate = Column("sample_rate")
+        static let channels = Column("channels")
+        static let codec = Column("codec")
+        static let bitDepth = Column("bit_depth")
         static let sortTitle = Column("sort_title")
         static let sortArtist = Column("sort_artist")
         static let sortAlbum = Column("sort_album")
@@ -144,6 +157,14 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         originalReleaseDate = row[Columns.originalReleaseDate]
         bpm = row[Columns.bpm]
         mediaType = row[Columns.mediaType]
+        bitrate = row[Columns.bitrate]
+        sampleRate = row[Columns.sampleRate]
+        channels = row[Columns.channels]
+        codec = row[Columns.codec]
+        bitDepth = row[Columns.bitDepth]
+        fileSize = row[Columns.fileSize]
+        dateAdded = row[Columns.dateAdded]
+        dateModified = row[Columns.dateModified]
         sortTitle = row[Columns.sortTitle]
         sortArtist = row[Columns.sortArtist]
         sortAlbum = row[Columns.sortAlbum]
@@ -186,6 +207,13 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         container[Columns.originalReleaseDate] = originalReleaseDate
         container[Columns.bpm] = bpm
         container[Columns.mediaType] = mediaType
+        container[Columns.bitrate] = bitrate
+        container[Columns.sampleRate] = sampleRate
+        container[Columns.channels] = channels
+        container[Columns.codec] = codec
+        container[Columns.bitDepth] = bitDepth
+        container[Columns.fileSize] = fileSize
+        container[Columns.dateModified] = dateModified
         container[Columns.sortTitle] = sortTitle
         container[Columns.sortArtist] = sortArtist
         container[Columns.sortAlbum] = sortAlbum
