@@ -34,8 +34,6 @@ class LibraryManager: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        print("LibraryManager: Initializing...")
-            
         do {
             // Initialize database manager
             databaseManager = try DatabaseManager()
@@ -59,14 +57,6 @@ class LibraryManager: ObservableObject {
         loadSecurityBookmarks()
         loadMusicLibrary()
         startFileWatcher()
-        
-        // Register for memory pressure notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleMemoryPressure),
-            name: NSNotification.Name.NSProcessInfoPowerStateDidChange,
-            object: nil
-        )
         
         // Observe auto-scan interval changes
         NotificationCenter.default.addObserver(
@@ -113,7 +103,6 @@ class LibraryManager: ObservableObject {
                                   bookmarkDataIsStale: &isStale)
                 
                 if isStale {
-                    print("LibraryManager: Bookmark is stale for \(urlString)")
                     continue
                 }
                 
@@ -124,8 +113,6 @@ class LibraryManager: ObservableObject {
                 }
                 
                 securityBookmarks[url] = bookmarkData
-                print("LibraryManager: Restored security bookmark for \(url.lastPathComponent)")
-                
             } catch {
                 print("LibraryManager: Failed to resolve bookmark for \(urlString): \(error)")
             }
@@ -416,36 +403,20 @@ class LibraryManager: ObservableObject {
     }
     
     @objc private func autoScanIntervalDidChange(_ notification: Notification) {
+        let newInterval = autoScanInterval
+        
+        // Store the current interval to compare
+        struct LastInterval {
+            static var value: AutoScanInterval?
+        }
+        
+        // Only proceed if the interval actually changed
+        guard LastInterval.value != newInterval else { return }
+        LastInterval.value = newInterval
+        
         // Check if the auto-scan interval specifically changed
         DispatchQueue.main.async { [weak self] in
             self?.handleAutoScanIntervalChange()
-        }
-    }
-    
-    // MARK: - Memory Management
-    
-    @objc private func handleMemoryPressure() {
-        print("LibraryManager: Handling memory pressure")
-        
-        // With GRDB, we can simply reload data when needed
-        // Clear the in-memory arrays to free memory
-        if let coordinator = AppCoordinator.shared,
-           let currentTrack = coordinator.audioPlayerManager.currentTrack {
-            // Keep track of current track ID
-            let currentTrackId = currentTrack.trackId
-            
-            // Clear all tracks from memory
-            tracks.removeAll()
-            
-            // Reload just the essential data
-            folders = databaseManager.getAllFolders()
-            
-            print("LibraryManager: Cleared tracks from memory, keeping folders")
-        } else {
-            // No track playing, we can clear everything and reload when needed
-            tracks.removeAll()
-            folders.removeAll()
-            print("LibraryManager: Cleared all data from memory")
         }
     }
 }

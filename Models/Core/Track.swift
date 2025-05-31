@@ -213,6 +213,12 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     static func == (lhs: Track, rhs: Track) -> Bool {
         return lhs.id == rhs.id
     }
+    
+    // MARK: - Sorting support
+    
+    var albumArtistForSorting: String {
+        return albumArtist ?? ""
+    }
 }
 
 // MARK: - Hashable Conformance

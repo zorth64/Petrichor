@@ -5,7 +5,7 @@ struct ContentView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
     
-    @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .list
+    @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .table
     @State private var selectedTab: MainTab = .library
     @State private var showingSettings = false
     @State private var showingQueue = false
@@ -29,20 +29,25 @@ struct ContentView: View {
                 // Main content
                 VStack {
                     // Content based on selected tab
-                    Group {
-                        switch selectedTab {
-                            case .library:
-                            LibraryView(
-                                viewType: globalViewType,
-                                pendingFilter: $pendingLibraryFilter
-                            )
-                            case .folders:
-                                FoldersView(viewType: globalViewType)
-                            case .playlists:
-                                PlaylistsView(viewType: globalViewType)
-                        }
+                    ZStack {
+                        LibraryView(
+                            viewType: globalViewType,
+                            pendingFilter: $pendingLibraryFilter
+                        )
+                        .opacity(selectedTab == .library ? 1 : 0)
+                        .allowsHitTesting(selectedTab == .library)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        FoldersView(viewType: globalViewType)
+                            .opacity(selectedTab == .folders ? 1 : 0)
+                            .allowsHitTesting(selectedTab == .folders)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        PlaylistsView(viewType: globalViewType)
+                            .opacity(selectedTab == .playlists ? 1 : 0)
+                            .allowsHitTesting(selectedTab == .playlists)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(minWidth: 400)
                 

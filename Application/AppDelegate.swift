@@ -48,8 +48,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        print("applicationShouldHandleReopen - hasVisibleWindows: \(flag)")
-        
         // Always restore dock icon when reopening
         NSApp.setActivationPolicy(.regular)
         

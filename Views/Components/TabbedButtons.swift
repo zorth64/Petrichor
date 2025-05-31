@@ -205,6 +205,7 @@ extension LibraryViewType: TabbedItem {
         switch self {
         case .list: return "list.bullet"
         case .grid: return "square.grid.2x2"
+        case .table: return "tablecells"
         }
     }
 }

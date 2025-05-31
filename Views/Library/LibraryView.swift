@@ -141,10 +141,22 @@ struct LibraryView: View {
     // MARK: - Tracks List Header
     
     private var tracksListHeader: some View {
-        TrackListHeader(
-            title: headerTitle,
-            trackCount: cachedFilteredTracks.count
-        )
+        Group {
+            if viewType == .table {
+                TrackListHeader(
+                    title: headerTitle,
+                    trackCount: cachedFilteredTracks.count,
+                    trailing: {
+                        TrackTableColumnMenu()
+                    }
+                )
+            } else {
+                TrackListHeader(
+                    title: headerTitle,
+                    trackCount: cachedFilteredTracks.count
+                )
+            }
+        }
     }
 
     private var headerTitle: String {
