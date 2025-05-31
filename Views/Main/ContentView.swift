@@ -9,6 +9,8 @@ struct ContentView: View {
     @State private var selectedTab: MainTab = .library
     @State private var showingSettings = false
     @State private var showingQueue = false
+    @State private var showingTrackDetail = false
+    @State private var detailTrack: Track?
     @State private var pendingLibraryFilter: LibraryFilterRequest?
     @State private var windowDelegate = WindowDelegate()
     
@@ -51,15 +53,28 @@ struct ContentView: View {
                 }
                 .frame(minWidth: 400)
                 
-                // Queue sidebar
+                // Queue/Track Detail sidebar
                 if showingQueue {
                     PlayQueueView()
+                        .frame(width: 350)
+                } else if showingTrackDetail, let track = detailTrack {
+                    TrackDetailView(track: track, onClose: hideTrackDetail)
                         .frame(width: 350)
                 }
             }
             
             // Player controls at bottom
-            PlayerView(showingQueue: $showingQueue)
+            PlayerView(showingQueue: Binding(
+                get: { showingQueue },
+                set: { newValue in
+                    if newValue {
+                        // If showing queue, hide track detail
+                        showingTrackDetail = false
+                        detailTrack = nil
+                    }
+                    showingQueue = newValue
+                }
+            ))
         }
         .frame(minWidth: 800, minHeight: 600)
         .onReceive(NotificationCenter.default.publisher(for: .goToLibraryFilter)) { notification in
@@ -69,6 +84,11 @@ struct ContentView: View {
                 selectedTab = .library
                 // Store the filter request
                 pendingLibraryFilter = LibraryFilterRequest(filterType: filterType, value: filterValue)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowTrackInfo"))) { notification in
+            if let track = notification.userInfo?["track"] as? Track {
+                showTrackDetail(for: track)
             }
         }
         .background(WindowAccessor(windowDelegate: windowDelegate))
@@ -110,6 +130,22 @@ struct ContentView: View {
             SettingsView()
                 .environmentObject(libraryManager)
         }
+    }
+    
+    // MARK: - Track Detail Methods
+
+    private func showTrackDetail(for track: Track) {
+        // Close queue if open
+        showingQueue = false
+        
+        // Show track detail
+        detailTrack = track
+        showingTrackDetail = true
+    }
+
+    private func hideTrackDetail() {
+        showingTrackDetail = false
+        detailTrack = nil
     }
 }
 

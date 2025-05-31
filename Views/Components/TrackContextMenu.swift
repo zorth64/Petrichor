@@ -39,6 +39,17 @@ struct TrackContextMenu {
             playlistManager.addToQueue(track)
         })
         
+        // Show Info
+        items.append(.button(title: "Show Info") {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ShowTrackInfo"),
+                object: nil,
+                userInfo: ["track": track]
+            )
+        })
+
+        items.append(.divider)
+        
         // Go to submenu
         var goToItems: [ContextMenuItem] = []
 

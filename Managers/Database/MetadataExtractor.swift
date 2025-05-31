@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import CoreMedia
 
 class MetadataExtractor {
     
@@ -113,7 +114,7 @@ class MetadataExtractor {
         var loadingComplete = false
         
         // Load metadata asynchronously but wait for it
-        asset.loadValuesAsynchronously(forKeys: ["commonMetadata", "metadata", "availableMetadataFormats", "duration"]) {
+        asset.loadValuesAsynchronously(forKeys: ["commonMetadata", "metadata", "availableMetadataFormats", "duration", "tracks"]) {
             defer {
                 loadingComplete = true
                 semaphore.signal()
@@ -141,6 +142,34 @@ class MetadataExtractor {
             
             // Get duration
             metadata.duration = CMTimeGetSeconds(asset.duration)
+            
+            // Get audio format information
+            if let audioTrack = asset.tracks(withMediaType: .audio).first {
+                let formatDescriptions = audioTrack.formatDescriptions as? [CMFormatDescription] ?? []
+                
+                if let formatDescription = formatDescriptions.first {
+                    // Get audio stream basic description
+                    if let streamBasicDesc = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription) {
+                        metadata.sampleRate = Int(streamBasicDesc.pointee.mSampleRate)
+                        metadata.channels = Int(streamBasicDesc.pointee.mChannelsPerFrame)
+                        
+                        // Bit depth from bits per channel
+                        if streamBasicDesc.pointee.mBitsPerChannel > 0 {
+                            metadata.bitDepth = Int(streamBasicDesc.pointee.mBitsPerChannel)
+                        }
+                    }
+                    
+                    // Get codec
+                    let audioCodec = CMFormatDescriptionGetMediaSubType(formatDescription)
+                    metadata.codec = fourCCToString(audioCodec)
+                }
+                
+                // Estimate bitrate
+                let dataRate = audioTrack.estimatedDataRate
+                if dataRate > 0 {
+                    metadata.bitrate = Int(dataRate / 1000) // Convert to kbps
+                }
+            }
         }
         
         // Wait for loading to complete (with timeout)
@@ -622,6 +651,32 @@ class MetadataExtractor {
         // If all else fails, return the original string
         return trimmed
     }
+    
+    // Helper to convert FourCC to string
+    private static func fourCCToString(_ fourCC: FourCharCode) -> String {
+        let bytes: [UInt8] = [
+            UInt8((fourCC >> 24) & 0xFF),
+            UInt8((fourCC >> 16) & 0xFF),
+            UInt8((fourCC >> 8) & 0xFF),
+            UInt8(fourCC & 0xFF)
+        ]
+        
+        // Common audio codecs mapping
+        switch fourCC {
+        case kAudioFormatMPEG4AAC: return "AAC"
+        case kAudioFormatMPEGLayer3: return "MP3"
+        case kAudioFormatAppleLossless: return "ALAC"
+        case kAudioFormatFLAC: return "FLAC"
+        case kAudioFormatLinearPCM: return "PCM"
+        case kAudioFormatAC3: return "AC-3"
+        case kAudioFormatMPEG4AAC_HE: return "HE-AAC"
+        case kAudioFormatMPEG4AAC_HE_V2: return "HE-AACv2"
+        default:
+            // Convert FourCC bytes to string
+            let fourCCString = String(bytes: bytes, encoding: .ascii) ?? "Unknown"
+            return fourCCString.trimmingCharacters(in: .whitespaces)
+        }
+    }
 }
 
 struct TrackMetadata {
@@ -645,6 +700,11 @@ struct TrackMetadata {
     var originalReleaseDate: String?
     var bpm: Int?
     var mediaType: String?
+    var bitrate: Int?
+    var sampleRate: Int?
+    var channels: Int?
+    var codec: String?
+    var bitDepth: Int?
 
     var sortTitle: String?
     var sortArtist: String?

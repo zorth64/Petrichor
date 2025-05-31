@@ -92,6 +92,11 @@ class DatabaseManager: ObservableObject {
                 t.column("original_release_date", .text) // For reissues
                 t.column("bpm", .integer)
                 t.column("media_type", .text) // Music, Audiobook, Podcast, etc.
+                t.column("bitrate", .integer) // in kbps
+                t.column("sample_rate", .integer) // in Hz
+                t.column("channels", .integer) // 1=mono, 2=stereo, etc
+                t.column("codec", .text) // specific codec
+                t.column("bit_depth", .integer) // for lossless formats
 
                 t.column("sort_title", .text)
                 t.column("sort_artist", .text)
@@ -329,7 +334,7 @@ class DatabaseManager: ObservableObject {
         // Update folder track count
         try await updateFolderTrackCount(folder)
     }
-    
+
     private func processBatch(_ files: [URL], folder: Folder, existingTracks: [URL: Track]) async throws {
         guard let folderId = folder.id else {
             print("ERROR: Folder has no ID! Folder: \(folder.name)")
@@ -338,223 +343,325 @@ class DatabaseManager: ObservableObject {
         
         try await dbQueue.write { db in
             for fileURL in files {
-                let fileModificationDate = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
-                
                 if let existingTrack = existingTracks[fileURL] {
-                    let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-                    
-                    var hasChanges = false
-                    var updatedTrack = existingTrack
-                    
-                    // Update all core metadata fields if we found better data
-                    if let newTitle = metadata.title,
-                       !newTitle.isEmpty && newTitle != existingTrack.title {
-                        updatedTrack.title = newTitle
-                        hasChanges = true
-                    }
-                    
-                    if let newArtist = metadata.artist,
-                       !newArtist.isEmpty && newArtist != existingTrack.artist {
-                        updatedTrack.artist = newArtist
-                        hasChanges = true
-                    }
-                    
-                    if let newAlbum = metadata.album,
-                       !newAlbum.isEmpty && newAlbum != existingTrack.album {
-                        updatedTrack.album = newAlbum
-                        hasChanges = true
-                    }
-                    
-                    if let newGenre = metadata.genre,
-                       !newGenre.isEmpty && (existingTrack.genre == "Unknown Genre" || existingTrack.genre != newGenre) {
-                        updatedTrack.genre = newGenre
-                        hasChanges = true
-                    }
-                    
-                    if let newComposer = metadata.composer,
-                       !newComposer.isEmpty && (existingTrack.composer == "Unknown Composer" || existingTrack.composer.isEmpty || existingTrack.composer != newComposer) {
-                        updatedTrack.composer = newComposer
-                        hasChanges = true
-                    }
-                    
-                    if let newYear = metadata.year,
-                       !newYear.isEmpty && (existingTrack.year.isEmpty || existingTrack.year == "Unknown Year" || existingTrack.year != newYear) {
-                        updatedTrack.year = newYear
-                        hasChanges = true
-                    }
-
-                    if metadata.duration > 0 && abs(metadata.duration - existingTrack.duration) > 0.1 {
-                        updatedTrack.duration = metadata.duration
-                        hasChanges = true
-                    }
-
-                    if let newArtworkData = metadata.artworkData,
-                       existingTrack.artworkData == nil {
-                        updatedTrack.artworkData = newArtworkData
-                        hasChanges = true
-                    }
-
-                    if let newAlbumArtist = metadata.albumArtist,
-                       !newAlbumArtist.isEmpty && newAlbumArtist != existingTrack.albumArtist {
-                        updatedTrack.albumArtist = newAlbumArtist
-                        hasChanges = true
-                    }
-                    
-                    if let newTrackNumber = metadata.trackNumber,
-                       newTrackNumber != existingTrack.trackNumber {
-                        updatedTrack.trackNumber = newTrackNumber
-                        hasChanges = true
-                    }
-                    
-                    if let newTotalTracks = metadata.totalTracks,
-                       newTotalTracks != existingTrack.totalTracks {
-                        updatedTrack.totalTracks = newTotalTracks
-                        hasChanges = true
-                    }
-                    
-                    if let newDiscNumber = metadata.discNumber,
-                       newDiscNumber != existingTrack.discNumber {
-                        updatedTrack.discNumber = newDiscNumber
-                        hasChanges = true
-                    }
-                    
-                    if let newTotalDiscs = metadata.totalDiscs,
-                       newTotalDiscs != existingTrack.totalDiscs {
-                        updatedTrack.totalDiscs = newTotalDiscs
-                        hasChanges = true
-                    }
-                    
-                    if let newRating = metadata.rating,
-                       newRating != existingTrack.rating {
-                        updatedTrack.rating = newRating
-                        hasChanges = true
-                    }
-                    
-                    if metadata.compilation != existingTrack.compilation {
-                        updatedTrack.compilation = metadata.compilation
-                        hasChanges = true
-                    }
-                    
-                    if let newReleaseDate = metadata.releaseDate,
-                       !newReleaseDate.isEmpty && newReleaseDate != existingTrack.releaseDate {
-                        updatedTrack.releaseDate = newReleaseDate
-                        hasChanges = true
-                    }
-                    
-                    if let newOriginalReleaseDate = metadata.originalReleaseDate,
-                       !newOriginalReleaseDate.isEmpty && newOriginalReleaseDate != existingTrack.originalReleaseDate {
-                        updatedTrack.originalReleaseDate = newOriginalReleaseDate
-                        hasChanges = true
-                    }
-                    
-                    if let newBpm = metadata.bpm,
-                       newBpm != existingTrack.bpm {
-                        updatedTrack.bpm = newBpm
-                        hasChanges = true
-                    }
-                    
-                    if let newMediaType = metadata.mediaType,
-                       !newMediaType.isEmpty && newMediaType != existingTrack.mediaType {
-                        updatedTrack.mediaType = newMediaType
-                        hasChanges = true
-                    }
-                    
-                    // Update sort fields
-                    if let newSortTitle = metadata.sortTitle,
-                       !newSortTitle.isEmpty && newSortTitle != existingTrack.sortTitle {
-                        updatedTrack.sortTitle = newSortTitle
-                        hasChanges = true
-                    }
-                    
-                    if let newSortArtist = metadata.sortArtist,
-                       !newSortArtist.isEmpty && newSortArtist != existingTrack.sortArtist {
-                        updatedTrack.sortArtist = newSortArtist
-                        hasChanges = true
-                    }
-                    
-                    if let newSortAlbum = metadata.sortAlbum,
-                       !newSortAlbum.isEmpty && newSortAlbum != existingTrack.sortAlbum {
-                        updatedTrack.sortAlbum = newSortAlbum
-                        hasChanges = true
-                    }
-                    
-                    if let newSortAlbumArtist = metadata.sortAlbumArtist,
-                       !newSortAlbumArtist.isEmpty && newSortAlbumArtist != existingTrack.sortAlbumArtist {
-                        updatedTrack.sortAlbumArtist = newSortAlbumArtist
-                        hasChanges = true
-                    }
-                    
-                    // Always update extended metadata
-                    updatedTrack.extendedMetadata = metadata.extended
-                    hasChanges = true
-                    
-                    // Update in database if there were changes
-                    if hasChanges {
-                        try updatedTrack.update(db)
-                        print("Updated metadata for: \(updatedTrack.title) - Changes detected")
-                    }
+                    try self.updateExistingTrack(existingTrack, at: fileURL, in: db)
                 } else {
-                    // New track - extract metadata and add to database
-                    let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-                    
-                    // Create track
-                    var track = Track(url: fileURL)
-                    track.folderId = folderId
-                    
-                    // Core fields
-                    track.title = metadata.title ?? fileURL.deletingPathExtension().lastPathComponent
-                    track.artist = metadata.artist ?? "Unknown Artist"
-                    track.album = metadata.album ?? "Unknown Album"
-                    track.genre = metadata.genre ?? "Unknown Genre"
-                    track.composer = metadata.composer ?? "Unknown Composer"
-                    track.year = metadata.year ?? ""
-                    track.duration = metadata.duration
-                    track.artworkData = metadata.artworkData
-                    track.isMetadataLoaded = true
-                    track.albumArtist = metadata.albumArtist
-                    track.trackNumber = metadata.trackNumber
-                    track.totalTracks = metadata.totalTracks
-                    track.discNumber = metadata.discNumber
-                    track.totalDiscs = metadata.totalDiscs
-                    track.rating = metadata.rating
-                    track.compilation = metadata.compilation
-                    track.releaseDate = metadata.releaseDate
-                    track.originalReleaseDate = metadata.originalReleaseDate
-                    track.bpm = metadata.bpm
-                    track.mediaType = metadata.mediaType
-                    
-                    // Sort fields
-                    track.sortTitle = metadata.sortTitle
-                    track.sortArtist = metadata.sortArtist
-                    track.sortAlbum = metadata.sortAlbum
-                    track.sortAlbumArtist = metadata.sortAlbumArtist
-
-                    track.extendedMetadata = metadata.extended
-                    
-                    // Save to database
-                    try track.save(db)
-                    print("Added new track: \(track.title)")
-                    
-                    // Log some interesting metadata if present
-                    if let albumArtist = track.albumArtist {
-                        print("  Album Artist: \(albumArtist)")
-                    }
-                    if let trackNum = track.trackNumber {
-                        let totalStr = track.totalTracks.map { "/\($0)" } ?? ""
-                        print("  Track: \(trackNum)\(totalStr)")
-                    }
-                    if let discNum = track.discNumber {
-                        let totalStr = track.totalDiscs.map { "/\($0)" } ?? ""
-                        print("  Disc: \(discNum)\(totalStr)")
-                    }
-                    if track.compilation {
-                        print("  Compilation: Yes")
-                    }
-                    if let mbid = track.extendedMetadata?.musicBrainzTrackId {
-                        print("  MusicBrainz ID: \(mbid)")
-                    }
+                    try self.createNewTrack(at: fileURL, folderId: folderId, in: db)
                 }
             }
+        }
+    }
+
+    // MARK: - Track Creation and Update Helpers
+
+    private func createNewTrack(at fileURL: URL, folderId: Int64, in db: Database) throws {
+        // Extract metadata
+        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+        
+        // Create track
+        var track = Track(url: fileURL)
+        track.folderId = folderId
+        
+        // Apply metadata
+        applyMetadataToTrack(&track, from: metadata, at: fileURL)
+        
+        // Save to database
+        try track.save(db)
+        print("Added new track: \(track.title)")
+        
+        // Log interesting metadata
+        logTrackMetadata(track)
+    }
+
+    private func updateExistingTrack(_ existingTrack: Track, at fileURL: URL, in db: Database) throws {
+        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+        
+        var updatedTrack = existingTrack
+        let hasChanges = updateTrackIfNeeded(&updatedTrack, with: metadata, at: fileURL)
+        
+        // Update in database if there were changes
+        if hasChanges {
+            try updatedTrack.update(db)
+            print("Updated metadata for: \(updatedTrack.title) - Changes detected")
+        }
+    }
+
+    // MARK: - Metadata Application
+
+    private func applyMetadataToTrack(_ track: inout Track, from metadata: TrackMetadata, at fileURL: URL) {
+        // Core fields
+        track.title = metadata.title ?? fileURL.deletingPathExtension().lastPathComponent
+        track.artist = metadata.artist ?? "Unknown Artist"
+        track.album = metadata.album ?? "Unknown Album"
+        track.genre = metadata.genre ?? "Unknown Genre"
+        track.composer = metadata.composer ?? "Unknown Composer"
+        track.year = metadata.year ?? ""
+        track.duration = metadata.duration
+        track.artworkData = metadata.artworkData
+        track.isMetadataLoaded = true
+        
+        // Additional metadata
+        track.albumArtist = metadata.albumArtist
+        track.trackNumber = metadata.trackNumber
+        track.totalTracks = metadata.totalTracks
+        track.discNumber = metadata.discNumber
+        track.totalDiscs = metadata.totalDiscs
+        track.rating = metadata.rating
+        track.compilation = metadata.compilation
+        track.releaseDate = metadata.releaseDate
+        track.originalReleaseDate = metadata.originalReleaseDate
+        track.bpm = metadata.bpm
+        track.mediaType = metadata.mediaType
+        
+        // Sort fields
+        track.sortTitle = metadata.sortTitle
+        track.sortArtist = metadata.sortArtist
+        track.sortAlbum = metadata.sortAlbum
+        track.sortAlbumArtist = metadata.sortAlbumArtist
+        
+        // Audio properties
+        track.bitrate = metadata.bitrate
+        track.sampleRate = metadata.sampleRate
+        track.channels = metadata.channels
+        track.codec = metadata.codec
+        track.bitDepth = metadata.bitDepth
+        
+        // File properties
+        if let attributes = try? fileURL.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) {
+            track.fileSize = attributes.fileSize.map { Int64($0) }
+            track.dateModified = attributes.contentModificationDate
+        }
+        
+        // Extended metadata
+        track.extendedMetadata = metadata.extended
+    }
+
+    private func updateTrackIfNeeded(_ track: inout Track, with metadata: TrackMetadata, at fileURL: URL) -> Bool {
+        var hasChanges = false
+        
+        // Update core metadata
+        hasChanges = updateCoreMetadata(&track, with: metadata) || hasChanges
+        
+        // Update additional metadata
+        hasChanges = updateAdditionalMetadata(&track, with: metadata) || hasChanges
+        
+        // Update audio properties
+        hasChanges = updateAudioProperties(&track, with: metadata) || hasChanges
+        
+        // Update file properties
+        hasChanges = updateFileProperties(&track, at: fileURL) || hasChanges
+        
+        // Always update extended metadata
+        track.extendedMetadata = metadata.extended
+        hasChanges = true
+        
+        return hasChanges
+    }
+
+    private func updateCoreMetadata(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
+        var hasChanges = false
+        
+        if let newTitle = metadata.title, !newTitle.isEmpty && newTitle != track.title {
+            track.title = newTitle
+            hasChanges = true
+        }
+        
+        if let newArtist = metadata.artist, !newArtist.isEmpty && newArtist != track.artist {
+            track.artist = newArtist
+            hasChanges = true
+        }
+        
+        if let newAlbum = metadata.album, !newAlbum.isEmpty && newAlbum != track.album {
+            track.album = newAlbum
+            hasChanges = true
+        }
+        
+        if let newGenre = metadata.genre, !newGenre.isEmpty && (track.genre == "Unknown Genre" || track.genre != newGenre) {
+            track.genre = newGenre
+            hasChanges = true
+        }
+        
+        if let newComposer = metadata.composer, !newComposer.isEmpty && (track.composer == "Unknown Composer" || track.composer.isEmpty || track.composer != newComposer) {
+            track.composer = newComposer
+            hasChanges = true
+        }
+        
+        if let newYear = metadata.year, !newYear.isEmpty && (track.year.isEmpty || track.year == "Unknown Year" || track.year != newYear) {
+            track.year = newYear
+            hasChanges = true
+        }
+        
+        if metadata.duration > 0 && abs(metadata.duration - track.duration) > 0.1 {
+            track.duration = metadata.duration
+            hasChanges = true
+        }
+        
+        if let newArtworkData = metadata.artworkData, track.artworkData == nil {
+            track.artworkData = newArtworkData
+            hasChanges = true
+        }
+        
+        return hasChanges
+    }
+
+    private func updateAdditionalMetadata(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
+        var hasChanges = false
+        
+        // Album metadata
+        if let newAlbumArtist = metadata.albumArtist, !newAlbumArtist.isEmpty && newAlbumArtist != track.albumArtist {
+            track.albumArtist = newAlbumArtist
+            hasChanges = true
+        }
+        
+        // Track/Disc numbers
+        if let newTrackNumber = metadata.trackNumber, newTrackNumber != track.trackNumber {
+            track.trackNumber = newTrackNumber
+            hasChanges = true
+        }
+        
+        if let newTotalTracks = metadata.totalTracks, newTotalTracks != track.totalTracks {
+            track.totalTracks = newTotalTracks
+            hasChanges = true
+        }
+        
+        if let newDiscNumber = metadata.discNumber, newDiscNumber != track.discNumber {
+            track.discNumber = newDiscNumber
+            hasChanges = true
+        }
+        
+        if let newTotalDiscs = metadata.totalDiscs, newTotalDiscs != track.totalDiscs {
+            track.totalDiscs = newTotalDiscs
+            hasChanges = true
+        }
+        
+        // Other metadata
+        if let newRating = metadata.rating, newRating != track.rating {
+            track.rating = newRating
+            hasChanges = true
+        }
+        
+        if metadata.compilation != track.compilation {
+            track.compilation = metadata.compilation
+            hasChanges = true
+        }
+        
+        if let newReleaseDate = metadata.releaseDate, !newReleaseDate.isEmpty && newReleaseDate != track.releaseDate {
+            track.releaseDate = newReleaseDate
+            hasChanges = true
+        }
+        
+        if let newOriginalReleaseDate = metadata.originalReleaseDate, !newOriginalReleaseDate.isEmpty && newOriginalReleaseDate != track.originalReleaseDate {
+            track.originalReleaseDate = newOriginalReleaseDate
+            hasChanges = true
+        }
+        
+        if let newBpm = metadata.bpm, newBpm != track.bpm {
+            track.bpm = newBpm
+            hasChanges = true
+        }
+        
+        if let newMediaType = metadata.mediaType, !newMediaType.isEmpty && newMediaType != track.mediaType {
+            track.mediaType = newMediaType
+            hasChanges = true
+        }
+        
+        // Sort fields
+        if let newSortTitle = metadata.sortTitle, !newSortTitle.isEmpty && newSortTitle != track.sortTitle {
+            track.sortTitle = newSortTitle
+            hasChanges = true
+        }
+        
+        if let newSortArtist = metadata.sortArtist, !newSortArtist.isEmpty && newSortArtist != track.sortArtist {
+            track.sortArtist = newSortArtist
+            hasChanges = true
+        }
+        
+        if let newSortAlbum = metadata.sortAlbum, !newSortAlbum.isEmpty && newSortAlbum != track.sortAlbum {
+            track.sortAlbum = newSortAlbum
+            hasChanges = true
+        }
+        
+        if let newSortAlbumArtist = metadata.sortAlbumArtist, !newSortAlbumArtist.isEmpty && newSortAlbumArtist != track.sortAlbumArtist {
+            track.sortAlbumArtist = newSortAlbumArtist
+            hasChanges = true
+        }
+        
+        return hasChanges
+    }
+
+    private func updateAudioProperties(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
+        var hasChanges = false
+        
+        if let newBitrate = metadata.bitrate, newBitrate != track.bitrate {
+            track.bitrate = newBitrate
+            hasChanges = true
+        }
+        
+        if let newSampleRate = metadata.sampleRate, newSampleRate != track.sampleRate {
+            track.sampleRate = newSampleRate
+            hasChanges = true
+        }
+        
+        if let newChannels = metadata.channels, newChannels != track.channels {
+            track.channels = newChannels
+            hasChanges = true
+        }
+        
+        if let newCodec = metadata.codec, !newCodec.isEmpty && newCodec != track.codec {
+            track.codec = newCodec
+            hasChanges = true
+        }
+        
+        if let newBitDepth = metadata.bitDepth, newBitDepth != track.bitDepth {
+            track.bitDepth = newBitDepth
+            hasChanges = true
+        }
+        
+        return hasChanges
+    }
+
+    private func updateFileProperties(_ track: inout Track, at fileURL: URL) -> Bool {
+        var hasChanges = false
+        
+        if let attributes = try? fileURL.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) {
+            if let newFileSize = attributes.fileSize.map({ Int64($0) }), newFileSize != track.fileSize {
+                track.fileSize = newFileSize
+                hasChanges = true
+            }
+            
+            if let newDateModified = attributes.contentModificationDate, newDateModified != track.dateModified {
+                track.dateModified = newDateModified
+                hasChanges = true
+            }
+        }
+        
+        return hasChanges
+    }
+
+    private func logTrackMetadata(_ track: Track) {
+        // Log interesting metadata if present
+        if let albumArtist = track.albumArtist {
+            print("  Album Artist: \(albumArtist)")
+        }
+        if let trackNum = track.trackNumber {
+            let totalStr = track.totalTracks.map { "/\($0)" } ?? ""
+            print("  Track: \(trackNum)\(totalStr)")
+        }
+        if let discNum = track.discNumber {
+            let totalStr = track.totalDiscs.map { "/\($0)" } ?? ""
+            print("  Disc: \(discNum)\(totalStr)")
+        }
+        if track.compilation {
+            print("  Compilation: Yes")
+        }
+        if let bitrate = track.bitrate {
+            print("  Bitrate: \(bitrate) kbps")
+        }
+        if let sampleRate = track.sampleRate {
+            print("  Sample Rate: \(sampleRate) Hz")
+        }
+        if let codec = track.codec {
+            print("  Codec: \(codec)")
         }
     }
     
