@@ -12,10 +12,14 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
     @Published var currentTime: Double = 0
     @Published var volume: Float = 0.7
+    @Published var restoredUITrack: Track?
+    
+    var player: AVAudioPlayer?
     
     // MARK: - Private Properties
-    private var player: AVAudioPlayer?
     private var timer: Timer?
+    private var stateTimer: Timer?
+    private var restoredPosition: Double = 0
     
     // MARK: - Dependencies
     private let libraryManager: LibraryManager
@@ -36,9 +40,33 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         timer?.invalidate()
         timer = nil
     }
+
+    func restoreUIState(_ uiState: PlaybackUIState) {
+        // Create a temporary track object for UI display
+        let tempTrack = Track(url: URL(fileURLWithPath: "/restored"))
+        tempTrack.title = uiState.trackTitle
+        tempTrack.artist = uiState.trackArtist
+        tempTrack.album = uiState.trackAlbum
+        tempTrack.artworkData = uiState.artworkData
+        tempTrack.duration = uiState.trackDuration
+        tempTrack.isMetadataLoaded = true
+        
+        // Set UI state
+        restoredUITrack = tempTrack
+        currentTrack = tempTrack
+        restoredPosition = uiState.playbackPosition
+        currentTime = uiState.playbackPosition
+        volume = uiState.volume
+        
+        // Update Now Playing with restored info
+        nowPlayingManager.updateNowPlayingInfo(track: tempTrack, currentTime: uiState.playbackPosition, isPlaying: false)
+    }
     
     // MARK: - Playback Controls
     func playTrack(_ track: Track) {
+        // Clear any restored UI state
+        restoredUITrack = nil
+
         do {
             // Stop any current playback gracefully first
             if let currentPlayer = player {
@@ -63,6 +91,8 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             // Update state
             currentTrack = track
             isPlaying = true
+            restoredPosition = 0
+            startStateSaveTimer()
             
             // Setup timer to update currentTime
             timer?.invalidate()
@@ -117,6 +147,7 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         isPlaying = false
         currentTime = 0
         timer?.invalidate()
+        stateTimer?.invalidate()
         
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: 0, isPlaying: false)
@@ -129,6 +160,7 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             isPlaying = false
             currentTime = 0
             timer?.invalidate()
+            stateTimer?.invalidate()
             return
         }
         
@@ -143,12 +175,14 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             self.isPlaying = false
             self.currentTime = 0
             self.timer?.invalidate()
+            self.stateTimer?.invalidate()
         }
     }
     
     func seekTo(time: Double) {
         player?.currentTime = time
         currentTime = time
+        restoredPosition = time
         
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: time, isPlaying: isPlaying)
@@ -158,5 +192,26 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func setVolume(_ newVolume: Float) {
         volume = max(0, min(1, newVolume))
         player?.volume = volume
+    }
+    
+    var effectiveCurrentTime: Double {
+        // If we have a player and it's been started, use its current time
+        if let player = player, player.currentTime > 0 {
+            return player.currentTime
+        }
+        // Otherwise, use the restored position
+        return restoredPosition
+    }
+    
+    // MARK: - Helpers
+
+    private func startStateSaveTimer() {
+        stateTimer?.invalidate()
+        // Save state every 10 seconds during playback
+        stateTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            if self?.isPlaying == true {
+                AppCoordinator.shared?.savePlaybackState()
+            }
+        }
     }
 }

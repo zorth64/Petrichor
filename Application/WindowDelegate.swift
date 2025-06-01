@@ -3,6 +3,9 @@ import AppKit
 class WindowDelegate: NSObject, NSWindowDelegate {
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // Save playback state when window closes
+        AppCoordinator.shared?.savePlaybackState()
+
         // If menubar mode is enabled, hide instead of close
         if UserDefaults.standard.bool(forKey: "closeToMenubar") {
             print("Menubar mode enabled - hiding window instead of closing")

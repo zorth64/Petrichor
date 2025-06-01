@@ -33,6 +33,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let coordinator = AppCoordinator.shared {
             coordinator.audioPlayerManager.stopGracefully()
             
+            // Save playback state before terminating
+            coordinator.savePlaybackState()
+            
             // Force a database checkpoint to ensure all data is persisted
             coordinator.libraryManager.databaseManager.checkpoint()
         }

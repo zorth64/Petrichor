@@ -88,7 +88,7 @@ class LibraryManager: ObservableObject {
         print("LibraryManager: Saved \(bookmarkData.count) security bookmarks")
     }
     
-    private func loadSecurityBookmarks() {
+    func loadSecurityBookmarks() {
         guard let savedBookmarks = userDefaults.dictionary(forKey: UserDefaultsKeys.securityBookmarks) as? [String: Data] else {
             print("LibraryManager: No security bookmarks found")
             return
@@ -218,7 +218,11 @@ class LibraryManager: ObservableObject {
         // Notify playlist manager to update smart playlists
         if let coordinator = AppCoordinator.shared {
             coordinator.playlistManager.updateSmartPlaylists()
+            coordinator.handleLibraryChanged()
         }
+        
+        // Post notification that library is loaded
+        NotificationCenter.default.post(name: NSNotification.Name("LibraryDidLoad"), object: nil)
     }
     
     // MARK: - File Watching
