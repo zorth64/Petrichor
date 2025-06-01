@@ -78,7 +78,7 @@ struct TrackTableView: NSViewRepresentable {
         guard let tableView = nsView.documentView as? NSTableView else { return }
         
         // Store the current playing track info before updates
-        let previousPlayingPath = context.coordinator.audioPlayerManager.currentTrack?.url.path
+        let previousPlayingPath = context.coordinator.currentlyPlayingTrackPath
         
         // Only update if tracks actually changed (by count or IDs)
         let tracksChanged = context.coordinator.tracks.count != tracks.count ||
@@ -118,37 +118,69 @@ struct TrackTableView: NSViewRepresentable {
             }
         }
         
-        // Only update playing indicator if the playing track changed
+        // Update playing indicator and hover state changes
         let currentPlayingPath = audioPlayerManager.currentTrack?.url.path
         let isCurrentlyPlaying = audioPlayerManager.isPlaying
         let wasPlaying = context.coordinator.isPlaying
         let playbackStateChanged = wasPlaying != isCurrentlyPlaying
+        let hoveredRowChanged = context.coordinator.lastHoveredRow != context.coordinator.hoveredRow
 
-        // Update playing indicator if track or playback state changed
-        if previousPlayingPath != currentPlayingPath || playbackStateChanged || !tracksChanged {
-            // Update the previous playing track row (to remove indicator)
-            if let oldPath = previousPlayingPath,
-               let oldIndex = context.coordinator.sortedTracks.firstIndex(where: { $0.url.path == oldPath }) {
-                updateRowView(at: oldIndex, in: tableView)
+        // Check if the playing track changed
+        let playingTrackChanged = previousPlayingPath != currentPlayingPath
+
+        if playingTrackChanged || playbackStateChanged || hoveredRowChanged || !tracksChanged {
+            // Update hover state tracking
+            context.coordinator.lastHoveredRow = context.coordinator.hoveredRow
+            
+            // If the playing track changed, update both old and new tracks
+            if playingTrackChanged {
+                // Update the previous playing track row (to remove indicator)
+                if let oldPath = previousPlayingPath,
+                   let oldIndex = context.coordinator.sortedTracks.firstIndex(where: { $0.url.path == oldPath }) {
+                    updateRowView(at: oldIndex, in: tableView)
+                }
+                
+                // Update the new playing track row (to show indicator)
+                if let newPath = currentPlayingPath,
+                   let newIndex = context.coordinator.sortedTracks.firstIndex(where: { $0.url.path == newPath }) {
+                    updateRowView(at: newIndex, in: tableView)
+                }
+                
+                // Store the new playing track path
+                context.coordinator.currentlyPlayingTrackPath = currentPlayingPath
+            } else if playbackStateChanged {
+                // Just playback state changed (play/pause), update current track
+                if let currentPath = currentPlayingPath,
+                   let currentIndex = context.coordinator.sortedTracks.firstIndex(where: { $0.url.path == currentPath }) {
+                    updateRowView(at: currentIndex, in: tableView)
+                }
             }
             
-            // Update the current playing track row (to show/hide indicator based on play state)
-            if let newPath = currentPlayingPath,
-               let newIndex = context.coordinator.sortedTracks.firstIndex(where: { $0.url.path == newPath }) {
-                updateRowView(at: newIndex, in: tableView)
+            // Update hovered row if it changed
+            if hoveredRowChanged {
+                if let oldHoveredRow = context.coordinator.lastHoveredRow {
+                    updateRowView(at: oldHoveredRow, in: tableView)
+                }
+                if let newHoveredRow = context.coordinator.hoveredRow {
+                    updateRowView(at: newHoveredRow, in: tableView)
+                }
             }
         }
+        
         // Store the current playing state
         context.coordinator.isPlaying = isCurrentlyPlaying
     }
-
     private func updateRowView(at row: Int, in tableView: NSTableView) {
-        let titleColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("title"))
-        guard titleColumnIndex >= 0 else { return }
+        // Update both play/pause column and title column
+        let columnsToUpdate = ["playPause", "title"]
         
-        // This will trigger a redraw of just this specific cell
-        tableView.reloadData(forRowIndexes: IndexSet(integer: row),
-                             columnIndexes: IndexSet(integer: titleColumnIndex))
+        for columnID in columnsToUpdate {
+            let columnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier(columnID))
+            guard columnIndex >= 0 else { continue }
+            
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row),
+                               columnIndexes: IndexSet(integer: columnIndex))
+        }
     }
     
     func makeCoordinator() -> Coordinator {
@@ -167,6 +199,15 @@ struct TrackTableView: NSViewRepresentable {
         while tableView.tableColumns.count > 0 {
             tableView.removeTableColumn(tableView.tableColumns[0])
         }
+        
+        // Add play/pause column first
+        let playColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("playPause"))
+        playColumn.title = "" // Empty header
+        playColumn.width = 32
+        playColumn.minWidth = 32
+        playColumn.maxWidth = 32
+        playColumn.resizingMask = [] // Fixed width, no resizing
+        tableView.addTableColumn(playColumn)
         
         for column in TrackTableColumn.allColumns {
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.identifier))
@@ -256,9 +297,10 @@ struct TrackTableView: NSViewRepresentable {
         var audioPlayerManager: AudioPlayerManager
         let contextMenuItems: (Track) -> [ContextMenuItem]
         var columnVisibility: TrackTableColumnVisibility
-        var sortOrder: [NSSortDescriptor] = []
         var currentlyPlayingTrackPath: String? = nil
-        
+        var lastHoveredRow: Int? = nil
+        var lastMouseLocation: NSPoint = .zero
+
         private var reloadTimer: Timer?
         private var pendingReload = false
         private var cancellables = Set<AnyCancellable>()
@@ -294,6 +336,11 @@ struct TrackTableView: NSViewRepresentable {
                 .store(in: &cancellables)
         }
         
+        deinit {
+            cancellables.removeAll()
+            NotificationCenter.default.removeObserver(self)
+        }
+
         // MARK: - NSTableViewDataSource
         
         func numberOfRows(in tableView: NSTableView) -> Int {
@@ -302,6 +349,15 @@ struct TrackTableView: NSViewRepresentable {
         
         func setTableView(_ tableView: NSTableView) {
             self.hostTableView = tableView
+            
+            if let scrollView = tableView.enclosingScrollView {
+                NotificationCenter.default.addObserver(
+                    self,
+                    selector: #selector(scrollViewDidScroll(_:)),
+                    name: NSView.boundsDidChangeNotification,
+                    object: scrollView.contentView
+                )
+            }
         }
         
         // MARK: - NSTableViewDelegate
@@ -310,8 +366,39 @@ struct TrackTableView: NSViewRepresentable {
             guard row < sortedTracks.count else { return nil }
             let track = sortedTracks[row]
             
-            guard let columnID = tableColumn?.identifier.rawValue,
-                  let column = TrackTableColumn.allColumns.first(where: { $0.identifier == columnID }) else {
+            guard let columnID = tableColumn?.identifier.rawValue else { return nil }
+                
+            // Handle play/pause column
+            // Handle play/pause column
+            if columnID == "playPause" {
+                let identifier = NSUserInterfaceItemIdentifier("PlayPauseCell")
+                
+                if let hostingView = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSHostingView<PlayPauseCell> {
+                    hostingView.rootView = PlayPauseCell(
+                        track: track,
+                        isHovered: hoveredRow == row,
+                        audioPlayerManager: audioPlayerManager,
+                        onPlay: { [unowned self] in
+                            self.onPlayTrack(track)
+                        }
+                    )
+                    return hostingView
+                } else {
+                    let hostingView = NSHostingView(rootView: PlayPauseCell(
+                        track: track,
+                        isHovered: hoveredRow == row,
+                        audioPlayerManager: audioPlayerManager,
+                        onPlay: { [unowned self] in
+                            self.onPlayTrack(track)
+                        }
+                    ))
+                    hostingView.identifier = identifier
+                    return hostingView
+                }
+            }
+            
+            // Continue with existing column handling...
+            guard let column = TrackTableColumn.allColumns.first(where: { $0.identifier == columnID }) else {
                 return nil
             }
             
@@ -479,6 +566,29 @@ struct TrackTableView: NSViewRepresentable {
             }
         }
         
+        @objc private func scrollViewDidScroll(_ notification: Notification) {
+            // Clear hover state immediately when scrolling starts
+            if let previousHoveredRow = hoveredRow {
+                hoveredRow = nil
+                lastHoveredRow = nil
+                
+                // Update the row to remove hover effects and play button
+                if let tableView = hostTableView {
+                    // Update the entire row to clear hover background
+                    if let rowView = tableView.rowView(atRow: previousHoveredRow, makeIfNecessary: false) as? HoverableTableRowView {
+                        rowView.updateBackgroundColor(animated: false)
+                    }
+                    
+                    // Update the play/pause cell
+                    let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
+                    if playPauseColumnIndex >= 0 {
+                        tableView.reloadData(forRowIndexes: IndexSet(integer: previousHoveredRow),
+                                            columnIndexes: IndexSet(integer: playPauseColumnIndex))
+                    }
+                }
+            }
+        }
+        
         @objc func doubleClick(_ sender: NSTableView) {
             let clickedRow = sender.clickedRow
             guard clickedRow >= 0, clickedRow < tracks.count else { return }
@@ -556,10 +666,16 @@ struct TrackTableView: NSViewRepresentable {
             // Find and update the currently playing track row
             if let currentTrack = audioPlayerManager.currentTrack,
                let index = sortedTracks.firstIndex(where: { $0.url.path == currentTrack.url.path }) {
-                let titleColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("title"))
-                if titleColumnIndex >= 0 {
-                    tableView.reloadData(forRowIndexes: IndexSet(integer: index),
-                                        columnIndexes: IndexSet(integer: titleColumnIndex))
+                
+                // Update both the play/pause column and title column
+                let columnsToUpdate = ["playPause", "title"]
+                
+                for columnID in columnsToUpdate {
+                    let columnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier(columnID))
+                    if columnIndex >= 0 {
+                        tableView.reloadData(forRowIndexes: IndexSet(integer: index),
+                                            columnIndexes: IndexSet(integer: columnIndex))
+                    }
                 }
             }
         }
@@ -650,7 +766,7 @@ struct TrackTableView: NSViewRepresentable {
             // Don't draw anything here - we'll use the layer instead
         }
         
-        private func updateBackgroundColor(animated: Bool = true) {
+        func updateBackgroundColor(animated: Bool = true) {
             let color: NSColor
             
             if isSelected {
@@ -691,10 +807,30 @@ struct TrackTableView: NSViewRepresentable {
         }
         
         override func mouseEntered(with event: NSEvent) {
+            // Get current mouse location
+            let currentMouseLocation = NSEvent.mouseLocation
+            
+            // Check if mouse actually moved (not just content scrolling under cursor)
+            let mouseActuallyMoved = abs(currentMouseLocation.x - (coordinator?.lastMouseLocation.x ?? 0)) > 1 ||
+                                    abs(currentMouseLocation.y - (coordinator?.lastMouseLocation.y ?? 0)) > 1
+            
+            guard mouseActuallyMoved else { return }
+            
+            // Update last mouse location
+            coordinator?.lastMouseLocation = currentMouseLocation
+            
             coordinator?.hoveredRow = row
             updateBackgroundColor(animated: true)
 
             if let tableView = superview as? NSTableView {
+                // Force update of the play/pause cell for this row
+                let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
+                if playPauseColumnIndex >= 0 {
+                    tableView.reloadData(forRowIndexes: IndexSet(integer: row),
+                                        columnIndexes: IndexSet(integer: playPauseColumnIndex))
+                }
+                
+                // Update other rows as before
                 tableView.enumerateAvailableRowViews { rowView, _ in
                     if let hoverableRow = rowView as? HoverableTableRowView, hoverableRow != self {
                         hoverableRow.updateBackgroundColor(animated: true)
@@ -702,12 +838,21 @@ struct TrackTableView: NSViewRepresentable {
                 }
             }
         }
-        
+
         override func mouseExited(with event: NSEvent) {
             if coordinator?.hoveredRow == row {
                 coordinator?.hoveredRow = nil
             }
             updateBackgroundColor(animated: true)
+            
+            if let tableView = superview as? NSTableView {
+                // Force update of the play/pause cell when hover exits
+                let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
+                if playPauseColumnIndex >= 0 {
+                    tableView.reloadData(forRowIndexes: IndexSet(integer: row),
+                                        columnIndexes: IndexSet(integer: playPauseColumnIndex))
+                }
+            }
         }
     }
 }
@@ -738,33 +883,21 @@ struct TrackTableTitleCell: View {
     var body: some View {
         HStack(spacing: 8) {
             // Album artwork
-            ZStack {
-                if let image = artworkImage {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 30, height: 30)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(width: 30, height: 30)
-                        .overlay(
-                            Image(systemName: "music.note")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                        )
-                }
-                
-                if isPlaying {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.black.opacity(0.6))
-                        .frame(width: 30, height: 30)
-                        .overlay(
-                            PlayingIndicator()
-                                .frame(width: 16)
-                        )
-                }
+            if let image = artworkImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 30, height: 30)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 30, height: 30)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    )
             }
             
             Text(track.title)
@@ -776,5 +909,50 @@ struct TrackTableTitleCell: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 44)
+    }
+}
+
+// MARK: - Play/Pause Cell
+
+struct PlayPauseCell: View {
+    let track: Track
+    let isHovered: Bool
+    let audioPlayerManager: AudioPlayerManager
+    let onPlay: () -> Void
+    
+    private var isCurrentTrack: Bool {
+        guard let currentTrack = audioPlayerManager.currentTrack else { return false }
+        return currentTrack.url.path == track.url.path
+    }
+    
+    private var isPlaying: Bool {
+        isCurrentTrack && audioPlayerManager.isPlaying
+    }
+    
+    var body: some View {
+        ZStack {
+            if isHovered || (isCurrentTrack && !audioPlayerManager.isPlaying) {
+                // Show button on hover OR when it's the current track but paused
+                Button(action: {
+                    if isCurrentTrack {
+                        audioPlayerManager.togglePlayPause()
+                    } else {
+                        onPlay()
+                    }
+                }) {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                }
+                .buttonStyle(.plain)
+                .frame(width: 32, height: 32)
+            } else if isPlaying {
+                // Show playing indicator only when actually playing
+                PlayingIndicator()
+                    .frame(width: 16)
+            }
+        }
+        .frame(width: 32, height: 44)
+        .contentShape(Rectangle())
     }
 }
