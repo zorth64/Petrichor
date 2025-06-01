@@ -73,10 +73,20 @@ struct ContentView: View {
                         detailTrack = nil
                     }
                     showingQueue = newValue
+                    // Sync with AppCoordinator when changed
+                    if let coordinator = AppCoordinator.shared {
+                        coordinator.isQueueVisible = newValue
+                    }
                 }
             ))
         }
-        .frame(minWidth: 800, minHeight: 600)
+        .frame(minWidth: 1000, minHeight: 800)
+        .onAppear {
+            // Restore queue visibility from AppCoordinator
+            if let coordinator = AppCoordinator.shared {
+                showingQueue = coordinator.isQueueVisible
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .goToLibraryFilter)) { notification in
             if let filterType = notification.userInfo?["filterType"] as? LibraryFilterType,
                let filterValue = notification.userInfo?["filterValue"] as? String {
