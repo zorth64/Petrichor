@@ -15,21 +15,18 @@ struct TrackView: View {
         case .list:
             TrackListView(
                 tracks: tracks,
-                selectedTrackID: $selectedTrackID,
                 onPlayTrack: onPlayTrack,
                 contextMenuItems: contextMenuItems
             )
         case .grid:
             TrackGridView(
                 tracks: tracks,
-                selectedTrackID: $selectedTrackID,
                 onPlayTrack: onPlayTrack,
                 contextMenuItems: contextMenuItems
             )
         case .table:
             TrackTableView(
                 tracks: tracks,
-                selectedTrackID: $selectedTrackID,
                 onPlayTrack: onPlayTrack,
                 contextMenuItems: contextMenuItems
             )

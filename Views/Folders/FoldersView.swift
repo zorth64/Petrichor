@@ -16,7 +16,7 @@ struct FoldersView: View {
     @State private var showingCreatePlaylistWithTrack = false
     @State private var trackToAddToNewPlaylist: Track?
     @State private var newPlaylistName = ""
-    @AppStorage("foldersViewSplitPosition") private var splitPosition: Double = 250
+    @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
     
     let viewType: LibraryViewType
     
@@ -39,13 +39,14 @@ struct FoldersView: View {
             // Show unified empty state when no folders exist
             NoMusicEmptyStateView(context: .mainWindow)
         } else {
-            HSplitView {
-                foldersSidebar
-                    .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
-                
-                folderTracksView
-                    .frame(minWidth: 300)
-            }
+            PersistentSplitView(
+                left: {
+                    foldersSidebar
+                },
+                right: {
+                    folderTracksView
+                }
+            )
             .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
                 Button("Cancel", role: .cancel) {
                     folderToRemove = nil

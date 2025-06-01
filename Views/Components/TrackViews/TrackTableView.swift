@@ -12,7 +12,6 @@ class ContextMenuTableView: NSTableView {
 
 struct TrackTableView: NSViewRepresentable {
     let tracks: [Track]
-    @Binding var selectedTrackID: UUID?
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
     
@@ -33,7 +32,8 @@ struct TrackTableView: NSViewRepresentable {
         
         tableView.delegate = context.coordinator
         tableView.dataSource = context.coordinator
-        tableView.allowsMultipleSelection = true
+        tableView.allowsMultipleSelection = false
+        tableView.allowsEmptySelection = false
         tableView.doubleAction = #selector(Coordinator.doubleClick(_:))
         tableView.target = context.coordinator
         context.coordinator.setTableView(tableView)
@@ -43,7 +43,7 @@ struct TrackTableView: NSViewRepresentable {
         
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.style = .fullWidth
-        tableView.selectionHighlightStyle = .regular
+        tableView.selectionHighlightStyle = .none
         tableView.backgroundColor = NSColor.controlBackgroundColor
         
         // Add these settings for better column behavior
@@ -97,26 +97,11 @@ struct TrackTableView: NSViewRepresentable {
         }
         
         // Always update these properties
-        if context.coordinator.selectedTrackID != selectedTrackID {
-            DispatchQueue.main.async {
-                context.coordinator.selectedTrackID = selectedTrackID
-            }
-        }
         context.coordinator.columnVisibility = columnManager.columnVisibility
         context.coordinator.audioPlayerManager = audioPlayerManager
         
         // Update column visibility
         updateColumnVisibility(tableView: tableView)
-        
-        // Update selection if needed
-        if let selectedID = selectedTrackID,
-           let index = context.coordinator.sortedTracks.firstIndex(where: { $0.id == selectedID }) {
-            if !tableView.selectedRowIndexes.contains(index) {
-                DispatchQueue.main.async {
-                    tableView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
-                }
-            }
-        }
         
         // Update playing indicator and hover state changes
         let currentPlayingPath = audioPlayerManager.currentTrack?.url.path
@@ -170,6 +155,7 @@ struct TrackTableView: NSViewRepresentable {
         // Store the current playing state
         context.coordinator.isPlaying = isCurrentlyPlaying
     }
+
     private func updateRowView(at row: Int, in tableView: NSTableView) {
         // Update both play/pause column and title column
         let columnsToUpdate = ["playPause", "title"]
@@ -186,7 +172,6 @@ struct TrackTableView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(
             tracks: tracks,
-            selectedTrackID: $selectedTrackID,
             onPlayTrack: onPlayTrack,
             audioPlayerManager: audioPlayerManager,
             contextMenuItems: contextMenuItems,
@@ -290,7 +275,6 @@ struct TrackTableView: NSViewRepresentable {
     class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource {
         var tracks: [Track]
         var sortedTracks: [Track] = []
-        @Binding var selectedTrackID: UUID?
         var hoveredRow: Int? = nil
         var isPlaying: Bool = false
         let onPlayTrack: (Track) -> Void
@@ -307,14 +291,12 @@ struct TrackTableView: NSViewRepresentable {
         private weak var hostTableView: NSTableView?
         
         init(tracks: [Track],
-             selectedTrackID: Binding<UUID?>,
              onPlayTrack: @escaping (Track) -> Void,
              audioPlayerManager: AudioPlayerManager,
              contextMenuItems: @escaping (Track) -> [ContextMenuItem],
              columnVisibility: TrackTableColumnVisibility) {
             self.tracks = tracks
             self.sortedTracks = tracks
-            self._selectedTrackID = selectedTrackID
             self.onPlayTrack = onPlayTrack
             self.audioPlayerManager = audioPlayerManager
             self.contextMenuItems = contextMenuItems
@@ -406,18 +388,17 @@ struct TrackTableView: NSViewRepresentable {
             case .special(.title):
                 // Keep NSHostingView for title since it's complex
                 let identifier = NSUserInterfaceItemIdentifier("TitleCell")
+
                 if let hostingView = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSHostingView<TrackTableTitleCell> {
                     // Update the existing hosting view's content
                     hostingView.rootView = TrackTableTitleCell(
                         track: track,
-                        isSelected: selectedTrackID == track.id,
                         audioPlayerManager: audioPlayerManager
                     )
                     return hostingView
                 } else {
                     let hostingView = NSHostingView(rootView: TrackTableTitleCell(
                         track: track,
-                        isSelected: selectedTrackID == track.id,
                         audioPlayerManager: audioPlayerManager
                     ))
                     hostingView.identifier = identifier
@@ -531,7 +512,6 @@ struct TrackTableView: NSViewRepresentable {
             // If the clicked row isn't selected, select it
             if !tableView.selectedRowIndexes.contains(row) {
                 tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-                selectedTrackID = track.id
             }
             
             // Create NSMenu from ContextMenuItem array
@@ -550,20 +530,10 @@ struct TrackTableView: NSViewRepresentable {
             // If the clicked row isn't selected, select it
             if !tableView.selectedRowIndexes.contains(row) {
                 tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-                selectedTrackID = track.id
             }
             
             // Create NSMenu from ContextMenuItem array
             return createNSMenu(from: menuItems, track: track)
-        }
-        
-        func tableViewSelectionDidChange(_ notification: Notification) {
-            guard let tableView = notification.object as? NSTableView else { return }
-            
-            if let selectedRow = tableView.selectedRowIndexes.first,
-               selectedRow < sortedTracks.count {
-                selectedTrackID = sortedTracks[selectedRow].id
-            }
         }
         
         @objc private func scrollViewDidScroll(_ notification: Notification) {
@@ -756,7 +726,7 @@ struct TrackTableView: NSViewRepresentable {
             backgroundLayer?.backgroundColor = NSColor.clear.cgColor
             layer?.insertSublayer(backgroundLayer!, at: 0)
         }
-        
+
         override func layout() {
             super.layout()
             backgroundLayer?.frame = bounds
@@ -766,12 +736,14 @@ struct TrackTableView: NSViewRepresentable {
             // Don't draw anything here - we'll use the layer instead
         }
         
+        override func drawSelection(in dirtyRect: NSRect) {
+            // Don't draw selection - leave empty
+        }
+        
         func updateBackgroundColor(animated: Bool = true) {
             let color: NSColor
-            
-            if isSelected {
-                color = NSColor.controlAccentColor.withAlphaComponent(0.25)
-            } else if coordinator?.hoveredRow == row {
+
+            if coordinator?.hoveredRow == row {
                 color = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.15)
             } else {
                 color = NSColor.clear
@@ -860,7 +832,6 @@ struct TrackTableView: NSViewRepresentable {
 // Native version of title cell
 struct TrackTableTitleCell: View {
     let track: Track
-    let isSelected: Bool
     let audioPlayerManager: AudioPlayerManager
     
     // Use the track's existing artwork data directly
@@ -902,13 +873,23 @@ struct TrackTableTitleCell: View {
             
             Text(track.title)
                 .font(.system(size: 13, weight: isCurrentTrack ? .medium : .regular))
-                .foregroundColor(isCurrentTrack ? Color.primary.opacity(0.9) : .primary)
+                .foregroundColor(textColor)
                 .lineLimit(1)
             
             Spacer()
         }
         .padding(.horizontal, 8)
         .frame(height: 44)
+    }
+    
+    private var textColor: Color {
+        if isCurrentTrack && isPlaying {
+            // Accent color when playing but not selected
+            return .accentColor
+        } else {
+            // Default color
+            return .primary
+        }
     }
 }
 

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct TrackGridView: View {
     let tracks: [Track]
-    @Binding var selectedTrackID: UUID?
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
     
@@ -30,17 +29,10 @@ struct TrackGridView: View {
                         ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                             TrackGridItem(
                                 track: track,
-                                isSelected: selectedTrackID == track.id,
-                                onSelect: {
-                                    withAnimation(.none) {
-                                        selectedTrackID = track.id
-                                    }
-                                },
                                 onPlay: {
                                     let isCurrentTrack = audioPlayerManager.currentTrack?.url.path == track.url.path
                                     if !isCurrentTrack {
                                         onPlayTrack(track)
-                                        selectedTrackID = track.id
                                     }
                                 }
                             )
@@ -83,8 +75,6 @@ struct TrackGridView: View {
 // MARK: - Track Grid Item (Optimized)
 private struct TrackGridItem: View {
     @ObservedObject var track: Track
-    let isSelected: Bool
-    let onSelect: () -> Void
     let onPlay: () -> Void
     
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
@@ -108,10 +98,9 @@ private struct TrackGridItem: View {
         }
         .padding(8)
         .background(backgroundView)
-        .overlay(overlayView)
         .contentShape(RoundedRectangle(cornerRadius: 10))
-        .onTapGesture {
-            onSelect()
+        .onTapGesture(count: 2) {
+            onPlay()
         }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -227,19 +216,13 @@ private struct TrackGridItem: View {
     private var backgroundView: some View {
         RoundedRectangle(cornerRadius: 10)
             .fill(
-                isSelected ? Color.accentColor.opacity(0.25) :
-                isHovered ? Color(NSColor.selectedContentBackgroundColor).opacity(0.15) :
-                Color.clear
+                isPlaying ?
+                (isHovered ? Color(NSColor.selectedContentBackgroundColor).opacity(0.08) : Color.clear) :
+                (isHovered ? Color(NSColor.selectedContentBackgroundColor).opacity(0.15) : Color.clear)
             )
-            .animation(.easeInOut(duration: 0.15), value: isSelected)
             .animation(.easeInOut(duration: 0.1), value: isHovered)
     }
-    
-    private var overlayView: some View {
-        RoundedRectangle(cornerRadius: 10)
-            .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
-    }
-    
+
     // MARK: - Artwork Loading
     
     private func loadArtworkIfNeeded() {

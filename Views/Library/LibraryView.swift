@@ -13,8 +13,8 @@ struct LibraryView: View {
     @State private var cachedFilteredTracks: [Track] = []
     @State private var pendingSearchText: String?
     @State private var isViewReady = false
-    @AppStorage("libraryViewSplitPosition") private var splitPosition: Double = 250
-    
+    @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
+
     @Binding var pendingFilter: LibraryFilterRequest?
     
     let viewType: LibraryViewType
@@ -25,19 +25,18 @@ struct LibraryView: View {
                 NoMusicEmptyStateView(context: .mainWindow)
             } else {
                 // Main library view with sidebar
-                HSplitView {
-                    // Left sidebar - Filter view
-                    LibrarySidebarView(
-                        selectedFilterType: $selectedFilterType,
-                        selectedFilterItem: $selectedFilterItem,
-                        pendingSearchText: $pendingSearchText
-                    )
-                    .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
-                    
-                    // Right side - Tracks list
-                    tracksListView
-                        .frame(minWidth: 300)
-                }
+                PersistentSplitView(
+                    left: {
+                        LibrarySidebarView(
+                            selectedFilterType: $selectedFilterType,
+                            selectedFilterItem: $selectedFilterItem,
+                            pendingSearchText: $pendingSearchText
+                        )
+                    },
+                    right: {
+                        tracksListView
+                    }
+                )
                 .onAppear {
                     // Set initial filter selection
                     if selectedFilterItem == nil {

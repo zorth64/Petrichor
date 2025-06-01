@@ -7,28 +7,27 @@ struct PlaylistsView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var selectedPlaylist: Playlist?
-    @AppStorage("playlistSplitPosition") private var splitPosition: Double = 250
+    @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
     
     var body: some View {
         if libraryManager.tracks.isEmpty {
             // Show unified empty state when no music exists
             NoMusicEmptyStateView(context: .mainWindow)
         } else {
-            HSplitView {
-                // Left sidebar - Playlists list
-                PlaylistSidebarView(selectedPlaylist: $selectedPlaylist)
-                    .frame(minWidth: 200, idealWidth: splitPosition, maxWidth: 400)
-                
-                // Right side - Playlist content
-                VStack(spacing: 0) {
-                    if let playlist = selectedPlaylist {
-                        PlaylistDetailView(playlistID: playlist.id, viewType: viewType)
-                    } else {
-                        emptySelectionView
+            PersistentSplitView(
+                left: {
+                    PlaylistSidebarView(selectedPlaylist: $selectedPlaylist)
+                },
+                right: {
+                    VStack(spacing: 0) {
+                        if let playlist = selectedPlaylist {
+                            PlaylistDetailView(playlistID: playlist.id, viewType: viewType)
+                        } else {
+                            emptySelectionView
+                        }
                     }
                 }
-                .frame(minWidth: 400)
-            }
+            )
             .onAppear {
                 // Select first playlist by default if none selected
                 if selectedPlaylist == nil && !playlistManager.playlists.isEmpty {

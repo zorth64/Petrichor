@@ -2,7 +2,6 @@ import SwiftUI
 
 struct TrackListView: View {
     let tracks: [Track]
-    @Binding var selectedTrackID: UUID?
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
     
@@ -15,19 +14,11 @@ struct TrackListView: View {
                 ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                     TrackListRow(
                         track: track,
-                        isSelected: selectedTrackID == track.id,
                         isHovered: hoveredTrackID == track.id,
-                        onSelect: {
-                            withAnimation(.none) {
-                                selectedTrackID = track.id
-                            }
-                        },
                         onPlay: {
-                            // Only play if it's not already the current track playing
                             let isCurrentTrack = audioPlayerManager.currentTrack?.url.path == track.url.path
                             if !isCurrentTrack {
                                 onPlayTrack(track)
-                                selectedTrackID = track.id
                             }
                         },
                         onHover: { isHovered in
@@ -48,15 +39,26 @@ struct TrackListView: View {
 // MARK: - Track List Row
 private struct TrackListRow: View {
     @ObservedObject var track: Track
-    let isSelected: Bool
     let isHovered: Bool
-    let onSelect: () -> Void
     let onPlay: () -> Void
     let onHover: (Bool) -> Void
     
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
-    @State private var lastClickTime = Date()
     @State private var artworkImage: NSImage?
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            playButtonSection
+            trackContent
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2, perform: onPlay)
+        }
+        .frame(height: 60)
+        .background(backgroundView)
+        .onHover(perform: onHover)
+    }
+    
+    // MARK: - Computed Properties
     
     private var isCurrentTrack: Bool {
         guard let currentTrack = audioPlayerManager.currentTrack else { return false }
@@ -67,157 +69,198 @@ private struct TrackListRow: View {
         isCurrentTrack && audioPlayerManager.isPlaying
     }
     
-    var body: some View {
-        HStack(spacing: 0) {
-            // Playing indicator on the left
-            HStack(spacing: 0) {
-                if isPlaying {
-                    PlayingIndicator()
-                        .frame(width: 16)
-                        .padding(.leading, 10)
-                        .padding(.trailing, 6)
-                } else {
-                    Spacer()
-                        .frame(width: 32)
+    // MARK: - View Components
+    
+    private var playButtonSection: some View {
+        ZStack {
+            if shouldShowPlayButton {
+                Button(action: handlePlayButtonTap) {
+                    Image(systemName: playButtonIcon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primary)  // Changed from playButtonColor
                 }
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            } else if isPlaying && !isHovered {
+                PlayingIndicator()
+                    .frame(width: 16)
+                    .transition(.scale.combined(with: .opacity))
             }
-            
-            // Main content
-            HStack(spacing: 12) {
-                // Album art thumbnail
-                Group {
-                    if let artworkImage = artworkImage {
-                        Image(nsImage: artworkImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 40, height: 40)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    } else if track.isMetadataLoaded {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Image(systemName: "music.note")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.secondary)
-                            )
-                    } else {
-                        ProgressView()
-                            .scaleEffect(0.5)
-                            .frame(width: 40, height: 40)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(4)
-                    }
-                }
-                .task {
-                    loadArtwork()
-                }
-                .onDisappear {
-                    artworkImage = nil
-                }
-                
-                // Track information
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(track.title)
-                        .font(.system(size: 14, weight: isCurrentTrack ? .medium : .regular))
-                        .foregroundColor(isCurrentTrack ? .accentColor : .primary)
-                        .lineLimit(1)
-                        .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
-                    
-                    HStack(spacing: 4) {
-                        Text(track.artist)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
-                        
-                        if !track.album.isEmpty && track.album != "Unknown Album" {
-                            Text("•")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                            
-                            Text(track.album)
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                                .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
-                        }
-                        
-                        if track.isMetadataLoaded && !track.year.isEmpty && track.year != "Unknown Year" {
-                            Text("•")
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                            
-                            Text(track.year)
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                // Duration
-                Text(formatDuration(track.duration))
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                    .monospacedDigit()
-                    .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
         }
-        .frame(height: 60)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(backgroundColor)
-                .animation(.easeInOut(duration: 0.15), value: isSelected)
-                .animation(.easeInOut(duration: 0.1), value: isHovered)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(isSelected ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
-                .animation(.easeInOut(duration: 0.1), value: isSelected)
-        )
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            onHover(hovering)
+        .frame(width: 40, height: 40)
+        .animation(.easeInOut(duration: 0.15), value: shouldShowPlayButton)
+        .animation(.easeInOut(duration: 0.15), value: isPlaying)
+    }
+    
+    private var trackContent: some View {
+        HStack(spacing: 12) {
+            albumArtwork
+            trackInfo
+            Spacer()
+            durationLabel
         }
-        .onTapGesture(count: 1) {
-            let now = Date()
-            let timeSinceLastClick = now.timeIntervalSince(lastClickTime)
-            
-            if timeSinceLastClick < 0.3 {
-                // Double click detected
-                onPlay()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+    
+    private var albumArtwork: some View {
+        Group {
+            if let artworkImage = artworkImage {
+                Image(nsImage: artworkImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else if track.isMetadataLoaded {
+                placeholderArtwork
             } else {
-                // Single click - just select
-                onSelect()
+                loadingArtwork
             }
-            
-            lastClickTime = now
+        }
+        .task { await loadArtwork() }
+        .onDisappear { artworkImage = nil }
+    }
+    
+    private var placeholderArtwork: some View {
+        RoundedRectangle(cornerRadius: 4)
+            .fill(Color.gray.opacity(0.2))
+            .frame(width: 40, height: 40)
+            .overlay(
+                Image(systemName: "music.note")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+            )
+    }
+    
+    private var loadingArtwork: some View {
+        ProgressView()
+            .scaleEffect(0.5)
+            .frame(width: 40, height: 40)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(4)
+    }
+    
+    private var trackInfo: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            titleLabel
+            detailsLabel
         }
     }
     
+    private var titleLabel: some View {
+        Text(track.title)
+            .font(.system(size: 14, weight: isCurrentTrack ? .medium : .regular))
+            .foregroundColor(isCurrentTrack ? .accentColor : .primary)
+            .lineLimit(1)
+            .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
+    }
+    
+    private var detailsLabel: some View {
+        HStack(spacing: 4) {
+            Text(track.artist)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
+            
+            if shouldShowAlbum {
+                Text("•")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                
+                Text(track.album)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
+            }
+            
+            if shouldShowYear {
+                Text("•")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                
+                Text(track.year)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private var durationLabel: some View {
+        Text(formatDuration(track.duration))
+            .font(.system(size: 12))
+            .foregroundColor(.secondary)
+            .monospacedDigit()
+            .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
+    }
+    
+    private var backgroundView: some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(backgroundColor)
+            .animation(.easeInOut(duration: 0.1), value: isHovered)
+    }
+    
+    // MARK: - Helper Properties
+    
+    private var shouldShowPlayButton: Bool {
+        // Show button if:
+        // 1. Hovered (play or pause depending on state)
+        // 2. Current track but paused (persistent play button)
+        return isHovered || (isCurrentTrack && !audioPlayerManager.isPlaying)
+    }
+    
+    private var playButtonIcon: String {
+        if isCurrentTrack {
+            return isPlaying ? "pause.fill" : "play.fill"
+        }
+        return "play.fill"
+    }
+    
+    private var playButtonColor: Color {
+        return isCurrentTrack ? .accentColor : .primary
+    }
+    
     private var backgroundColor: Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.25)
+        if isPlaying {
+            return isHovered ? Color(NSColor.selectedContentBackgroundColor).opacity(0.08) : Color.clear
         } else if isHovered {
             return Color(NSColor.selectedContentBackgroundColor).opacity(0.15)
         } else {
             return Color.clear
         }
     }
+
+    private var shouldShowAlbum: Bool {
+        !track.album.isEmpty && track.album != "Unknown Album"
+    }
     
-    private func loadArtwork() {
+    private var shouldShowYear: Bool {
+        track.isMetadataLoaded && !track.year.isEmpty && track.year != "Unknown Year"
+    }
+    
+    // MARK: - Methods
+    
+    private func handlePlayButtonTap() {
+        if isCurrentTrack {
+            audioPlayerManager.togglePlayPause()
+        } else {
+            onPlay()
+        }
+    }
+    
+    private func loadArtwork() async {
         guard artworkImage == nil else { return }
         
-        Task {
-            if let artworkData = track.artworkData,
-               let image = NSImage(data: artworkData) {
-                await MainActor.run {
-                    self.artworkImage = image
+        await withCheckedContinuation { continuation in
+            Task {
+                if let artworkData = track.artworkData,
+                   let image = NSImage(data: artworkData) {
+                    await MainActor.run {
+                        self.artworkImage = image
+                    }
                 }
+                continuation.resume()
             }
         }
     }
