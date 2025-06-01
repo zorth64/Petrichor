@@ -11,10 +11,11 @@ struct PetrichorApp: App {
                 .environmentObject(appCoordinator.audioPlayerManager)
                 .environmentObject(appCoordinator.libraryManager)
                 .environmentObject(appCoordinator.playlistManager)
-                .frame(minWidth: 800, minHeight: 600)
         }
         .windowStyle(.automatic)
         .windowToolbarStyle(.automatic)
+        .defaultSize(width: 1200, height: 800)
+        .windowResizability(.contentMinSize)
         .handlesExternalEvents(matching: Set(arrayLiteral: "main"))
         .commands {
             // Add custom menu commands

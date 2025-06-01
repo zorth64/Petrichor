@@ -22,11 +22,12 @@ struct ContentView: View {
                     selectedTab: selectedTab,
                     viewType: $globalViewType
                 )
+                .frame(height: 40) // Fixed height for toolbar
                 
                 Divider()
             }
 
-            // Main Content Area with Queue
+            // Main Content Area with Queue - make this the flexible part
             HSplitView {
                 // Main content
                 VStack {
@@ -51,7 +52,7 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
-                .frame(minWidth: 400)
+                .frame(minWidth: 400, minHeight: 200) // Add minimum height for content
                 
                 // Queue/Track Detail sidebar
                 if showingQueue {
@@ -62,8 +63,9 @@ struct ContentView: View {
                         .frame(width: 350)
                 }
             }
+            .frame(minHeight: 0, maxHeight: .infinity) // Allow this to shrink
             
-            // Player controls at bottom
+            // Player controls at bottom - keep this fixed
             PlayerView(showingQueue: Binding(
                 get: { showingQueue },
                 set: { newValue in
@@ -79,8 +81,9 @@ struct ContentView: View {
                     }
                 }
             ))
+            .frame(height: 90) // Fixed height
         }
-        .frame(minWidth: 1000, minHeight: 800)
+        .frame(minWidth: 1000, minHeight: 600) // Reduce minimum height
         .onAppear {
             // Restore queue visibility from AppCoordinator
             if let coordinator = AppCoordinator.shared {
