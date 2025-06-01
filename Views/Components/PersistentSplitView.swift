@@ -26,7 +26,7 @@ struct PersistentSplitView<Left: View, Right: View>: View {
                         DragGesture()
                             .onChanged { value in
                                 let newWidth = localSplitPosition + value.translation.width
-                                localSplitPosition = min(max(150, newWidth), 300)
+                                localSplitPosition = min(max(150, newWidth), 500)
                             }
                             .onEnded { _ in
                                 splitPosition = Double(localSplitPosition)
