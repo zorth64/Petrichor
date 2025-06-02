@@ -5,11 +5,13 @@ protocol TabbedItem: Hashable {
     var title: String { get }
     var icon: String { get }
     var selectedIcon: String { get }
+    var tooltip: String? { get }
 }
 
 // MARK: - Default implementation for selectedIcon
 extension TabbedItem {
     var selectedIcon: String { icon }
+    var tooltip: String? { nil }
 }
 
 // MARK: - Reusable Tabbed Buttons Component
@@ -87,6 +89,9 @@ private struct TabbedButton<Item: TabbedItem>: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             isHovered = hovering
+        }
+        .if(item.tooltip != nil) { view in
+            view.help(item.tooltip!)
         }
     }
     
@@ -195,6 +200,17 @@ struct TabbedButtonStyle {
 
 // MARK: - Convenience Extensions for Existing Types
 
+extension View {
+    @ViewBuilder
+    func `if`<Transform: View>(_ condition: Bool, transform: (Self) -> Transform) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+}
+
 extension MainTab: TabbedItem {
     var title: String { self.rawValue }
 }
@@ -206,6 +222,14 @@ extension LibraryViewType: TabbedItem {
         case .list: return "list.bullet"
         case .grid: return "square.grid.2x2"
         case .table: return "tablecells"
+        }
+    }
+
+    var tooltip: String? {
+        switch self {
+        case .list: return "List View"
+        case .grid: return "Grid View"
+        case .table: return "Table View"
         }
     }
 }

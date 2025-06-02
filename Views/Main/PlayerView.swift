@@ -45,7 +45,7 @@ struct PlayerView: View {
             albumArtwork
             trackDetails
         }
-        .frame(width: 240, alignment: .leading)
+        .frame(width: 250, alignment: .leading)
     }
     
     private var centerSection: some View {
@@ -61,7 +61,7 @@ struct PlayerView: View {
             volumeControl
             queueButton
         }
-        .frame(width: 240, alignment: .trailing)
+        .frame(width: 250, alignment: .trailing)
     }
     
     // MARK: - Left Section Components
@@ -91,20 +91,32 @@ struct PlayerView: View {
                     .font(.system(size: 14, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(.primary)
+                    .truncationMode(.tail)
+                    .help(audioPlayerManager.currentTrack?.title ?? "")  // Always show tooltip with full title
                 
                 favoriteButton
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
-            Text(audioPlayerManager.currentTrack?.artist ?? "")
-                .font(.system(size: 12))
-                .lineLimit(1)
-                .foregroundColor(.secondary)
+            // Artist with marquee
+            MarqueeText(
+                text: audioPlayerManager.currentTrack?.artist ?? "",
+                font: .system(size: 12),
+                color: .secondary
+            )
+            .frame(height: 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
             
-            Text(audioPlayerManager.currentTrack?.album ?? "")
-                .font(.system(size: 11))
-                .lineLimit(1)
-                .foregroundColor(.secondary.opacity(0.8))
+            // Album with marquee
+            MarqueeText(
+                text: audioPlayerManager.currentTrack?.album ?? "",
+                font: .system(size: 11),
+                color: .secondary.opacity(0.8)
+            )
+            .frame(height: 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private var favoriteButton: some View {
@@ -119,6 +131,7 @@ struct PlayerView: View {
                         .animation(.easeInOut(duration: 0.2), value: track.isFavorite)
                 }
                 .buttonStyle(.plain)
+                .hoverEffect(scale: 1.15)
                 .help(track.isFavorite ? "Remove from Favorites" : "Add to Favorites")
             }
         }
@@ -146,7 +159,9 @@ struct PlayerView: View {
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(ControlButtonStyle())
+        .hoverEffect(scale: 1.1)
         .disabled(audioPlayerManager.currentTrack == nil)
+        .help(playlistManager.isShuffleEnabled ? "Disable Shuffle" : "Enable Shuffle")
     }
     
     private var previousButton: some View {
@@ -159,16 +174,16 @@ struct PlayerView: View {
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(ControlButtonStyle())
+        .hoverEffect(scale: 1.1)
         .disabled(audioPlayerManager.currentTrack == nil)
+        .help("Previous")
     }
     
     private var playPauseButton: some View {
         Button(action: {
             audioPlayerManager.togglePlayPause()
         }) {
-            Image(systemName: audioPlayerManager.isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.white)
+            PlayPauseIcon(isPlaying: audioPlayerManager.isPlaying)
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
@@ -176,13 +191,15 @@ struct PlayerView: View {
                 )
         }
         .buttonStyle(PlainButtonStyle())
+        .hoverEffect(scale: 1.1)
         .scaleEffect(playButtonPressed ? 0.95 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: playButtonPressed)
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            withAnimation(.easeInOut(duration: 0.1)) {
-                playButtonPressed = pressing
-            }
+            playButtonPressed = pressing
         }, perform: {})
         .disabled(audioPlayerManager.currentTrack == nil)
+        .help(audioPlayerManager.isPlaying ? "Pause" : "Play")
+        .id("playPause")
     }
     
     private var nextButton: some View {
@@ -195,6 +212,8 @@ struct PlayerView: View {
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(ControlButtonStyle())
+        .hoverEffect(scale: 1.1)
+        .help("Next")
         .disabled(audioPlayerManager.currentTrack == nil)
     }
     
@@ -208,9 +227,11 @@ struct PlayerView: View {
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(ControlButtonStyle())
+        .hoverEffect(scale: 1.1)
+        .help("Toggle repeat mode")
         .disabled(audioPlayerManager.currentTrack == nil)
     }
-    
+
     private var progressBar: some View {
         HStack(spacing: 8) {
             // Current time
@@ -290,6 +311,7 @@ struct PlayerView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .hoverEffect(scale: 1.1)
         .help(isMuted ? "Unmute" : "Mute")
     }
     
@@ -328,6 +350,7 @@ struct PlayerView: View {
                 )
         }
         .buttonStyle(PlainButtonStyle())
+        .hoverEffect(scale: 1.1)
         .help(showingQueue ? "Hide Queue" : "Show Queue")
     }
     
@@ -379,8 +402,11 @@ struct PlayerView: View {
             .onEnded { value in
                 let percentage = max(0, min(1, value.location.x / geometry.size.width))
                 let newTime = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
-                audioPlayerManager.seekTo(time: newTime)
                 isDraggingProgress = false
+                // Delay the seek slightly to prevent audio glitches
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    audioPlayerManager.seekTo(time: newTime)
+                }
             }
     }
     
@@ -504,6 +530,55 @@ struct ControlButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
             .opacity(configuration.isPressed ? 0.7 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+private struct PlayPauseIcon: View {
+    let isPlaying: Bool
+    
+    var body: some View {
+        ZStack {
+            Image(systemName: "play.fill")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.white)
+                .opacity(isPlaying ? 0 : 1)
+                .scaleEffect(isPlaying ? 0.8 : 1)
+                .rotationEffect(.degrees(isPlaying ? -90 : 0))
+            
+            Image(systemName: "pause.fill")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.white)
+                .opacity(isPlaying ? 1 : 0)
+                .scaleEffect(isPlaying ? 1 : 0.8)
+                .rotationEffect(.degrees(isPlaying ? 0 : 90))
+        }
+        .animation(.easeInOut(duration: 0.2), value: isPlaying)
+    }
+}
+
+// MARK: - Hover Effect Modifier
+
+struct HoverEffect: ViewModifier {
+    let scaleAmount: CGFloat
+    @State private var isHovered = false
+    
+    init(scale: CGFloat = 1.1) {
+        self.scaleAmount = scale
+    }
+    
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isHovered ? scaleAmount : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isHovered)
+            .onHover { hovering in
+                isHovered = hovering
+            }
+    }
+}
+
+extension View {
+    func hoverEffect(scale: CGFloat = 1.1) -> some View {
+        modifier(HoverEffect(scale: scale))
     }
 }
 

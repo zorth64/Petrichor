@@ -165,11 +165,21 @@ struct LibraryTabView: View {
     }
     
     private func resetLibraryData() {
+        // Stop any current playback
+        if let coordinator = AppCoordinator.shared {
+            coordinator.audioPlayerManager.stop()
+            coordinator.playlistManager.clearQueue()
+        }
+
         // Clear UserDefaults settings
         UserDefaults.standard.removeObject(forKey: "SavedMusicFolders")
         UserDefaults.standard.removeObject(forKey: "SavedMusicTracks")
         UserDefaults.standard.removeObject(forKey: "SecurityBookmarks")
         UserDefaults.standard.removeObject(forKey: "LastScanDate")
+        
+        // Clear playback state
+        UserDefaults.standard.removeObject(forKey: "SavedPlaybackState")
+        UserDefaults.standard.removeObject(forKey: "SavedPlaybackUIState")
         
         Task {
             do {

@@ -96,10 +96,11 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             
             // Setup timer to update currentTime
             timer?.invalidate()
-            timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                 guard let self = self, let player = self.player else { return }
                 self.currentTime = player.currentTime
             }
+            timer?.tolerance = 0.1
             
             // Update now playing info
             nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: currentTime, isPlaying: isPlaying)

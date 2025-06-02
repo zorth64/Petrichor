@@ -69,7 +69,7 @@ struct NoMusicEmptyStateView: View {
             ZStack {
                 Circle()
                     .fill(Color.accentColor.opacity(0.1))
-                    .frame(width: context.iconSize * 1.5, height: context.iconSize * 1.5)
+                    .frame(width: context.iconSize * 1.8, height: context.iconSize * 1.8)
                 
                 Image(systemName: "folder.badge.plus")
                     .font(.system(size: context.iconSize, weight: .light))
@@ -96,19 +96,19 @@ struct NoMusicEmptyStateView: View {
             
             // Add button with hover effect
             Button(action: { libraryManager.addFolder() }) {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.system(size: 16))
                     Text("Add Music Folder")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                 }
                 .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(Color.accentColor)
-                        .shadow(color: Color.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
+                        .shadow(color: Color.accentColor.opacity(0.3), radius: 6, x: 0, y: 3)
                 )
             }
             .buttonStyle(PlainButtonStyle())

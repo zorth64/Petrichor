@@ -169,7 +169,7 @@ struct SidebarView<Item: SidebarItem>: View {
                     }
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 4)
             .padding(.vertical, 4)
         }
     }
