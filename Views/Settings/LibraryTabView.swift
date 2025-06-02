@@ -4,19 +4,22 @@ struct LibraryTabView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var showingRemoveFolderAlert = false
     @State private var showingResetConfirmation = false
+    @State private var selectedFolderIDs: Set<Int64> = []
+    @State private var isSelectMode: Bool = false
     @State private var folderToRemove: Folder?
     
     var body: some View {
         VStack(spacing: 0) {
             if libraryManager.folders.isEmpty {
-                // Show our unified empty state when no folders exist
+                // Empty state
                 NoMusicEmptyStateView(context: .settings)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Show the normal library management UI
+                // Library management UI
                 libraryManagementContent
             }
         }
-        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Remove", role: .destructive) {
@@ -30,68 +33,111 @@ struct LibraryTabView: View {
                 Text("Are you sure you want to stop watching \"\(folder.name)\"? This will remove all tracks from this folder from your library.")
             }
         }
+        .alert("Reset Library Data", isPresented: $showingResetConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Reset All Data", role: .destructive) {
+                resetLibraryData()
+            }
+        } message: {
+            Text("This will permanently remove all library data, including added folders, tracks, and playlists. This action cannot be undone.")
+        }
     }
     
     private var libraryManagementContent: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Watched Folders")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text("Folders that Petrichor monitors for music files")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            libraryHeader
+            foldersList
+            libraryFooter
+        }
+    }
+    
+    private var libraryHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Watched Folders")
+                    .font(.system(size: 14, weight: .semibold))
                 
-                Spacer()
-                
-                Button(action: { libraryManager.refreshLibrary() }) {
-                    Label("Refresh Library", systemImage: "arrow.clockwise")
-                }
-                .disabled(libraryManager.isScanning)
-                .help("Scan for new files and update metadata")
-                
-                Button(action: { libraryManager.addFolder() }) {
-                    Label("Add Folder", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
+                Text("\(libraryManager.folders.count) folders • \(libraryManager.tracks.count) tracks")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
-            .padding()
-            .background(Color.clear)
             
-            Divider()
+            Spacer()
             
-            // Folders List
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(libraryManager.folders) { folder in
-                        VStack(spacing: 0) {
-                            SettingsFolderRow(
-                                folder: folder,
-                                trackCount: libraryManager.getTracksInFolder(folder).count,
-                                onRemove: {
-                                    folderToRemove = folder
-                                    showingRemoveFolderAlert = true
-                                }
-                            )
-                            .padding()
-                            
-                            if folder.id != libraryManager.folders.last?.id {
-                                Divider()
-                            }
+            Button(action: { libraryManager.refreshLibrary() }) {
+                Label("Refresh Library", systemImage: "arrow.clockwise")
+            }
+            .disabled(libraryManager.isScanning)
+            .help("Scan for new files and update metadata")
+            
+            Button(action: { libraryManager.addFolder() }) {
+                Label("Add Folder", systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private var foldersList: some View {
+        VStack(spacing: 0) {
+            // Selection controls bar
+            if libraryManager.folders.count > 1 {
+                HStack {
+                    Button(action: toggleSelectMode) {
+                        Text(isSelectMode ? "Done" : "Select")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    
+                    if isSelectMode {
+                        Text("\(selectedFolderIDs.count) selected")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 8)
+                    }
+                    
+                    Spacer()
+                    
+                    if isSelectMode && !selectedFolderIDs.isEmpty {
+                        Button(action: removeSelectedFolders) {
+                            Label("Remove Selected", systemImage: "trash")
+                                .font(.system(size: 12))
                         }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+                        .tint(.red)
                     }
                 }
+                .padding(.horizontal, 0)
+                .padding(.vertical, 5)
             }
-            .frame(maxHeight: .infinity)
             
+            // Folders list
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(libraryManager.folders) { folder in
+                        compactFolderRow(for: folder)
+                            .padding(.horizontal, 6)
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            .frame(maxHeight: 350)
+            .background(Color(NSColor.textBackgroundColor).opacity(0.5))
+            .cornerRadius(6)
+        }
+        .padding(.horizontal, 35)
+    }
+
+    private var libraryFooter: some View {
+        VStack(spacing: 12) {
+            // Action buttons row
             HStack(spacing: 12) {
                 Button(action: { libraryManager.cleanupMissingFolders() }) {
                     HStack(spacing: 6) {
-                        Image(systemName: "paintbrush")
+                        Image(systemName: "sparkles")
                             .font(.system(size: 12, weight: .medium))
                         Text("Clean Up Missing Folders")
                             .font(.system(size: 13, weight: .medium))
@@ -115,52 +161,93 @@ struct LibraryTabView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
+                    .background(Color.red)
+                    .cornerRadius(6)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .controlSize(.regular)
+                .buttonStyle(.plain)
             }
-            .alert("Reset Library Data", isPresented: $showingResetConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Reset All Data", role: .destructive) {
-                    resetLibraryData()
-                }
-            } message: {
-                Text("This will permanently remove all library data, including added folders, tracks, and settings. This action cannot be undone.")
-            }
-            .padding(.horizontal, 20)
-            Spacer()
             
-            // Footer Info
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(libraryManager.folders.count) folders monitored")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("\(libraryManager.tracks.count) total tracks")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                if let lastScan = UserDefaults.standard.object(forKey: "LastScanDate") as? Date {
+            // Status info
+            if let lastScan = UserDefaults.standard.object(forKey: "LastScanDate") as? Date {
+                HStack {
                     Text("Last scan: \(lastScan, style: .relative) ago")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                }
-                
-                if libraryManager.isScanning {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Scanning...")
-                        .font(.caption)
-                        .foregroundColor(Color.clear)
+                    
+                    Spacer()
+                    
+                    if libraryManager.isScanning {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
                 }
             }
-            .padding()
-            .background(Color.clear)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
+    }
+    
+    // MARK: - Folder Row
+    @ViewBuilder
+    private func compactFolderRow(for folder: Folder) -> some View {
+        let isSelected = selectedFolderIDs.contains(folder.id ?? -1)
+        let trackCount = libraryManager.getTracksInFolder(folder).count
+        
+        CompactFolderRowView(
+            folder: folder,
+            trackCount: trackCount,
+            isSelected: isSelected,
+            isSelectMode: isSelectMode,
+            onToggleSelection: { toggleFolderSelection(folder) },
+            onRefresh: { libraryManager.refreshFolder(folder) },
+            onRemove: {
+                folderToRemove = folder
+                showingRemoveFolderAlert = true
+            }
+        )
+    }
+
+    // MARK: - Helper Methods
+    private func toggleSelectMode() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isSelectMode.toggle()
+            if !isSelectMode {
+                selectedFolderIDs.removeAll()
+            }
+        }
+    }
+
+    private func toggleFolderSelection(_ folder: Folder) {
+        guard let folderId = folder.id else { return }
+        
+        withAnimation(.easeInOut(duration: 0.1)) {
+            if selectedFolderIDs.contains(folderId) {
+                selectedFolderIDs.remove(folderId)
+            } else {
+                selectedFolderIDs.insert(folderId)
+            }
+        }
+    }
+
+    private func removeSelectedFolders() {
+        let selectedFolders = libraryManager.folders.filter { folder in
+            guard let id = folder.id else { return false }
+            return selectedFolderIDs.contains(id)
+        }
+        
+        let alert = NSAlert()
+        alert.messageText = "Remove Selected Folders"
+        alert.informativeText = "Are you sure you want to remove \(selectedFolders.count) folders? This will remove all tracks from these folders from your library."
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            for folder in selectedFolders {
+                libraryManager.removeFolder(folder)
+            }
+            selectedFolderIDs.removeAll()
+            isSelectMode = false
         }
     }
     
@@ -192,128 +279,101 @@ struct LibraryTabView: View {
     }
 }
 
-// MARK: - Settings Folder Row Component
-
-struct SettingsFolderRow: View {
+private struct CompactFolderRowView: View {
     let folder: Folder
     let trackCount: Int
+    let isSelected: Bool
+    let isSelectMode: Bool
+    let onToggleSelection: () -> Void
+    let onRefresh: () -> Void
     let onRemove: () -> Void
     
-    @State private var isExpanded = false
+    @State private var isHovered = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                // Folder icon
-                Image(systemName: "folder.fill")
-                    .foregroundColor(.accentColor)
-                    .font(.title3)
+        HStack(spacing: 12) {
+            // Selection checkbox (only in select mode)
+            if isSelectMode {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 16))
+                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                    .onTapGesture {
+                        onToggleSelection()
+                    }
+            }
+            
+            // Folder icon
+            Image(systemName: "folder.fill")
+                .font(.system(size: 16))
+                .foregroundColor(.accentColor)
+            
+            // Folder info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(folder.name)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
                 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(folder.name)
-                        .font(.headline)
+                HStack(spacing: 4) {
+                    Text(folder.url.path)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
+                        .truncationMode(.middle)
                     
-                    HStack {
-                        Text(folder.url.path)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        Text("\(trackCount) tracks")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.1))
-                            .cornerRadius(4)
-                    }
-                }
-                
-                Spacer()
-                
-                // Actions
-                HStack(spacing: 8) {
-                    Button(action: { isExpanded.toggle() }) {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.borderless)
+                    Spacer()
                     
-                    Button(action: onRemove) {
-                        Image(systemName: "minus.circle.fill")
-                            .foregroundColor(.red)
-                    }
-                    .buttonStyle(.borderless)
+                    Text("\(trackCount)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                    +
+                    Text(" tracks")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 }
             }
             
-            // Expanded details
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 4) {
-                    Divider()
-                    
-                    HStack {
-                        Text("Full Path:")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        
-                        Text(folder.url.path)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .textSelection(.enabled)
-                    }
-                    
-                    HStack {
-                        Text("Added:")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        
-                        Text("Recently") // You could store this date if needed
-                            .font(.caption)
+            // Individual actions (when not in select mode)
+            if !isSelectMode {
+                HStack(spacing: 4) {
+                    Button(action: onRefresh) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
+                    .buttonStyle(.plain)
+                    .help("Refresh this folder")
                     
-                    if trackCount > 0 {
-                        HStack {
-                            Text("Status:")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.caption)
-                                
-                                Text("Active")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            }
-                        }
-                    } else {
-                        HStack {
-                            Text("Status:")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            
-                            HStack {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.orange)
-                                    .font(.caption)
-                                
-                                Text("No tracks found")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                            }
-                        }
+                    Button(action: onRemove) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
                     }
+                    .buttonStyle(.plain)
+                    .help("Remove this folder")
                 }
-                .padding(.leading, 32)
+                .padding(.trailing, 4)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(
+                    isSelected && isSelectMode ?
+                    Color.accentColor.opacity(0.1) :
+                    (isHovered ? Color(NSColor.selectedContentBackgroundColor).opacity(0.15) : Color.clear)
+                )
+                .animation(.easeInOut(duration: 0.15), value: isHovered)
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .onTapGesture {
+            if isSelectMode {
+                onToggleSelection()
+            }
+        }
     }
 }
 
