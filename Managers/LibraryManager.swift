@@ -143,7 +143,7 @@ class LibraryManager: ObservableObject {
         openPanel.prompt = "Add Music Folder"
         openPanel.message = "Select folders containing your music files"
         
-        openPanel.begin { [weak self] response in
+        openPanel.beginSheetModal(for: NSApp.keyWindow!) { [weak self] response in
             guard let self = self, response == .OK else { return }
             
             var urlsToAdd: [URL] = []
