@@ -87,21 +87,13 @@ struct LibrarySidebarView: View {
     
     private var headerSection: some View {
         ListHeader {
-            // Filter type dropdown
-            Picker("", selection: $selectedFilterType) {
-                ForEach(LibraryFilterType.allCases, id: \.self) { filterType in
-                    HStack(spacing: 4) {
-                        Image(systemName: filterType.icon)
-                            .font(.system(size: 11))
-                        Text(filterType.rawValue)
-                            .font(.system(size: 12))
-                    }
-                    .tag(filterType)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(width: 90)
-            .labelsHidden()
+            // Filter type dropdown - now icons-only
+            IconOnlyDropdown(
+                items: LibraryFilterType.allCases,
+                selection: $selectedFilterType,
+                iconProvider: { $0.icon },
+                tooltipProvider: { $0.rawValue }
+            )
             
             // Search bar
             HStack {
