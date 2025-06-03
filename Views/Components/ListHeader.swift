@@ -16,7 +16,7 @@ struct ListHeaderStyle: ViewModifier {
             .padding(padding)
             .frame(maxWidth: .infinity)
             .frame(height: height)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+            .background(Color(NSColor.windowBackgroundColor))
     }
 }
 
@@ -79,7 +79,7 @@ struct PlaylistHeader<Content: View>: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 20)
             .frame(maxWidth: .infinity)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+            .background(Color(NSColor.windowBackgroundColor))
     }
 }
 

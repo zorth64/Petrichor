@@ -18,7 +18,7 @@ struct ContextualToolbar: View {
         }
         .frame(height: 40)
         .padding(.horizontal, 20)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+        .background(Color(NSColor.windowBackgroundColor))
     }
     
     // MARK: - Shared Toolbar Content
