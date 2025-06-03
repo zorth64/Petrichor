@@ -16,7 +16,9 @@ struct FoldersView: View {
     @State private var showingCreatePlaylistWithTrack = false
     @State private var trackToAddToNewPlaylist: Track?
     @State private var newPlaylistName = ""
+    
     @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
+    @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
     
     let viewType: LibraryViewType
     
@@ -87,6 +89,12 @@ struct FoldersView: View {
             .onChange(of: selectedFolder) { folder in
                 handleFolderSelection(folder)
             }
+            .onChange(of: trackListSortAscending) { _ in
+                // Re-sort the current folder tracks when sort direction changes
+                if let folder = selectedFolder {
+                    loadTracksForFolder(folder)
+                }
+            }
     }
     
     // MARK: - Folder Tracks View
@@ -115,7 +123,15 @@ struct FoldersView: View {
                 } else {
                     TrackListHeader(
                         title: folder.name,
-                        trackCount: folderTracks.count
+                        trackCount: folderTracks.count,
+                        trailing: {
+                            Button(action: { trackListSortAscending.toggle() }) {
+                                Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                        }
                     )
                 }
             } else {
@@ -305,7 +321,12 @@ struct FoldersView: View {
         // Load tracks asynchronously to avoid blocking UI
         DispatchQueue.global(qos: .userInitiated).async {
             let tracks = libraryManager.getTracksInFolder(folder)
-                .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+                .sorted { track1, track2 in
+                    let comparison = track1.title.localizedCaseInsensitiveCompare(track2.title)
+                    return trackListSortAscending ?
+                        comparison == .orderedAscending :
+                        comparison == .orderedDescending
+                }
             
             DispatchQueue.main.async {
                 self.folderTracks = tracks

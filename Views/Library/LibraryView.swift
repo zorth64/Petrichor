@@ -13,8 +13,10 @@ struct LibraryView: View {
     @State private var cachedFilteredTracks: [Track] = []
     @State private var pendingSearchText: String?
     @State private var isViewReady = false
+    
     @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
-
+    @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
+    
     @Binding var pendingFilter: LibraryFilterRequest?
     
     let viewType: LibraryViewType
@@ -73,6 +75,9 @@ struct LibraryView: View {
                 }
                 .onChange(of: libraryManager.tracks.count) { _ in
                     // Only update if the number of tracks changed (tracks added/removed)
+                    updateFilteredTracks()
+                }
+                .onChange(of: trackListSortAscending) { _ in
                     updateFilteredTracks()
                 }
                 .onChange(of: pendingFilter) { newValue in
@@ -152,12 +157,20 @@ struct LibraryView: View {
             } else {
                 TrackListHeader(
                     title: headerTitle,
-                    trackCount: cachedFilteredTracks.count
+                    trackCount: cachedFilteredTracks.count,
+                    trailing: {
+                        Button(action: { trackListSortAscending.toggle() }) {
+                            Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                    }
                 )
             }
         }
     }
-
+    
     private var headerTitle: String {
         if let filterItem = selectedFilterItem {
             if filterItem.name.hasPrefix("All") {
@@ -201,12 +214,12 @@ struct LibraryView: View {
     
     private func updateFilteredTracks() {
         guard let filterItem = selectedFilterItem else {
-            cachedFilteredTracks = libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            cachedFilteredTracks = sortTracks(libraryManager.tracks)
             return
         }
         
         if filterItem.name.hasPrefix("All") {
-            cachedFilteredTracks = libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            cachedFilteredTracks = sortTracks(libraryManager.tracks)
             return
         }
         
@@ -215,7 +228,16 @@ struct LibraryView: View {
             selectedFilterType.trackMatches(track, filterValue: filterItem.name)
         }
         
-        cachedFilteredTracks = unsortedTracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        cachedFilteredTracks = sortTracks(unsortedTracks)
+    }
+
+    private func sortTracks(_ tracks: [Track]) -> [Track] {
+        tracks.sorted { track1, track2 in
+            let comparison = track1.title.localizedCaseInsensitiveCompare(track2.title)
+            return trackListSortAscending ?
+                comparison == .orderedAscending :
+                comparison == .orderedDescending
+        }
     }
     
     // MARK: - Context Menu Helper
