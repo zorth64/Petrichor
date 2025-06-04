@@ -812,8 +812,16 @@ class DatabaseManager: ObservableObject {
                     self.scanStatusMessage = "Refreshing \(folder.name)..."
                 }
                 
+                // Log the current state
+                let trackCountBefore = getTracksForFolder(folder.id ?? -1).count
+                print("DatabaseManager: Starting refresh for folder \(folder.name) with \(trackCountBefore) tracks")
+                
                 // Scan the folder - this will now always check for metadata updates
                 try await scanSingleFolder(folder, supportedExtensions: ["mp3", "m4a", "wav", "aac", "aiff", "flac"])
+                
+                // Log the result
+                let trackCountAfter = getTracksForFolder(folder.id ?? -1).count
+                print("DatabaseManager: Completed refresh for folder \(folder.name) with \(trackCountAfter) tracks (was \(trackCountBefore))")
                 
                 await MainActor.run {
                     self.isScanning = false

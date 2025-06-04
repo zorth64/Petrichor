@@ -319,23 +319,39 @@ class LibraryManager: ObservableObject {
         
         // Set background scanning flag instead of regular scanning
         isBackgroundScanning = true
-
+        
+        // Track completion of all folder refreshes
+        let group = DispatchGroup()
+        var hasErrors = false
+        
         // For each folder, trigger a refresh in the database
         for folder in folders {
+            group.enter()
             databaseManager.refreshFolder(folder) { result in
                 switch result {
                 case .success:
                     print("LibraryManager: Successfully refreshed folder \(folder.name)")
                 case .failure(let error):
                     print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                    hasErrors = true
                 }
+                group.leave()
             }
         }
         
-        // Reload the library after refresh
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        // When all folders are done refreshing
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+            
+            // Reload the library after all refreshes complete
             self.loadMusicLibrary()
             self.isBackgroundScanning = false
+            
+            if hasErrors {
+                print("LibraryManager: Library refresh completed with some errors")
+            } else {
+                print("LibraryManager: Library refresh completed successfully")
+            }
         }
     }
     

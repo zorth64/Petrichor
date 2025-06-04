@@ -127,8 +127,72 @@ struct LibraryTabView: View {
             .frame(maxHeight: 350)
             .background(Color(NSColor.textBackgroundColor).opacity(0.5))
             .cornerRadius(6)
+            .overlay(refreshOverlay)
         }
         .padding(.horizontal, 35)
+    }
+    
+    @ViewBuilder
+    private var refreshOverlay: some View {
+        if libraryManager.isScanning || libraryManager.isBackgroundScanning {
+            ZStack {
+                // Semi-transparent background
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.black.opacity(0.5))
+                
+                // Content container with background
+                VStack(spacing: 20) {
+                    // Animated icon (same as NoMusicEmptyStateView)
+                    ZStack {
+                        Circle()
+                            .stroke(Color.accentColor.opacity(0.2), lineWidth: 4)
+                            .frame(width: 60, height: 60)
+                        
+                        Circle()
+                            .trim(from: 0, to: 0.7)
+                            .stroke(
+                                Color.accentColor,
+                                style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                            )
+                            .frame(width: 60, height: 60)
+                            .rotationEffect(.degrees(-90))
+                            .rotationEffect(.degrees(libraryManager.isScanning || libraryManager.isBackgroundScanning ? 360 : 0))
+                            .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: libraryManager.isScanning || libraryManager.isBackgroundScanning)
+                        
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 24, weight: .light))
+                            .foregroundColor(.accentColor)
+                    }
+                    
+                    VStack(spacing: 8) {
+                        Text("Refreshing Library")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                        
+                        if !libraryManager.scanStatusMessage.isEmpty {
+                            Text(libraryManager.scanStatusMessage)
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .frame(width: 250, height: 32)  // Fixed height for status message
+                        } else {
+                            // Empty spacer to maintain height when no message
+                            Color.clear
+                                .frame(width: 250, height: 32)
+                        }
+                    }
+                }
+                .frame(width: 300, height: 180)  // Fixed size container
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                        .shadow(color: .black.opacity(0.2), radius: 10)
+                )
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            .animation(.easeInOut(duration: 0.2), value: libraryManager.isScanning || libraryManager.isBackgroundScanning)
+        }
     }
 
     private var libraryFooter: some View {
@@ -175,11 +239,6 @@ struct LibraryTabView: View {
                         .foregroundColor(.secondary)
                     
                     Spacer()
-                    
-                    if libraryManager.isScanning {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    }
                 }
             }
         }
