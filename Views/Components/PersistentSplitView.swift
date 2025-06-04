@@ -15,22 +15,28 @@ struct PersistentSplitView<Left: View, Right: View>: View {
                 Divider()
                     .frame(width: 1)
                     .background(Color(NSColor.separatorColor))
-                    .onHover { hovering in
-                        if hovering {
-                            NSCursor.resizeLeftRight.push()
-                        } else {
-                            NSCursor.pop()
-                        }
-                    }
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                let newWidth = localSplitPosition + value.translation.width
-                                localSplitPosition = min(max(150, newWidth), 500)
+                    .overlay(
+                        // Invisible wider area for hover detection
+                        Color.clear
+                            .frame(width: 25)
+                            .contentShape(Rectangle())
+                            .onHover { hovering in
+                                if hovering {
+                                    NSCursor.resizeLeftRight.push()
+                                } else {
+                                    NSCursor.pop()
+                                }
                             }
-                            .onEnded { _ in
-                                splitPosition = Double(localSplitPosition)
-                            }
+                            .gesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        let newWidth = localSplitPosition + value.translation.width
+                                        localSplitPosition = min(max(150, newWidth), 500)
+                                    }
+                                    .onEnded { _ in
+                                        splitPosition = Double(localSplitPosition)
+                                    }
+                            )
                     )
                 
                 right()
