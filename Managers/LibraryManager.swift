@@ -14,7 +14,6 @@ class LibraryManager: ObservableObject {
     private let fileManager = FileManager.default
     private var fileWatcherTimer: Timer?
     private let userDefaults = UserDefaults.standard
-    private var securityBookmarks: [URL: Data] = [:]
     private var folderTrackCounts: [Int64: Int] = [:]
     
     // Database manager
@@ -54,7 +53,6 @@ class LibraryManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .assign(to: &$scanStatusMessage)
         
-        loadSecurityBookmarks()
         loadMusicLibrary()
         startFileWatcher()
         
@@ -70,66 +68,10 @@ class LibraryManager: ObservableObject {
     deinit {
         fileWatcherTimer?.invalidate()
         // Stop accessing all security scoped resources
-        for (url, _) in securityBookmarks {
-            url.stopAccessingSecurityScopedResource()
-        }
-    }
-    
-    // MARK: - Security Bookmarks
-    
-    private func saveSecurityBookmarks() {
-        var bookmarkData: [String: Data] = [:]
-        
-        for (url, data) in securityBookmarks {
-            bookmarkData[url.absoluteString] = data
-        }
-        
-        userDefaults.set(bookmarkData, forKey: UserDefaultsKeys.securityBookmarks)
-        print("LibraryManager: Saved \(bookmarkData.count) security bookmarks")
-    }
-    
-    func loadSecurityBookmarks() {
-        guard let savedBookmarks = userDefaults.dictionary(forKey: UserDefaultsKeys.securityBookmarks) as? [String: Data] else {
-            print("LibraryManager: No security bookmarks found")
-            return
-        }
-        
-        for (urlString, bookmarkData) in savedBookmarks {
-            do {
-                var isStale = false
-                let url = try URL(resolvingBookmarkData: bookmarkData,
-                                  options: [.withSecurityScope],
-                                  relativeTo: nil,
-                                  bookmarkDataIsStale: &isStale)
-                
-                if isStale {
-                    continue
-                }
-                
-                // Start accessing the security scoped resource
-                guard url.startAccessingSecurityScopedResource() else {
-                    print("LibraryManager: Failed to start accessing security scoped resource for \(urlString)")
-                    continue
-                }
-                
-                securityBookmarks[url] = bookmarkData
-            } catch {
-                print("LibraryManager: Failed to resolve bookmark for \(urlString): \(error)")
+        for folder in folders {
+            if folder.bookmarkData != nil {
+                folder.url.stopAccessingSecurityScopedResource()
             }
-        }
-    }
-    
-    private func createSecurityBookmark(for url: URL) -> Data? {
-        do {
-            let bookmarkData = try url.bookmarkData(options: [.withSecurityScope],
-                                                    includingResourceValuesForKeys: nil,
-                                                    relativeTo: nil)
-            securityBookmarks[url] = bookmarkData
-            saveSecurityBookmarks()
-            return bookmarkData
-        } catch {
-            print("LibraryManager: Failed to create security bookmark for \(url.path): \(error)")
-            return nil
         }
     }
     
@@ -147,16 +89,23 @@ class LibraryManager: ObservableObject {
             guard let self = self, response == .OK else { return }
             
             var urlsToAdd: [URL] = []
+            var bookmarkDataMap: [URL: Data] = [:]
             
             for url in openPanel.urls {
-                // Create and save security bookmark
-                if self.createSecurityBookmark(for: url) != nil {
+                // Create security bookmark
+                do {
+                    let bookmarkData = try url.bookmarkData(options: [.withSecurityScope],
+                                                            includingResourceValuesForKeys: nil,
+                                                            relativeTo: nil)
                     urlsToAdd.append(url)
-                    print("LibraryManager: Added folder - \(url.lastPathComponent) at \(url.path)")
+                    bookmarkDataMap[url] = bookmarkData
+                    print("LibraryManager: Created bookmark for folder - \(url.lastPathComponent) at \(url.path)")
+                } catch {
+                    print("LibraryManager: Failed to create security bookmark for \(url.path): \(error)")
                 }
             }
             
-            // Add folders to database
+            // Add folders to database with their bookmarks
             if !urlsToAdd.isEmpty {
                 // Show scanning immediately
                 self.isScanning = true
@@ -164,7 +113,7 @@ class LibraryManager: ObservableObject {
                 
                 // Small delay to ensure UI updates
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.databaseManager.addFolders(urlsToAdd) { result in
+                    self.databaseManager.addFolders(urlsToAdd, bookmarkDataMap: bookmarkDataMap) { result in
                         switch result {
                         case .success(let dbFolders):
                             print("LibraryManager: Successfully added \(dbFolders.count) folders to database")
@@ -179,13 +128,6 @@ class LibraryManager: ObservableObject {
     }
     
     func removeFolder(_ folder: Folder) {
-        // Stop accessing the security scoped resource
-        if securityBookmarks[folder.url] != nil {
-            folder.url.stopAccessingSecurityScopedResource()
-            securityBookmarks.removeValue(forKey: folder.url)
-            saveSecurityBookmarks()
-        }
-        
         // Remove from database
         databaseManager.removeFolder(folder) { [weak self] result in
             switch result {
@@ -198,6 +140,34 @@ class LibraryManager: ObservableObject {
         }
     }
     
+    private func refreshBookmarkForFolder(_ folder: Folder) async {
+        // Only refresh if we can access the folder
+        guard FileManager.default.fileExists(atPath: folder.url.path) else {
+            print("LibraryManager: Folder no longer exists at \(folder.url.path)")
+            return
+        }
+        
+        do {
+            // Create a fresh bookmark
+            let newBookmarkData = try folder.url.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            
+            // Update the folder with new bookmark
+            var updatedFolder = folder
+            updatedFolder.bookmarkData = newBookmarkData
+            
+            // Save to database
+            try await databaseManager.updateFolderBookmark(folder.id!, bookmarkData: newBookmarkData)
+            
+            print("LibraryManager: Successfully refreshed bookmark for \(folder.name)")
+        } catch {
+            print("LibraryManager: Failed to refresh bookmark for \(folder.name): \(error)")
+        }
+    }
+    
     // MARK: - Data Management
     
     func loadMusicLibrary() {
@@ -206,11 +176,90 @@ class LibraryManager: ObservableObject {
         // Clear caches
         folderTrackCounts.removeAll()
         
-        // Load folders and tracks directly from database
-        folders = databaseManager.getAllFolders()
+        // Load folders and resolve their bookmarks
+        let dbFolders = databaseManager.getAllFolders()
+        var resolvedFolders: [Folder] = []
+        var foldersNeedingRefresh: [Folder] = []
+        
+        for folder in dbFolders {
+            var folderAccessible = false
+            
+            // Try to resolve bookmark if available
+            if let bookmarkData = folder.bookmarkData {
+                do {
+                    var isStale = false
+                    let resolvedURL = try URL(resolvingBookmarkData: bookmarkData,
+                                             options: [.withSecurityScope],
+                                             relativeTo: nil,
+                                             bookmarkDataIsStale: &isStale)
+                    
+                    // Start accessing the security scoped resource
+                    if resolvedURL.startAccessingSecurityScopedResource() {
+                        folderAccessible = true
+                        resolvedFolders.append(folder)
+                        print("LibraryManager: Successfully resolved bookmark for \(folder.name)")
+                        
+                        if isStale {
+                            print("LibraryManager: Bookmark for \(folder.name) is stale, queuing for refresh")
+                            foldersNeedingRefresh.append(folder)
+                        }
+                    } else {
+                        print("LibraryManager: Failed to start accessing security scoped resource for \(folder.name)")
+                    }
+                } catch {
+                    print("LibraryManager: Failed to resolve bookmark for \(folder.name): \(error)")
+                }
+            } else {
+                print("LibraryManager: No bookmark data for \(folder.name)")
+            }
+            
+            // If bookmark resolution failed but folder exists, try to create new bookmark
+            if !folderAccessible && FileManager.default.fileExists(atPath: folder.url.path) {
+                print("LibraryManager: Attempting to create new bookmark for accessible folder \(folder.name)")
+                
+                // Check if we already have permission to access this path
+                if folder.url.startAccessingSecurityScopedResource() {
+                    // We have access! Create a new bookmark
+                    do {
+                        let newBookmarkData = try folder.url.bookmarkData(
+                            options: [.withSecurityScope],
+                            includingResourceValuesForKeys: nil,
+                            relativeTo: nil
+                        )
+                        
+                        var updatedFolder = folder
+                        updatedFolder.bookmarkData = newBookmarkData
+                        resolvedFolders.append(updatedFolder)
+                        foldersNeedingRefresh.append(updatedFolder)
+                        
+                        print("LibraryManager: Created new bookmark for \(folder.name)")
+                    } catch {
+                        print("LibraryManager: Failed to create new bookmark for \(folder.name): \(error)")
+                        resolvedFolders.append(folder) // Add anyway
+                    }
+                } else {
+                    // No access - add to list anyway
+                    resolvedFolders.append(folder)
+                }
+            } else if !folderAccessible {
+                // Folder doesn't exist or isn't accessible
+                resolvedFolders.append(folder)
+            }
+        }
+        
+        folders = resolvedFolders
         tracks = databaseManager.getAllTracks()
         
         print("LibraryManager: Loaded \(folders.count) folders and \(tracks.count) tracks from database")
+        
+        // Refresh stale bookmarks in background
+        if !foldersNeedingRefresh.isEmpty {
+            Task {
+                for folder in foldersNeedingRefresh {
+                    await refreshBookmarkForFolder(folder)
+                }
+            }
+        }
         
         // Update last scan date
         userDefaults.set(Date(), forKey: UserDefaultsKeys.lastScanDate)
@@ -324,33 +373,48 @@ class LibraryManager: ObservableObject {
         let group = DispatchGroup()
         var hasErrors = false
         
-        // For each folder, trigger a refresh in the database
-        for folder in folders {
-            group.enter()
-            databaseManager.refreshFolder(folder) { result in
-                switch result {
-                case .success:
-                    print("LibraryManager: Successfully refreshed folder \(folder.name)")
-                case .failure(let error):
-                    print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
-                    hasErrors = true
+        // First, ensure all folders have valid bookmarks
+        Task {
+            for folder in folders {
+                // Check and refresh bookmark if needed
+                if folder.bookmarkData == nil || !folder.url.startAccessingSecurityScopedResource() {
+                    await refreshBookmarkForFolder(folder)
                 }
-                group.leave()
             }
-        }
-        
-        // When all folders are done refreshing
-        group.notify(queue: .main) { [weak self] in
-            guard let self = self else { return }
             
-            // Reload the library after all refreshes complete
-            self.loadMusicLibrary()
-            self.isBackgroundScanning = false
-            
-            if hasErrors {
-                print("LibraryManager: Library refresh completed with some errors")
-            } else {
-                print("LibraryManager: Library refresh completed successfully")
+            // Now proceed with scanning
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                
+                // For each folder, trigger a refresh in the database
+                for folder in self.folders {
+                    group.enter()
+                    self.databaseManager.refreshFolder(folder) { result in
+                        switch result {
+                        case .success:
+                            print("LibraryManager: Successfully refreshed folder \(folder.name)")
+                        case .failure(let error):
+                            print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                            hasErrors = true
+                        }
+                        group.leave()
+                    }
+                }
+                
+                // When all folders are done refreshing
+                group.notify(queue: .main) { [weak self] in
+                    guard let self = self else { return }
+                    
+                    // Reload the library after all refreshes complete
+                    self.loadMusicLibrary()
+                    self.isBackgroundScanning = false
+                    
+                    if hasErrors {
+                        print("LibraryManager: Library refresh completed with some errors")
+                    } else {
+                        print("LibraryManager: Library refresh completed successfully")
+                    }
+                }
             }
         }
     }
@@ -358,18 +422,31 @@ class LibraryManager: ObservableObject {
     func refreshFolder(_ folder: Folder) {
         // Set background scanning flag
         isBackgroundScanning = true
-
-        // Delegate to database manager for refresh
-        databaseManager.refreshFolder(folder) { [weak self] result in
-            switch result {
-            case .success:
-                print("LibraryManager: Successfully refreshed folder \(folder.name)")
-                // Reload the library to reflect changes
-                self?.loadMusicLibrary()
-                self?.isBackgroundScanning = false
-            case .failure(let error):
-                print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
-                self?.isBackgroundScanning = false
+        
+        // First, ensure we have a valid bookmark
+        Task {
+            // Refresh bookmark if needed
+            if folder.bookmarkData == nil || !folder.url.startAccessingSecurityScopedResource() {
+                await refreshBookmarkForFolder(folder)
+            }
+            
+            // Then proceed with scanning
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                
+                // Delegate to database manager for refresh
+                self.databaseManager.refreshFolder(folder) { result in
+                    switch result {
+                    case .success:
+                        print("LibraryManager: Successfully refreshed folder \(folder.name)")
+                        // Reload the library to reflect changes
+                        self.loadMusicLibrary()
+                        self.isBackgroundScanning = false
+                    case .failure(let error):
+                        print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                        self.isBackgroundScanning = false
+                    }
+                }
             }
         }
     }
@@ -410,14 +487,7 @@ class LibraryManager: ObservableObject {
             folders.removeAll()
             tracks.removeAll()
             
-            // Clear security bookmarks
-            for (url, _) in securityBookmarks {
-                url.stopAccessingSecurityScopedResource()
-            }
-            securityBookmarks.removeAll()
-            saveSecurityBookmarks()
-            
-            // Clear UserDefaults
+            // Clear UserDefaults (remove the security bookmarks reference)
             UserDefaults.standard.removeObject(forKey: "LastScanDate")
         }
     }

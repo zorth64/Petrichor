@@ -8,16 +8,18 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
     var trackCount: Int
     var dateAdded: Date
     var dateUpdated: Date
+    var bookmarkData: Data?
     
     // MARK: - Initialization
     
-    init(url: URL, id: Int64? = nil) {
+    init(url: URL, id: Int64? = nil, bookmarkData: Data? = nil) {
         self.id = id
         self.url = url
         self.name = url.lastPathComponent
         self.trackCount = 0
         self.dateAdded = Date()
         self.dateUpdated = Date()
+        self.bookmarkData = bookmarkData
     }
     
     // MARK: - DB Configuration
@@ -31,6 +33,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         static let trackCount = Column("track_count")
         static let dateAdded = Column("date_added")
         static let dateUpdated = Column("date_updated")
+        static let bookmarkData = Column("bookmark_data")
     }
     
     // MARK: - Coding Keys
@@ -71,6 +74,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         trackCount = row[Columns.trackCount]
         dateAdded = row[Columns.dateAdded]
         dateUpdated = row[Columns.dateUpdated]
+        bookmarkData = row[Columns.bookmarkData]
         
         let path: String = row[Columns.path]
         url = URL(fileURLWithPath: path)
@@ -85,6 +89,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         container[Columns.trackCount] = trackCount
         container[Columns.dateAdded] = dateAdded
         container[Columns.dateUpdated] = dateUpdated
+        container[Columns.bookmarkData] = bookmarkData
     }
     
     // Auto-incrementing id

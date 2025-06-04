@@ -7,6 +7,12 @@ class DatabaseManager: ObservableObject {
     private let dbQueue: DatabaseQueue
     private let dbPath: String
     
+    private enum TrackProcessResult {
+        case new(Track)
+        case update(Track)
+        case skipped
+    }
+    
     // MARK: - Published Properties for UI Updates
     
     @Published var isScanning: Bool = false
@@ -58,6 +64,7 @@ class DatabaseManager: ObservableObject {
                 t.column("track_count", .integer).notNull().defaults(to: 0)
                 t.column("date_added", .datetime).notNull()
                 t.column("date_updated", .datetime).notNull()
+                t.column("bookmark_data", .blob)
             }
             
             try db.create(table: "tracks", ifNotExists: true) { t in
@@ -156,10 +163,10 @@ class DatabaseManager: ObservableObject {
     
     // MARK: - Folder Management
     
-    func addFolders(_ urls: [URL], completion: @escaping (Result<[Folder], Error>) -> Void) {
+    func addFolders(_ urls: [URL], bookmarkDataMap: [URL: Data], completion: @escaping (Result<[Folder], Error>) -> Void) {
         Task {
             do {
-                let folders = try await addFoldersAsync(urls)
+                let folders = try await addFoldersAsync(urls, bookmarkDataMap: bookmarkDataMap)
                 await MainActor.run {
                     completion(.success(folders))
                 }
@@ -171,7 +178,7 @@ class DatabaseManager: ObservableObject {
         }
     }
     
-    private func addFoldersAsync(_ urls: [URL]) async throws -> [Folder] {
+    private func addFoldersAsync(_ urls: [URL], bookmarkDataMap: [URL: Data]) async throws -> [Folder] {
         await MainActor.run {
             self.isScanning = true
             self.scanProgress = 0.0
@@ -182,14 +189,19 @@ class DatabaseManager: ObservableObject {
         
         try await dbQueue.write { db in
             for url in urls {
-                var folder = Folder(url: url)
+                let bookmarkData = bookmarkDataMap[url]
+                var folder = Folder(url: url, bookmarkData: bookmarkData)
                 
                 // Check if folder already exists
                 if let existing = try Folder
                     .filter(Folder.Columns.path == url.path)
                     .fetchOne(db) {
-                    addedFolders.append(existing)
-                    print("Folder already exists: \(existing.name) with ID: \(existing.id ?? -1)")
+                    // Update bookmark data if folder exists
+                    var updatedFolder = existing
+                    updatedFolder.bookmarkData = bookmarkData
+                    try updatedFolder.update(db)
+                    addedFolders.append(updatedFolder)
+                    print("Folder already exists: \(existing.name) with ID: \(existing.id ?? -1), updated bookmark")
                 } else {
                     // Insert new folder
                     try folder.insert(db)
@@ -216,7 +228,7 @@ class DatabaseManager: ObservableObject {
         
         return addedFolders
     }
-    
+
     func getAllFolders() -> [Folder] {
         do {
             return try dbQueue.read { db in
@@ -244,6 +256,14 @@ class DatabaseManager: ObservableObject {
                     completion(.failure(error))
                 }
             }
+        }
+    }
+    
+    func updateFolderBookmark(_ folderId: Int64, bookmarkData: Data) async throws {
+        try await dbQueue.write { db in
+            try Folder
+                .filter(Folder.Columns.id == folderId)
+                .updateAll(db, Folder.Columns.bookmarkData.set(to: bookmarkData))
         }
     }
     
@@ -305,7 +325,7 @@ class DatabaseManager: ObservableObject {
         }
         
         // Process in batches
-        let batchSize = 50
+        let batchSize = musicFiles.count > 1000 ? 100 : 50
         var processedCount = 0
         
         for batch in musicFiles.chunked(into: batchSize) {
@@ -334,20 +354,80 @@ class DatabaseManager: ObservableObject {
         // Update folder track count
         try await updateFolderTrackCount(folder)
     }
-
+    
     private func processBatch(_ files: [URL], folder: Folder, existingTracks: [URL: Track]) async throws {
         guard let folderId = folder.id else {
             print("ERROR: Folder has no ID! Folder: \(folder.name)")
             return
         }
         
-        try await dbQueue.write { db in
+        // Process files concurrently
+        try await withThrowingTaskGroup(of: (URL, TrackProcessResult).self) { group in
             for fileURL in files {
-                if let existingTrack = existingTracks[fileURL] {
-                    try self.updateExistingTrack(existingTrack, at: fileURL, in: db)
-                } else {
-                    try self.createNewTrack(at: fileURL, folderId: folderId, in: db)
+                group.addTask {
+                    if let existingTrack = existingTracks[fileURL] {
+                        // Check modification date first
+                        if let attributes = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]),
+                           let modificationDate = attributes.contentModificationDate,
+                           let trackModifiedDate = existingTrack.dateModified,
+                           modificationDate <= trackModifiedDate {
+                            return (fileURL, .skipped) // Skip unchanged file
+                        }
+                        
+                        // File has changed, extract metadata
+                        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+                        var updatedTrack = existingTrack
+                        
+                        // Apply metadata updates
+                        self.applyMetadataToTrack(&updatedTrack, from: metadata, at: fileURL)
+                        
+                        return (fileURL, .update(updatedTrack))
+                    } else {
+                        // New track
+                        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+                        var track = Track(url: fileURL)
+                        track.folderId = folderId
+                        self.applyMetadataToTrack(&track, from: metadata, at: fileURL)
+                        
+                        return (fileURL, .new(track))
+                    }
                 }
+            }
+            
+            // Collect results
+            var newTracks: [Track] = []
+            var tracksToUpdate: [Track] = []
+            var skippedCount = 0
+            
+            for try await (_, result) in group {
+                switch result {
+                case .new(let track):
+                    newTracks.append(track)
+                case .update(let track):
+                    tracksToUpdate.append(track)
+                case .skipped:
+                    skippedCount += 1
+                }
+            }
+            
+            // Batch save to database
+            try await dbQueue.write { db in
+                // Insert new tracks
+                for track in newTracks {
+                    try track.save(db)
+                    print("Added new track: \(track.title)")
+                    self.logTrackMetadata(track)
+                }
+                
+                // Update existing tracks
+                for track in tracksToUpdate {
+                    try track.update(db)
+                    print("Updated metadata for: \(track.title)")
+                }
+            }
+            
+            if skippedCount > 0 {
+                print("Skipped \(skippedCount) unchanged files")
             }
         }
     }
@@ -374,6 +454,16 @@ class DatabaseManager: ObservableObject {
     }
 
     private func updateExistingTrack(_ existingTrack: Track, at fileURL: URL, in db: Database) throws {
+        // Check if file has been modified since last scan
+        if let attributes = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]),
+           let modificationDate = attributes.contentModificationDate,
+           let trackModifiedDate = existingTrack.dateModified,
+           modificationDate <= trackModifiedDate {
+            // File hasn't changed, skip metadata extraction
+            return
+        }
+        
+        // File has changed, extract metadata
         let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
         
         var updatedTrack = existingTrack
