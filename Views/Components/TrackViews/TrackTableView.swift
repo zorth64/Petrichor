@@ -44,7 +44,7 @@ struct TrackTableView: NSViewRepresentable {
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.style = .fullWidth
         tableView.selectionHighlightStyle = .none
-        tableView.backgroundColor = NSColor.controlBackgroundColor
+        tableView.backgroundColor = NSColor.clear
         
         // Add these settings for better column behavior
         tableView.allowsColumnReordering = true
@@ -66,7 +66,8 @@ struct TrackTableView: NSViewRepresentable {
         
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
-        
+        scrollView.backgroundColor = NSColor.clear
+
         DispatchQueue.main.async {
             self.redistributeColumnWidths(tableView: tableView)
         }
