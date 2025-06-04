@@ -95,6 +95,101 @@ Petrichor/
 └── Assets.xcassets/      # App icons and resources
 ```
 
+### SQLite Schema
+
+- **folders** - Stores music folders with security-scoped bookmarks
+- **tracks** - Comprehensive music metadata with 35+ fields including extended metadata as JSON
+- **playlists** - Both regular and smart playlists with criteria
+- **playlist_tracks** - Junction table for many-to-many relationship between playlists and tracks
+
+Key relationships:
+
+- Each folder can contain multiple tracks (one-to-many)
+- Playlists and tracks have a many-to-many relationship through `playlist_tracks`
+- All foreign keys have CASCADE delete to maintain referential integrity
+
+<details>
+
+```mermaid
+erDiagram
+    folders {
+        INTEGER id PK "AUTO_INCREMENT"
+        TEXT name "NOT NULL"
+        TEXT path "NOT NULL UNIQUE"
+        INTEGER track_count "NOT NULL DEFAULT 0"
+        DATETIME date_added "NOT NULL"
+        DATETIME date_updated "NOT NULL"
+        BLOB bookmark_data "Security-scoped bookmark"
+    }
+    
+    tracks {
+        INTEGER id PK "AUTO_INCREMENT"
+        INTEGER folder_id FK "NOT NULL"
+        TEXT path "NOT NULL UNIQUE"
+        TEXT filename "NOT NULL"
+        TEXT title
+        TEXT artist
+        TEXT album
+        TEXT composer
+        TEXT genre
+        TEXT year
+        REAL duration
+        TEXT format
+        INTEGER file_size
+        DATETIME date_added "NOT NULL"
+        DATETIME date_modified
+        BLOB artwork_data
+        BOOLEAN is_favorite "NOT NULL DEFAULT false"
+        INTEGER play_count "NOT NULL DEFAULT 0"
+        DATETIME last_played_date
+        TEXT album_artist
+        INTEGER track_number
+        INTEGER total_tracks
+        INTEGER disc_number
+        INTEGER total_discs
+        INTEGER rating "0-5 scale"
+        BOOLEAN compilation "DEFAULT false"
+        TEXT release_date
+        TEXT original_release_date
+        INTEGER bpm
+        TEXT media_type "Music/Audiobook/Podcast"
+        INTEGER bitrate "kbps"
+        INTEGER sample_rate "Hz"
+        INTEGER channels "1=mono, 2=stereo"
+        TEXT codec
+        INTEGER bit_depth
+        TEXT sort_title
+        TEXT sort_artist
+        TEXT sort_album
+        TEXT sort_album_artist
+        TEXT extended_metadata "JSON"
+    }
+    
+    playlists {
+        TEXT id PK "UUID string"
+        TEXT name "NOT NULL"
+        TEXT type "NOT NULL (regular/smart)"
+        TEXT smart_type "favorites/mostPlayed/recentlyPlayed/custom"
+        BOOLEAN is_user_editable "NOT NULL"
+        BOOLEAN is_content_editable "NOT NULL"
+        DATETIME date_created "NOT NULL"
+        DATETIME date_modified "NOT NULL"
+        BLOB cover_artwork_data
+        TEXT smart_criteria "JSON for smart playlists"
+    }
+    
+    playlist_tracks {
+        TEXT playlist_id FK "NOT NULL"
+        INTEGER track_id FK "NOT NULL"
+        INTEGER position "NOT NULL"
+    }
+    
+    folders ||--o{ tracks : contains
+    playlists ||--o{ playlist_tracks : has
+    tracks ||--o{ playlist_tracks : "belongs to"
+```
+</details>
+
 ### Built With
 
 - **Swift 5.0** - Modern, safe programming language
