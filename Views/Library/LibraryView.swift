@@ -89,6 +89,9 @@ struct LibraryView: View {
                     }
                     // If view is not ready, onAppear will handle it
                 }
+                .onChange(of: libraryManager.globalSearchText) { _ in
+                    updateFilteredTracks()
+                }
                 .sheet(isPresented: $showingCreatePlaylistWithTrack) {
                     createPlaylistSheet
                 }
@@ -172,7 +175,9 @@ struct LibraryView: View {
     }
     
     private var headerTitle: String {
-        if let filterItem = selectedFilterItem {
+        if !libraryManager.globalSearchText.isEmpty {
+            return "Search Results"
+        } else if let filterItem = selectedFilterItem {
             if filterItem.name.hasPrefix("All") {
                 return "All Tracks"
             } else {
@@ -191,10 +196,22 @@ struct LibraryView: View {
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
             
-            Text("No Tracks Found")
+            Text(libraryManager.globalSearchText.isEmpty ? "No Tracks Found" : "No Search Results")
                 .font(.headline)
             
-            if let filterItem = selectedFilterItem, !filterItem.name.hasPrefix("All") {
+            if !libraryManager.globalSearchText.isEmpty {
+                Text("No tracks found matching \"\(libraryManager.globalSearchText)\"")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                
+                Button("Clear Search") {
+                    // We need to clear the search from here
+                    // This will require making globalSearchText a binding
+                }
+                .buttonStyle(.bordered)
+                .padding(.top, 8)
+            } else if let filterItem = selectedFilterItem, !filterItem.name.hasPrefix("All") {
                 Text("No tracks found for \"\(filterItem.name)\"")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -213,22 +230,17 @@ struct LibraryView: View {
     // MARK: - Filtering Tracks Helper
     
     private func updateFilteredTracks() {
-        guard let filterItem = selectedFilterItem else {
-            cachedFilteredTracks = sortTracks(libraryManager.tracks)
-            return
+        // Start with all tracks
+        var tracks = libraryManager.searchResults
+        
+        // Then apply sidebar filter if present
+        if let filterItem = selectedFilterItem, !filterItem.name.hasPrefix("All") {
+            tracks = tracks.filter { track in
+                selectedFilterType.trackMatches(track, filterValue: filterItem.name)
+            }
         }
         
-        if filterItem.name.hasPrefix("All") {
-            cachedFilteredTracks = sortTracks(libraryManager.tracks)
-            return
-        }
-        
-        // Use the filter type's matching logic
-        let unsortedTracks = libraryManager.tracks.filter { track in
-            selectedFilterType.trackMatches(track, filterValue: filterItem.name)
-        }
-        
-        cachedFilteredTracks = sortTracks(unsortedTracks)
+        cachedFilteredTracks = sortTracks(tracks)
     }
 
     private func sortTracks(_ tracks: [Track]) -> [Track] {

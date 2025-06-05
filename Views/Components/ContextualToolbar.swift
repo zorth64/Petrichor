@@ -1,35 +1,38 @@
 import SwiftUI
 
 struct ContextualToolbar: View {
-    let selectedTab: MainTab
     @EnvironmentObject var libraryManager: LibraryManager
     @Binding var viewType: LibraryViewType
     
+    @FocusState private var isSearchFieldFocused: Bool
+    
     var body: some View {
         HStack {
-            switch selectedTab {
-            case .library:
-                toolbarContent
-            case .folders:
-                toolbarContent
-            case .playlists:
-                toolbarContent
-            }
+            toolbarContent
         }
         .frame(height: 40)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 8)
         .background(Color(NSColor.windowBackgroundColor))
+    }
+    
+    private var isSearchActive: Bool {
+        !libraryManager.globalSearchText.isEmpty
     }
     
     // MARK: - Shared Toolbar Content
     
     private var toolbarContent: some View {
-        HStack {
-            Spacer()
-            
-            viewToggleButtons
-            
-            Spacer()
+        ZStack {
+            HStack {
+                Spacer()
+                viewToggleButtons
+                Spacer()
+            }
+
+            HStack {
+                Spacer()
+                searchField
+            }
         }
     }
     
@@ -42,6 +45,43 @@ struct ContextualToolbar: View {
             style: .viewToggle
         )
     }
+    
+    // MARK: - Search Input Field
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                
+                TextField("Search...", text: $libraryManager.globalSearchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                
+                // Spacer or clear button - maintains consistent space
+                ZStack {
+                    Color.clear
+                        .frame(width: 16, height: 16)
+                    
+                    if !libraryManager.globalSearchText.isEmpty {
+                        Button(action: {
+                            libraryManager.globalSearchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 10))
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color(NSColor.textBackgroundColor))
+            .cornerRadius(6)
+            .frame(width: 280) // Fixed total width
+        }
+    }
 }
 
 #Preview {
@@ -49,9 +89,9 @@ struct ContextualToolbar: View {
     let libraryManager = LibraryManager()
     
     VStack(spacing: 0) {
-        ContextualToolbar(selectedTab: .library, viewType: $viewType)
-        ContextualToolbar(selectedTab: .folders, viewType: $viewType)
-        ContextualToolbar(selectedTab: .playlists, viewType: $viewType)
+        ContextualToolbar(
+            viewType: $viewType,
+        )
     }
     .environmentObject(libraryManager)
 }
