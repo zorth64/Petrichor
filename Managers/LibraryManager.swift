@@ -9,6 +9,12 @@ class LibraryManager: ObservableObject {
     @Published var scanProgress: Double = 0.0
     @Published var scanStatusMessage: String = ""
     @Published var isBackgroundScanning: Bool = false
+    @Published var globalSearchText: String = "" {
+        didSet {
+            updateSearchResults()
+        }
+    }
+    @Published var searchResults: [Track] = []
     
     // MARK: - Private Properties
     private let fileManager = FileManager.default
@@ -249,6 +255,7 @@ class LibraryManager: ObservableObject {
         
         folders = resolvedFolders
         tracks = databaseManager.getAllTracks()
+        updateSearchResults()
         
         print("LibraryManager: Loaded \(folders.count) folders and \(tracks.count) tracks from database")
         
@@ -360,6 +367,14 @@ class LibraryManager: ObservableObject {
         
         return values
     }
+    
+    private func updateSearchResults() {
+        if globalSearchText.isEmpty {
+            searchResults = tracks
+        } else {
+            searchResults = LibrarySearch.searchTracks(tracks, with: globalSearchText)
+        }
+    }
 
     // MARK: - Library Maintenance
     
@@ -408,6 +423,8 @@ class LibraryManager: ObservableObject {
                     // Reload the library after all refreshes complete
                     self.loadMusicLibrary()
                     self.isBackgroundScanning = false
+                    
+                    self.updateSearchResults()
                     
                     if hasErrors {
                         print("LibraryManager: Library refresh completed with some errors")

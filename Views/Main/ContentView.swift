@@ -17,9 +17,13 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Contextual Toolbar - only show when we have music
+            // Persistent Contextual Toolbar - always present when we have music
             if !libraryManager.tracks.isEmpty {
-                contextualToolbar
+                ContextualToolbar(
+                    viewType: $globalViewType,
+                )
+                .frame(height: 40)
+                
                 Divider()
             }
 
@@ -33,6 +37,13 @@ struct ContentView: View {
         .onAppear(perform: handleOnAppear)
         .onReceive(NotificationCenter.default.publisher(for: .goToLibraryFilter), perform: handleLibraryFilter)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowTrackInfo")), perform: handleShowTrackInfo)
+        .onChange(of: libraryManager.globalSearchText) { newValue in
+            if !newValue.isEmpty && selectedTab != .library {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedTab = .library
+                }
+            }
+        }
         .background(WindowAccessor(windowDelegate: windowDelegate))
         .navigationTitle("")
         .toolbar { toolbarContent }
@@ -43,14 +54,6 @@ struct ContentView: View {
     }
     
     // MARK: - View Components
-    
-    private var contextualToolbar: some View {
-        ContextualToolbar(
-            selectedTab: selectedTab,
-            viewType: $globalViewType
-        )
-        .frame(height: 40)
-    }
     
     private var mainContentArea: some View {
         HSplitView {
@@ -65,7 +68,7 @@ struct ContentView: View {
             ZStack {
                 LibraryView(
                     viewType: globalViewType,
-                    pendingFilter: $pendingLibraryFilter
+                    pendingFilter: $pendingLibraryFilter,
                 )
                 .opacity(selectedTab == .library ? 1 : 0)
                 .allowsHitTesting(selectedTab == .library)

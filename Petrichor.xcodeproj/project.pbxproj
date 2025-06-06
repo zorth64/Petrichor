@@ -10,6 +10,7 @@
 		550F4A402DB4786F005F794E /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 550F4A3F2DB4786F005F794E /* .gitignore */; };
 		5544932E2DE7911600D452AA /* ArtistParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5544932D2DE78EC000D452AA /* ArtistParser.swift */; };
 		55593A422DE019E400640247 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 55593A412DE019E400640247 /* README.md */; };
+		55714DD52DF2599300F95014 /* LibrarySearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55714DD42DF2599300F95014 /* LibrarySearch.swift */; };
 		5590877F2DE0C078009E7719 /* PetrichorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5590877E2DE0C078009E7719 /* PetrichorApp.swift */; };
 		559087A02DE0C078009E7719 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5590877C2DE0C078009E7719 /* Assets.xcassets */; };
 		55B0DEC12DE3A58400A41ED9 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 55B0DEC02DE3A58400A41ED9 /* GRDB */; };
@@ -20,6 +21,7 @@
 		550F4A3F2DB4786F005F794E /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		5544932D2DE78EC000D452AA /* ArtistParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistParser.swift; sourceTree = "<group>"; };
 		55593A412DE019E400640247 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		55714DD42DF2599300F95014 /* LibrarySearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySearch.swift; sourceTree = "<group>"; };
 		5590877C2DE0C078009E7719 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5590877D2DE0C078009E7719 /* Petrichor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Petrichor.entitlements; sourceTree = "<group>"; };
 		5590877E2DE0C078009E7719 /* PetrichorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetrichorApp.swift; sourceTree = "<group>"; };
@@ -88,6 +90,7 @@
 		5544932C2DE78EB300D452AA /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				55714DD42DF2599300F95014 /* LibrarySearch.swift */,
 				5544932D2DE78EC000D452AA /* ArtistParser.swift */,
 			);
 			path = Utilities;
@@ -193,6 +196,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				55714DD52DF2599300F95014 /* LibrarySearch.swift in Sources */,
 				5544932E2DE7911600D452AA /* ArtistParser.swift in Sources */,
 				5590877F2DE0C078009E7719 /* PetrichorApp.swift in Sources */,
 			);

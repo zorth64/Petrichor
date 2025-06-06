@@ -9,7 +9,7 @@ struct LibrarySidebarView: View {
     @State private var filteredItems: [LibraryFilterItem] = []
     @State private var selectedSidebarItem: LibrarySidebarItem?
     @State private var searchText = ""
-    @State private var localSearchText = "" // Required for Go to menu to work
+    @State private var localSearchText = ""
     @State private var sortAscending = true
     
     var body: some View {
@@ -23,7 +23,7 @@ struct LibrarySidebarView: View {
             SidebarView(
                 filterItems: filteredItems,
                 filterType: selectedFilterType,
-                totalTracksCount: libraryManager.tracks.count,
+                totalTracksCount: libraryManager.searchResults.count,
                 selectedItem: $selectedSidebarItem,
                 onItemTap: { item in
                     handleItemSelection(item)
@@ -80,6 +80,9 @@ struct LibrarySidebarView: View {
         }
         .onChange(of: selectedFilterType) { newType in
             handleFilterTypeChange(newType)
+        }
+        .onChange(of: libraryManager.searchResults) { _ in
+            updateFilteredItems()
         }
     }
     
@@ -168,13 +171,19 @@ struct LibrarySidebarView: View {
         selectedSidebarItem = item
         
         if item.filterName.isEmpty {
-            // "All" item selected
-            selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
+            // "All" item selected - use appropriate track count based on search state
+            let totalCount = libraryManager.searchResults.count
+            selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: totalCount)
         } else {
-            // Regular filter item
+            // Regular filter item - calculate actual count based on current search
+            let tracksToFilter = libraryManager.searchResults
+            let matchingTracks = tracksToFilter.filter { track in
+                selectedFilterType.trackMatches(track, filterValue: item.filterName)
+            }
+            
             selectedFilterItem = LibraryFilterItem(
                 name: item.filterName,
-                count: item.count ?? 0,
+                count: matchingTracks.count,
                 filterType: selectedFilterType
             )
         }
@@ -182,35 +191,41 @@ struct LibrarySidebarView: View {
     
     private func handleFilterTypeChange(_ newType: LibraryFilterType) {
         // Reset selection when filter type changes
-        let allItem = LibraryFilterItem.allItem(for: newType, totalCount: libraryManager.tracks.count)
+        let totalCount = libraryManager.searchResults.count
+        let allItem = LibraryFilterItem.allItem(for: newType, totalCount: totalCount)
         selectedFilterItem = allItem
         
         // Create the corresponding sidebar item with the same ID
-        selectedSidebarItem = LibrarySidebarItem(allItemFor: newType, count: libraryManager.tracks.count)
+        selectedSidebarItem = LibrarySidebarItem(allItemFor: newType, count: totalCount)
         
+        // Clear local search when switching filter types
         searchText = ""
+        localSearchText = ""
+        
         updateFilteredItems()
     }
     
     private func updateFilteredItems() {
+        // Get items based on centralized search results
         var items: [LibraryFilterItem]
+        items = selectedFilterType.getFilterItems(from: libraryManager.searchResults)
         
-        if searchText.isEmpty {
-            items = getFilterItems(for: selectedFilterType)
-        } else {
+        // Apply local sidebar search filter if present
+        if !searchText.isEmpty {
             let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if selectedFilterType == .artists {
-                items = getArtistItemsForSearch(trimmedSearch)
-            } else {
-                let allItems = getFilterItems(for: selectedFilterType)
-                items = allItems.filter { item in
-                    item.name.localizedCaseInsensitiveContains(trimmedSearch)
-                }
+            items = items.filter { item in
+                item.name.localizedCaseInsensitiveContains(trimmedSearch)
             }
         }
         
-        // Apply custom sorting that puts "Unknown X" items at the top (after "All" items)
+        // Apply custom sorting
         filteredItems = sortItemsWithUnknownFirst(items)
+    }
+    
+    private func isValidFilterItem(_ item: LibraryFilterItem) -> Bool {
+        // Check if this filter item exists in the current (non-searched) data
+        let allItems = getFilterItems(for: selectedFilterType)
+        return allItems.contains { $0.name == item.name }
     }
     
     // MARK: - Custom Sorting
@@ -248,9 +263,10 @@ struct LibrarySidebarView: View {
     }
     
     private func getFilterItems(for filterType: LibraryFilterType) -> [LibraryFilterItem] {
-        return filterType.getFilterItems(from: libraryManager.tracks)
+        let tracksToFilter = libraryManager.searchResults
+        return filterType.getFilterItems(from: tracksToFilter)
     }
-    
+
     private func getArtistItemsForSearch(_ searchTerm: String) -> [LibraryFilterItem] {
         let trimmedSearch = searchTerm.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSearch.isEmpty else { return getFilterItems(for: .artists) }

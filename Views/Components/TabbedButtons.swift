@@ -62,7 +62,11 @@ private struct TabbedButton<Item: TabbedItem>: View {
     @State private var isHovered = false
     
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                action()
+            }
+        }) {
             HStack(spacing: style.iconTextSpacing) {
                 if style.showIcon {
                     Image(systemName: isSelected ? item.selectedIcon : item.icon)
