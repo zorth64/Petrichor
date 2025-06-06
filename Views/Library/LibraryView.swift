@@ -35,7 +35,7 @@ struct LibraryView: View {
                             pendingSearchText: $pendingSearchText
                         )
                     },
-                    right: {
+                    main: {
                         tracksListView
                     }
                 )

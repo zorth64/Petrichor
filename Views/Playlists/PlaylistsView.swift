@@ -18,7 +18,7 @@ struct PlaylistsView: View {
                 left: {
                     PlaylistSidebarView(selectedPlaylist: $selectedPlaylist)
                 },
-                right: {
+                main: {
                     VStack(spacing: 0) {
                         if let playlist = selectedPlaylist {
                             PlaylistDetailView(playlistID: playlist.id, viewType: viewType)

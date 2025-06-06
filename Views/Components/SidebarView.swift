@@ -80,7 +80,6 @@ struct SidebarView<Item: SidebarItem>: View {
                 itemsList
             }
         }
-        .background(Color(NSColor.textBackgroundColor))
     }
     
     // MARK: - Header
@@ -387,6 +386,41 @@ struct FolderSidebarItem: SidebarItem {
         self.icon = "folder.fill"
         self.count = nil
         self.folder = folder
+    }
+}
+
+// Folder Node Item
+struct FolderNodeSidebarItem: SidebarItem {
+    let id: UUID
+    let title: String
+    let subtitle: String?
+    let icon: String?
+    let count: Int?
+    let folderNode: FolderNode
+    let isEditable: Bool = false
+    
+    init(folderNode: FolderNode) {
+        self.id = folderNode.id
+        self.title = folderNode.name
+        self.folderNode = folderNode
+
+        if folderNode.children.isEmpty {
+            self.icon = "folder.fill"
+        } else {
+            self.icon = folderNode.isExpanded ? "folder.fill.badge.minus" : "folder.fill.badge.plus"
+        }
+
+        if folderNode.immediateFolderCount > 0 && folderNode.immediateTrackCount > 0 {
+            self.subtitle = "\(folderNode.immediateFolderCount) folders, \(folderNode.immediateTrackCount) tracks"
+        } else if folderNode.immediateFolderCount > 0 {
+            self.subtitle = "\(folderNode.immediateFolderCount) folders"
+        } else if folderNode.immediateTrackCount > 0 {
+            self.subtitle = "\(folderNode.immediateTrackCount) tracks"
+        } else {
+            self.subtitle = nil
+        }
+
+        self.count = nil
     }
 }
 

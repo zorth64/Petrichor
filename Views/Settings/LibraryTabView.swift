@@ -250,7 +250,7 @@ struct LibraryTabView: View {
     @ViewBuilder
     private func compactFolderRow(for folder: Folder) -> some View {
         let isSelected = selectedFolderIDs.contains(folder.id ?? -1)
-        let trackCount = libraryManager.getTracksInFolder(folder).count
+        let trackCount = folder.trackCount
         
         CompactFolderRowView(
             folder: folder,
