@@ -23,8 +23,6 @@ struct ContentView: View {
                     viewType: $globalViewType,
                 )
                 .frame(height: 40)
-                
-                Divider()
             }
 
             // Main Content Area with Queue
@@ -114,6 +112,7 @@ struct ContentView: View {
             }
         ))
         .frame(height: 90)
+        .background(Color(NSColor.windowBackgroundColor))
     }
     
     // MARK: - Toolbar

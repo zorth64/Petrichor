@@ -36,6 +36,7 @@ struct PlayerView: View {
         .onAppear {
             setupInitialState()
         }
+        .background(Color.clear)
     }
     
     // MARK: - View Sections

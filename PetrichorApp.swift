@@ -12,8 +12,8 @@ struct PetrichorApp: App {
                 .environmentObject(appCoordinator.libraryManager)
                 .environmentObject(appCoordinator.playlistManager)
         }
-        .windowStyle(.automatic)
-        .windowToolbarStyle(.automatic)
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified)
         .defaultSize(width: 1200, height: 800)
         .windowResizability(.contentMinSize)
         .handlesExternalEvents(matching: Set(arrayLiteral: "main"))
