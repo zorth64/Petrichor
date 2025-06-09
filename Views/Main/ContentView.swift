@@ -120,7 +120,11 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            TabbedButtons(items: MainTab.allCases, selection: $selectedTab)
+            TabbedButtons(
+                items: MainTab.allCases,
+                selection: $selectedTab,
+                animation: .transform
+            )
         }
         
         ToolbarItem(placement: .primaryAction) {

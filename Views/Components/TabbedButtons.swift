@@ -1,5 +1,19 @@
 import SwiftUI
 
+// MARK: - Animation Type
+enum TabbedButtonAnimation {
+    case fade
+    case transform
+}
+
+// MARK: - Animation Constants
+private struct AnimationConstants {
+    static let transformDuration: Double = 0.2
+    static let transformTextDelay: Double = 0.1
+    static let fadeDuration: Double = 0.15
+    static let hoverDuration: Double = 0.1
+}
+
 // MARK: - Generic Tab Protocol
 protocol TabbedItem: Hashable {
     var title: String { get }
@@ -19,37 +33,76 @@ struct TabbedButtons<Item: TabbedItem>: View {
     let items: [Item]
     @Binding var selection: Item
     let style: TabbedButtonStyle
+    let animation: TabbedButtonAnimation
     
     init(
         items: [Item],
         selection: Binding<Item>,
-        style: TabbedButtonStyle = .standard
+        style: TabbedButtonStyle = .standard,
+        animation: TabbedButtonAnimation = .fade
     ) {
         self.items = items
         self._selection = selection
         self.style = style
+        self.animation = animation
     }
     
     var body: some View {
         HStack(spacing: 1) {
-            ForEach(items, id: \.self) { item in
+            ForEach(Array(items.enumerated()), id: \.element) { index, item in
                 TabbedButton(
                     item: item,
                     isSelected: selection == item,
                     style: style,
-                    action: { selection = item }
+                    animation: animation,
+                    action: {
+                        withAnimation(.easeInOut(duration: AnimationConstants.transformDuration)) {
+                            selection = item
+                        }
+                    }
                 )
             }
         }
         .padding(4)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+            ZStack {
+                // Container background
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+                
+                // Moving background for transform animation
+                if animation == .transform {
+                    movingBackground
+                }
+            }
         )
+    }
+    
+    @ViewBuilder
+    private var movingBackground: some View {
+        if let selectedIndex = items.firstIndex(of: selection) {
+            GeometryReader { geometry in
+                let totalWidth = geometry.size.width - 8 // Account for padding
+                let buttonWidth = totalWidth / CGFloat(items.count)
+                let xOffset = CGFloat(selectedIndex) * buttonWidth + 4 // Account for padding
+                
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.accentColor)
+                    .frame(
+                        width: buttonWidth - 1, // Account for spacing
+                        height: geometry.size.height - 8 // Account for padding
+                    )
+                    .position(
+                        x: xOffset + (buttonWidth - 1) / 2,
+                        y: geometry.size.height / 2
+                    )
+                    .animation(.easeInOut(duration: AnimationConstants.transformDuration), value: selectedIndex)
+            }
+        }
     }
 }
 
@@ -58,26 +111,27 @@ private struct TabbedButton<Item: TabbedItem>: View {
     let item: Item
     let isSelected: Bool
     let style: TabbedButtonStyle
+    let animation: TabbedButtonAnimation
     let action: () -> Void
     @State private var isHovered = false
     
     var body: some View {
         Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                action()
-            }
+            action()
         }) {
             HStack(spacing: style.iconTextSpacing) {
                 if style.showIcon {
                     Image(systemName: isSelected ? item.selectedIcon : item.icon)
                         .font(.system(size: style.iconSize, weight: .medium))
                         .foregroundStyle(foregroundStyle)
+                        .animation(.easeInOut(duration: AnimationConstants.transformDuration).delay(animation == .transform && isSelected ? AnimationConstants.transformTextDelay : 0), value: isSelected)
                 }
                 
                 if style.showTitle {
                     Text(item.title)
                         .font(.system(size: style.textSize, weight: .medium))
                         .foregroundColor(foregroundColor)
+                        .animation(.easeInOut(duration: AnimationConstants.transformDuration).delay(animation == .transform && isSelected ? AnimationConstants.transformTextDelay : 0), value: isSelected)
                 }
             }
             .frame(
@@ -100,34 +154,69 @@ private struct TabbedButton<Item: TabbedItem>: View {
     }
     
     private var foregroundStyle: AnyShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(Color.white)
-        } else if isHovered {
-            return AnyShapeStyle(Color.primary)
+        if animation == .transform {
+            // For transform animation, delay white text until background is in position
+            if isSelected {
+                return AnyShapeStyle(Color.white)
+            } else if isHovered {
+                return AnyShapeStyle(Color.primary)
+            } else {
+                return AnyShapeStyle(Color.secondary)
+            }
         } else {
-            return AnyShapeStyle(Color.secondary)
+            // Original fade animation behavior
+            if isSelected {
+                return AnyShapeStyle(Color.white)
+            } else if isHovered {
+                return AnyShapeStyle(Color.primary)
+            } else {
+                return AnyShapeStyle(Color.secondary)
+            }
         }
     }
     
     private var foregroundColor: Color {
-        if isSelected {
-            return .white
-        } else if isHovered {
-            return .primary
+        if animation == .transform {
+            // For transform animation, delay white text until background is in position
+            if isSelected {
+                return .white
+            } else if isHovered {
+                return .primary
+            } else {
+                return .secondary
+            }
         } else {
-            return .secondary
+            // Original fade animation behavior
+            if isSelected {
+                return .white
+            } else if isHovered {
+                return .primary
+            } else {
+                return .secondary
+            }
         }
     }
     
+    @ViewBuilder
     private var backgroundView: some View {
-        RoundedRectangle(cornerRadius: 6)
-            .fill(
-                isSelected ? Color.accentColor :
-                isHovered ? Color.primary.opacity(0.06) :
-                Color.clear
-            )
-            .animation(.easeOut(duration: 0.15), value: isSelected)
-            .animation(.easeOut(duration: 0.1), value: isHovered)
+        if animation == .fade {
+            // Original fade animation
+            RoundedRectangle(cornerRadius: 6)
+                .fill(
+                    isSelected ? Color.accentColor :
+                    isHovered ? Color.primary.opacity(0.06) :
+                    Color.clear
+                )
+                .animation(.easeOut(duration: AnimationConstants.fadeDuration), value: isSelected)
+                .animation(.easeOut(duration: AnimationConstants.hoverDuration), value: isHovered)
+        } else {
+            // Transform animation - no individual background, uses moving background
+            RoundedRectangle(cornerRadius: 6)
+                .fill(
+                    isHovered && !isSelected ? Color.primary.opacity(0.06) : Color.clear
+                )
+                .animation(.easeOut(duration: AnimationConstants.hoverDuration), value: isHovered)
+        }
     }
 }
 

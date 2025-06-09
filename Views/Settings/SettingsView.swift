@@ -31,7 +31,8 @@ struct SettingsView: View {
             TabbedButtons(
                 items: SettingsTab.allCases,
                 selection: $selectedTab,
-                style: .compact
+                style: .compact,
+                animation: .transform
             )
             .padding(10)
             .focusable(false)
