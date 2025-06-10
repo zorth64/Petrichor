@@ -6,14 +6,21 @@ struct PlayQueueView: View {
     @EnvironmentObject var playlistManager: PlaylistManager
     @State private var draggedTrack: Track?
     @State private var showingClearConfirmation = false
+    @State private var hasAppeared = false
     
     var body: some View {
         VStack(spacing: 0) {
+            // Header
             queueHeader
             
             Divider()
             
-            queueContent
+            // Queue content
+            if playlistManager.currentQueue.isEmpty {
+                emptyQueueView
+            } else {
+                queueListView
+            }
         }
         .alert("Clear Queue", isPresented: $showingClearConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -22,6 +29,17 @@ struct PlayQueueView: View {
             }
         } message: {
             Text("Are you sure you want to clear the entire queue? This will stop playback.")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.windowBackgroundColor))
+        .onAppear {
+            // Delay animations until after the sidebar has slid in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                hasAppeared = true
+            }
+        }
+        .onDisappear {
+            hasAppeared = false
         }
     }
     
@@ -145,8 +163,8 @@ struct PlayQueueView: View {
     // MARK: - Helper Methods
     
     private func handleQueueIndexChange(newIndex: Int, proxy: ScrollViewProxy) {
-        // Auto-scroll to current track
-        if newIndex >= 0 && newIndex < playlistManager.currentQueue.count {
+        // Auto-scroll to current track only after initial appearance
+        if hasAppeared && newIndex >= 0 && newIndex < playlistManager.currentQueue.count {
             withAnimation {
                 proxy.scrollTo(playlistManager.currentQueue[newIndex].id, anchor: .center)
             }

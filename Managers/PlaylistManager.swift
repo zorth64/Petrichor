@@ -512,6 +512,7 @@ class PlaylistManager: ObservableObject {
         currentQueueIndex = -1
         currentPlaylist = nil
         audioPlayer?.stop()
+        audioPlayer?.currentTrack = nil
     }
 
     func playNext(_ track: Track) {

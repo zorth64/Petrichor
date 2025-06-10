@@ -96,8 +96,16 @@ struct ContentView: View {
     private var sidePanel: some View {
         if showingQueue {
             PlayQueueView()
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing),
+                    removal: .move(edge: .trailing)
+                ))
         } else if showingTrackDetail, let track = detailTrack {
             TrackDetailView(track: track, onClose: hideTrackDetail)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing),
+                    removal: .move(edge: .trailing)
+                ))
         }
     }
     
