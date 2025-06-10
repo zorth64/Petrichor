@@ -5,36 +5,18 @@ struct FoldersView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
-    @State private var selectedFolder: Folder?
+    @State private var selectedFolderNode: FolderNode?
     @State private var selectedTrackID: UUID?
-    @State private var folderSearchText = ""
-    @State private var sortAscending = true
     @State private var showingRemoveFolderAlert = false
-    @State private var folderToRemove: Folder?
     @State private var folderTracks: [Track] = []
     @State private var isLoadingTracks = false
     @State private var showingCreatePlaylistWithTrack = false
     @State private var trackToAddToNewPlaylist: Track?
     @State private var newPlaylistName = ""
-    
-    @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
+
     @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
     
     let viewType: LibraryViewType
-    
-    var filteredAndSortedFolders: [Folder] {
-        let filtered = libraryManager.folders.filter { folder in
-            folderSearchText.isEmpty || folder.name.localizedCaseInsensitiveContains(folderSearchText)
-        }
-        
-        return filtered.sorted { folder1, folder2 in
-            if sortAscending {
-                return folder1.name.localizedCaseInsensitiveCompare(folder2.name) == .orderedAscending
-            } else {
-                return folder1.name.localizedCaseInsensitiveCompare(folder2.name) == .orderedDescending
-            }
-        }
-    }
     
     var body: some View {
         if libraryManager.folders.isEmpty {
@@ -45,25 +27,10 @@ struct FoldersView: View {
                 left: {
                     foldersSidebar
                 },
-                right: {
+                main: {
                     folderTracksView
                 }
             )
-            .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
-                Button("Cancel", role: .cancel) {
-                    folderToRemove = nil
-                }
-                Button("Remove", role: .destructive) {
-                    if let folder = folderToRemove {
-                        libraryManager.removeFolder(folder)
-                        folderToRemove = nil
-                    }
-                }
-            } message: {
-                if let folder = folderToRemove {
-                    Text("Are you sure you want to remove \"\(folder.name)\" from your library? This will remove all tracks from this folder but won't delete the actual files.")
-                }
-            }
             .sheet(isPresented: $showingCreatePlaylistWithTrack) {
                 createPlaylistSheet
             }
@@ -79,20 +46,17 @@ struct FoldersView: View {
     // MARK: - Folders Sidebar
     
     private var foldersSidebar: some View {
-        FoldersSidebarView(selectedFolder: $selectedFolder)
+        FoldersSidebarView(selectedNode: $selectedFolderNode)
             .onAppear {
-                handleSidebarAppear()
+                handleHierarchicalSidebarAppear()
             }
-            .onChange(of: libraryManager.folders) { folders in
-                handleFoldersChange(folders)
-            }
-            .onChange(of: selectedFolder) { folder in
-                handleFolderSelection(folder)
+            .onChange(of: selectedFolderNode) { node in
+                handleFolderNodeSelection(node)
             }
             .onChange(of: trackListSortAscending) { _ in
                 // Re-sort the current folder tracks when sort direction changes
-                if let folder = selectedFolder {
-                    loadTracksForFolder(folder)
+                if let node = selectedFolderNode {
+                    loadTracksForFolderNode(node)
                 }
             }
     }
@@ -109,55 +73,49 @@ struct FoldersView: View {
         }
     }
     
+    @ViewBuilder
     private var folderTracksHeader: some View {
-        Group {
-            if let folder = selectedFolder {
-                if viewType == .table {
-                    TrackListHeader(
-                        title: folder.name,
-                        trackCount: folderTracks.count,
-                        trailing: {
-                            TrackTableColumnMenu()
-                        }
-                    )
-                } else {
-                    TrackListHeader(
-                        title: folder.name,
-                        trackCount: folderTracks.count,
-                        trailing: {
-                            Button(action: { trackListSortAscending.toggle() }) {
-                                Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
-                        }
-                    )
-                }
+        if let node = selectedFolderNode {
+            if viewType == .table {
+                TrackListHeader(
+                    title: node.name,
+                    trackCount: folderTracks.count,
+                    trailing: {
+                        TrackTableColumnMenu()
+                    }
+                )
             } else {
                 TrackListHeader(
-                    title: "No Folder Selected",
-                    trackCount: 0
+                    title: node.name,
+                    trackCount: folderTracks.count,
+                    trailing: {
+                        Button(action: { trackListSortAscending.toggle() }) {
+                            Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                    }
                 )
             }
+        } else {
+            TrackListHeader(title: "Select a Folder", trackCount: 0)
         }
     }
     
     private var folderTracksContent: some View {
         Group {
-            if selectedFolder != nil {
-                if isLoadingTracks {
-                    loadingTracksView
-                } else if folderTracks.isEmpty {
-                    emptyFolderView
-                } else {
-                    trackListView
-                }
-            } else {
+            if selectedFolderNode == nil {
                 noFolderSelectedView
+            } else if isLoadingTracks {
+                ProgressView("Loading tracks...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if folderTracks.isEmpty {
+                emptyFolderView
+            } else {
+                trackListView
             }
         }
-        .background(Color(NSColor.textBackgroundColor))
     }
     
     // MARK: - Content Views
@@ -191,19 +149,31 @@ struct FoldersView: View {
             viewType: viewType,
             selectedTrackID: $selectedTrackID,
             onPlayTrack: { track in
-                if let folder = selectedFolder {
-                    playlistManager.playTrackFromFolder(track, folder: folder, folderTracks: folderTracks)
+                if let node = selectedFolderNode {
+                    // For hierarchical view, we need to play from the track list
+                    playlistManager.playTrack(track, fromTracks: folderTracks)
                     selectedTrackID = track.id
                 }
             },
             contextMenuItems: { track in
-                if let folder = selectedFolder {
-                    return TrackContextMenu.createMenuItems(
-                        for: track,
-                        audioPlayerManager: audioPlayerManager,
-                        playlistManager: playlistManager,
-                        currentContext: .folder(folder)
-                    )
+                if let node = selectedFolderNode {
+                    // Create context menu items for folder node
+                    if let dbFolder = node.databaseFolder {
+                        return TrackContextMenu.createMenuItems(
+                            for: track,
+                            audioPlayerManager: audioPlayerManager,
+                            playlistManager: playlistManager,
+                            currentContext: .folder(dbFolder)
+                        )
+                    } else {
+                        // For sub-folders, use library context
+                        return TrackContextMenu.createMenuItems(
+                            for: track,
+                            audioPlayerManager: audioPlayerManager,
+                            playlistManager: playlistManager,
+                            currentContext: .library
+                        )
+                    }
                 } else {
                     return []
                 }
@@ -279,59 +249,39 @@ struct FoldersView: View {
         libraryManager.refreshFolder(folder)
     }
     
-    private func handleSidebarAppear() {
-        // Select first folder by default if none selected
-        if selectedFolder == nil && !libraryManager.folders.isEmpty {
-            selectedFolder = libraryManager.folders.first
-        }
+    // MARK: - Hierarchical Sidebar Helper Methods
+
+    private func handleHierarchicalSidebarAppear() {
+        // Select first folder node if none selected
+        // This will be handled by HierarchicalFolderSidebarView itself
     }
-    
-    private func handleFoldersChange(_ folders: [Folder]) {
-        // Update selection if current folder was removed
-        if let selected = selectedFolder,
-           !folders.contains(where: { $0.id == selected.id }) {
-            selectedFolder = folders.first
-        } else if selectedFolder == nil && !folders.isEmpty {
-            selectedFolder = folders.first
+
+    private func handleFolderNodeSelection(_ node: FolderNode?) {
+        guard let node = node else {
+            folderTracks = []
+            return
         }
-    }
-    
-    private func handleFilteredFoldersChange(_ filteredFolders: [Folder]) {
-        // Update selection if current folder is filtered out
-        if let selected = selectedFolder,
-           !filteredFolders.contains(where: { $0.id == selected.id }),
-           !filteredFolders.isEmpty {
-            selectedFolder = filteredFolders.first
-        }
-    }
-    
-    private func handleFolderSelection(_ folder: Folder?) {
-        // Clear previous tracks and load new ones
-        folderTracks.removeAll()
-        selectedTrackID = nil
         
-        guard let folder = folder else { return }
-        
-        loadTracksForFolder(folder)
+        loadTracksForFolderNode(node)
     }
-    
-    private func loadTracksForFolder(_ folder: Folder) {
+
+    private func loadTracksForFolderNode(_ node: FolderNode) {
         isLoadingTracks = true
         
-        // Load tracks asynchronously to avoid blocking UI
-        DispatchQueue.global(qos: .userInitiated).async {
-            let tracks = libraryManager.getTracksInFolder(folder)
-                .sorted { track1, track2 in
-                    let comparison = track1.title.localizedCaseInsensitiveCompare(track2.title)
-                    return trackListSortAscending ?
-                        comparison == .orderedAscending :
-                        comparison == .orderedDescending
-                }
-            
-            DispatchQueue.main.async {
-                self.folderTracks = tracks
-                self.isLoadingTracks = false
-            }
+        // Get immediate tracks for this folder node
+        let tracks = node.getImmediateTracks(using: libraryManager)
+        
+        // Sort tracks based on current sort direction
+        let sortedTracks = tracks.sorted { track1, track2 in
+            let comparison = track1.title.localizedCaseInsensitiveCompare(track2.title)
+            return trackListSortAscending ?
+                comparison == .orderedAscending :
+                comparison == .orderedDescending
+        }
+        
+        DispatchQueue.main.async {
+            self.folderTracks = sortedTracks
+            self.isLoadingTracks = false
         }
     }
 }
@@ -350,5 +300,5 @@ struct FoldersView: View {
             let coordinator = AppCoordinator()
             return coordinator.playlistManager
         }())
-        .frame(height: 600)
+        .frame(width: 800, height: 600)
 }

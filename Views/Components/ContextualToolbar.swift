@@ -90,7 +90,7 @@ struct ContextualToolbar: View {
     
     VStack(spacing: 0) {
         ContextualToolbar(
-            viewType: $viewType,
+            viewType: $viewType
         )
     }
     .environmentObject(libraryManager)

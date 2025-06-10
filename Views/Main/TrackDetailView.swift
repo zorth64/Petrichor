@@ -31,7 +31,6 @@ struct TrackDetailView: View {
                 .padding(20)
             }
         }
-        .frame(width: 350)
         .background(Color(NSColor.windowBackgroundColor))
     }
     

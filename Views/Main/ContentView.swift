@@ -6,6 +6,7 @@ struct ContentView: View {
     @EnvironmentObject var playlistManager: PlaylistManager
     
     @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .table
+    @AppStorage("rightSidebarSplitPosition") private var splitPosition: Double = 200
     @State private var selectedTab: MainTab = .library
     @State private var showingSettings = false
     @State private var showingQueue = false
@@ -20,7 +21,7 @@ struct ContentView: View {
             // Persistent Contextual Toolbar - always present when we have music
             if !libraryManager.tracks.isEmpty {
                 ContextualToolbar(
-                    viewType: $globalViewType,
+                    viewType: $globalViewType
                 )
                 .frame(height: 40)
             }
@@ -54,10 +55,15 @@ struct ContentView: View {
     // MARK: - View Components
     
     private var mainContentArea: some View {
-        HSplitView {
-            mainTabContent
-            sidePanel
-        }
+        PersistentSplitView(
+            main: {
+                mainTabContent
+            },
+            right: {
+                sidePanel
+            },
+            rightStorageKey: "rightSidebarSplitPosition"
+        )
         .frame(minHeight: 0, maxHeight: .infinity)
     }
     
@@ -66,7 +72,7 @@ struct ContentView: View {
             ZStack {
                 LibraryView(
                     viewType: globalViewType,
-                    pendingFilter: $pendingLibraryFilter,
+                    pendingFilter: $pendingLibraryFilter
                 )
                 .opacity(selectedTab == .library ? 1 : 0)
                 .allowsHitTesting(selectedTab == .library)
@@ -90,10 +96,8 @@ struct ContentView: View {
     private var sidePanel: some View {
         if showingQueue {
             PlayQueueView()
-                .frame(width: 350)
         } else if showingTrackDetail, let track = detailTrack {
             TrackDetailView(track: track, onClose: hideTrackDetail)
-                .frame(width: 350)
         }
     }
     

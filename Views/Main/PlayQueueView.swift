@@ -15,7 +15,6 @@ struct PlayQueueView: View {
             
             queueContent
         }
-        .background(Color(NSColor.windowBackgroundColor))
         .alert("Clear Queue", isPresented: $showingClearConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clear", role: .destructive) {
