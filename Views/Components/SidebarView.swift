@@ -325,6 +325,79 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
 
 // MARK: - Concrete Item Types
 
+// Home Sidebar Item
+struct HomeSidebarItem: SidebarItem {
+    let id: UUID
+    let title: String
+    var subtitle: String?
+    let icon: String?
+    var count: Int? = nil  // Not used for display since we use subtitle
+    let isEditable: Bool = false
+    let type: HomeItemType
+    
+    enum HomeItemType: CaseIterable {
+        case tracks
+        case artists
+        case albums
+        
+        var stableID: UUID {
+            switch self {
+            case .tracks:
+                return UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+            case .artists:
+                return UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
+            case .albums:
+                return UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
+            }
+        }
+        
+        var title: String {
+            switch self {
+            case .tracks: return "Tracks"
+            case .artists: return "Artists"
+            case .albums: return "Albums"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .tracks: return "music.note"
+            case .artists: return "person.2.fill"
+            case .albums: return "opticaldisc.fill"
+            }
+        }
+    }
+    
+    init(type: HomeItemType, trackCount: Int? = nil, artistCount: Int? = nil, albumCount: Int? = nil) {
+        self.id = type.stableID
+        self.type = type
+        self.title = type.title
+        self.icon = type.icon
+        
+        // Set subtitle based on type
+        switch type {
+        case .tracks:
+            if let count = trackCount {
+                self.subtitle = "\(count) songs"
+            } else {
+                self.subtitle = "0 songs"
+            }
+        case .artists:
+            if let count = artistCount {
+                self.subtitle = "\(count) artists"
+            } else {
+                self.subtitle = "0 artists"
+            }
+        case .albums:
+            if let count = albumCount {
+                self.subtitle = "\(count) albums"
+            } else {
+                self.subtitle = "0 albums"
+            }
+        }
+    }
+}
+
 // Library Filter Item
 struct LibrarySidebarItem: SidebarItem {
     let id: UUID
@@ -361,66 +434,6 @@ struct LibrarySidebarItem: SidebarItem {
     
     private static func getIcon(for filterType: LibraryFilterType, isAllItem: Bool) -> String {
         return isAllItem ? filterType.allItemIcon : filterType.icon
-    }
-}
-
-// Folder Item
-struct FolderSidebarItem: SidebarItem {
-    let id: UUID
-    let title: String
-    let subtitle: String?
-    let icon: String?
-    let count: Int?
-    let folder: Folder
-    let isEditable: Bool = false // Folder items are not editable inline
-    
-    init(folder: Folder, trackCount: Int) {
-        // Create a stable ID based on folder's ID
-        if let folderId = folder.id {
-            self.id = UUID(uuidString: "F0000000-0000-0000-0000-\(String(format: "%012d", folderId))") ?? UUID()
-        } else {
-            self.id = UUID()
-        }
-        self.title = folder.name
-        self.subtitle = "\(trackCount) tracks"
-        self.icon = "folder.fill"
-        self.count = nil
-        self.folder = folder
-    }
-}
-
-// Folder Node Item
-struct FolderNodeSidebarItem: SidebarItem {
-    let id: UUID
-    let title: String
-    let subtitle: String?
-    let icon: String?
-    let count: Int?
-    let folderNode: FolderNode
-    let isEditable: Bool = false
-    
-    init(folderNode: FolderNode) {
-        self.id = folderNode.id
-        self.title = folderNode.name
-        self.folderNode = folderNode
-
-        if folderNode.children.isEmpty {
-            self.icon = "folder.fill"
-        } else {
-            self.icon = folderNode.isExpanded ? "folder.fill.badge.minus" : "folder.fill.badge.plus"
-        }
-
-        if folderNode.immediateFolderCount > 0 && folderNode.immediateTrackCount > 0 {
-            self.subtitle = "\(folderNode.immediateFolderCount) folders, \(folderNode.immediateTrackCount) tracks"
-        } else if folderNode.immediateFolderCount > 0 {
-            self.subtitle = "\(folderNode.immediateFolderCount) folders"
-        } else if folderNode.immediateTrackCount > 0 {
-            self.subtitle = "\(folderNode.immediateTrackCount) tracks"
-        } else {
-            self.subtitle = nil
-        }
-
-        self.count = nil
     }
 }
 
@@ -470,6 +483,41 @@ struct PlaylistSidebarItem: SidebarItem {
     }
 }
 
+// Folder Node Item
+struct FolderNodeSidebarItem: SidebarItem {
+    let id: UUID
+    let title: String
+    let subtitle: String?
+    let icon: String?
+    let count: Int?
+    let folderNode: FolderNode
+    let isEditable: Bool = false
+    
+    init(folderNode: FolderNode) {
+        self.id = folderNode.id
+        self.title = folderNode.name
+        self.folderNode = folderNode
+
+        if folderNode.children.isEmpty {
+            self.icon = "folder.fill"
+        } else {
+            self.icon = folderNode.isExpanded ? "folder.fill.badge.minus" : "folder.fill.badge.plus"
+        }
+
+        if folderNode.immediateFolderCount > 0 && folderNode.immediateTrackCount > 0 {
+            self.subtitle = "\(folderNode.immediateFolderCount) folders, \(folderNode.immediateTrackCount) tracks"
+        } else if folderNode.immediateFolderCount > 0 {
+            self.subtitle = "\(folderNode.immediateFolderCount) folders"
+        } else if folderNode.immediateTrackCount > 0 {
+            self.subtitle = "\(folderNode.immediateTrackCount) tracks"
+        } else {
+            self.subtitle = nil
+        }
+
+        self.count = nil
+    }
+}
+
 // MARK: - Convenience Extensions
 
 extension SidebarView where Item == LibrarySidebarItem {
@@ -497,35 +545,6 @@ extension SidebarView where Item == LibrarySidebarItem {
             showIcon: true,
             iconColor: .secondary,
             showCount: true
-        )
-    }
-}
-
-extension SidebarView where Item == FolderSidebarItem {
-    init(
-        folders: [Folder],
-        trackCounts: [Int64: Int],
-        selectedItem: Binding<FolderSidebarItem?>,
-        onItemTap: @escaping (FolderSidebarItem) -> Void,
-        contextMenuItems: @escaping (FolderSidebarItem) -> [ContextMenuItem],
-        headerControls: AnyView? = nil
-    ) {
-        let items = folders.map { folder in
-            FolderSidebarItem(
-                folder: folder,
-                trackCount: trackCounts[folder.id ?? -1] ?? 0
-            )
-        }
-        
-        self.init(
-            items: items,
-            selectedItem: selectedItem,
-            onItemTap: onItemTap,
-            contextMenuItems: contextMenuItems,
-            headerControls: headerControls,
-            showIcon: true,
-            iconColor: .secondary,
-            showCount: false
         )
     }
 }

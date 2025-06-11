@@ -121,7 +121,7 @@ private struct TabbedButton<Item: TabbedItem>: View {
         }) {
             HStack(spacing: style.iconTextSpacing) {
                 if style.showIcon {
-                    Image(systemName: isSelected ? item.selectedIcon : item.icon)
+                    iconImage(for: isSelected ? item.selectedIcon : item.icon)
                         .font(.system(size: style.iconSize, weight: .medium))
                         .foregroundStyle(foregroundStyle)
                         .animation(.easeInOut(duration: AnimationConstants.transformDuration).delay(animation == .transform && isSelected ? AnimationConstants.transformTextDelay : 0), value: isSelected)
@@ -150,6 +150,15 @@ private struct TabbedButton<Item: TabbedItem>: View {
         }
         .if(item.tooltip != nil) { view in
             view.help(item.tooltip!)
+        }
+    }
+    
+    @ViewBuilder
+    private func iconImage(for iconName: String) -> some View {
+        if iconName.hasPrefix("custom.") {
+            Image(iconName)
+        } else {
+            Image(systemName: iconName)
         }
     }
     

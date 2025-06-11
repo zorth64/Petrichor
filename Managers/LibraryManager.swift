@@ -3,7 +3,11 @@ import AppKit
 
 class LibraryManager: ObservableObject {
     // MARK: - Published Properties
-    @Published var tracks: [Track] = []
+    @Published var tracks: [Track] = [] {
+        didSet {
+            invalidateEntityCaches()
+        }
+    }
     @Published var folders: [Folder] = []
     @Published var isScanning: Bool = false
     @Published var scanProgress: Double = 0.0
@@ -15,6 +19,83 @@ class LibraryManager: ObservableObject {
         }
     }
     @Published var searchResults: [Track] = []
+    
+    // MARK: - Cached Entities
+    private var cachedArtistEntities: [ArtistEntity]?
+    private var cachedAlbumEntities: [AlbumEntity]?
+
+    // MARK: - Computed Properties for Entities
+
+    var artistEntities: [ArtistEntity] {
+        // Return cached value if available
+        if let cached = cachedArtistEntities {
+            return cached
+        }
+
+        // Otherwise compute and cache
+        var normalizedToArtistInfo: [String: (displayName: String, tracks: Set<Track>)] = [:]
+
+        for track in searchResults.isEmpty && globalSearchText.isEmpty ? tracks : searchResults {
+            let artists = ArtistParser.parse(track.artist)
+
+            for artist in artists {
+                let normalizedName = ArtistParser.normalizeArtistName(artist)
+
+                if var existing = normalizedToArtistInfo[normalizedName] {
+                    existing.tracks.insert(track)
+                    if artist.count > existing.displayName.count {
+                        existing.displayName = artist
+                    }
+                    normalizedToArtistInfo[normalizedName] = existing
+                } else {
+                    normalizedToArtistInfo[normalizedName] = (displayName: artist, tracks: [track])
+                }
+            }
+        }
+
+        let entities = normalizedToArtistInfo.map { _, info in
+            ArtistEntity(name: info.displayName, tracks: Array(info.tracks))
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        // Cache the result
+        cachedArtistEntities = entities
+        return entities
+    }
+
+    var albumEntities: [AlbumEntity] {
+        // Return cached value if available
+        if let cached = cachedAlbumEntities {
+            return cached
+        }
+
+        // Otherwise compute and cache
+        var albumMap: [String: (artist: String?, tracks: Set<Track>)] = [:]
+
+        for track in searchResults.isEmpty && globalSearchText.isEmpty ? tracks : searchResults {
+            let albumName = track.album.isEmpty ? "Unknown Album" : track.album
+            let artistName = track.albumArtist ?? track.artist
+
+            if var existing = albumMap[albumName] {
+                existing.tracks.insert(track)
+                if existing.artist == nil || existing.artist == artistName {
+                    existing.artist = artistName
+                } else if existing.artist != artistName {
+                    existing.artist = "Various Artists"
+                }
+                albumMap[albumName] = existing
+            } else {
+                albumMap[albumName] = (artist: artistName, tracks: [track])
+            }
+        }
+
+        let entities = albumMap.map { albumName, info in
+            AlbumEntity(name: albumName, artist: info.artist, tracks: Array(info.tracks))
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        // Cache the result
+        cachedAlbumEntities = entities
+        return entities
+    }
     
     // MARK: - Private Properties
     private let fileManager = FileManager.default
@@ -372,6 +453,7 @@ class LibraryManager: ObservableObject {
         if globalSearchText.isEmpty {
             searchResults = tracks
         } else {
+            invalidateEntityCaches()
             searchResults = LibrarySearch.searchTracks(tracks, with: globalSearchText)
         }
     }
@@ -525,5 +607,12 @@ class LibraryManager: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.handleAutoScanIntervalChange()
         }
+    }
+    
+    // MARK: - Cache Management
+
+    private func invalidateEntityCaches() {
+        cachedArtistEntities = nil
+        cachedAlbumEntities = nil
     }
 }

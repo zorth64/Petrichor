@@ -3,6 +3,7 @@ import SwiftUI
 struct ContextualToolbar: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @Binding var viewType: LibraryViewType
+    var disableTableView: Bool = false
     
     @FocusState private var isSearchFieldFocused: Bool
     
@@ -40,7 +41,9 @@ struct ContextualToolbar: View {
     
     private var viewToggleButtons: some View {
         TabbedButtons(
-            items: [LibraryViewType.table, LibraryViewType.list, LibraryViewType.grid],
+            items: disableTableView
+                ? [LibraryViewType.list, LibraryViewType.grid]
+                : [LibraryViewType.table, LibraryViewType.list, LibraryViewType.grid],
             selection: $viewType,
             style: .viewToggle
         )

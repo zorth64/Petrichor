@@ -1,23 +1,37 @@
 import Foundation
 
-enum MainTab: String, CaseIterable {
-    case library = "Library"
-    case folders = "Folders"
-    case playlists = "Playlists"
+enum MainTab: String, CaseIterable, Identifiable {
+    case home
+    case library
+    case playlists
+    case folders
+    
+    var id: String { rawValue }
+    
+    var label: String {
+        switch self {
+        case .home: return "Home"
+        case .library: return "Library"
+        case .playlists: return "Playlists"
+        case .folders: return "Folders"
+        }
+    }
     
     var icon: String {
         switch self {
-        case .library: return "music.note.list"
-        case .folders: return "folder"
+        case .home: return "music.note.house"
+        case .library: return "custom.music.note.rectangle.stack"
         case .playlists: return "music.note.list"
+        case .folders: return "folder"
         }
     }
     
     var selectedIcon: String {
         switch self {
-        case .library: return "music.note.list"
-        case .folders: return "folder.fill"
+        case .home: return "music.note.house.fill"
+        case .library: return "custom.music.note.rectangle.stack.fill"
         case .playlists: return "music.note.list"
+        case .folders: return "folder.fill"
         }
     }
 }
