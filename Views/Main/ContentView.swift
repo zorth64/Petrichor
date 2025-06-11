@@ -7,7 +7,7 @@ struct ContentView: View {
     
     @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .table
     @AppStorage("rightSidebarSplitPosition") private var splitPosition: Double = 200
-    @State private var selectedTab: MainTab = .library
+    @State private var selectedTab: MainTab = .home
     @State private var showingSettings = false
     @State private var showingQueue = false
     @State private var showingTrackDetail = false
@@ -15,13 +15,15 @@ struct ContentView: View {
     @State private var pendingLibraryFilter: LibraryFilterRequest?
     @State private var windowDelegate = WindowDelegate()
     @State private var isSettingsHovered = false
+    @State private var homeShowingEntities: Bool = false
     
     var body: some View {
         VStack(spacing: 0) {
             // Persistent Contextual Toolbar - always present when we have music
             if !libraryManager.tracks.isEmpty {
                 ContextualToolbar(
-                    viewType: $globalViewType
+                    viewType: $globalViewType,
+                    disableTableView: selectedTab == .home && homeShowingEntities
                 )
                 .frame(height: 40)
             }
@@ -70,6 +72,11 @@ struct ContentView: View {
     private var mainTabContent: some View {
         VStack {
             ZStack {
+                HomeView(isShowingEntities: $homeShowingEntities)
+                    .opacity(selectedTab == .home ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .home)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
                 LibraryView(
                     viewType: globalViewType,
                     pendingFilter: $pendingLibraryFilter
@@ -78,14 +85,14 @@ struct ContentView: View {
                 .allowsHitTesting(selectedTab == .library)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 
-                FoldersView(viewType: globalViewType)
-                    .opacity(selectedTab == .folders ? 1 : 0)
-                    .allowsHitTesting(selectedTab == .folders)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
                 PlaylistsView(viewType: globalViewType)
                     .opacity(selectedTab == .playlists ? 1 : 0)
                     .allowsHitTesting(selectedTab == .playlists)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                FoldersView(viewType: globalViewType)
+                    .opacity(selectedTab == .folders ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .folders)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
