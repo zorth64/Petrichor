@@ -3,11 +3,7 @@ import AppKit
 
 class LibraryManager: ObservableObject {
     // MARK: - Published Properties
-    @Published var tracks: [Track] = [] {
-        didSet {
-            invalidateEntityCaches()
-        }
-    }
+    @Published var tracks: [Track] = []
     @Published var folders: [Folder] = []
     @Published var isScanning: Bool = false
     @Published var scanProgress: Double = 0.0
@@ -20,81 +16,15 @@ class LibraryManager: ObservableObject {
     }
     @Published var searchResults: [Track] = []
     
-    // MARK: - Cached Entities
-    private var cachedArtistEntities: [ArtistEntity]?
-    private var cachedAlbumEntities: [AlbumEntity]?
-
-    // MARK: - Computed Properties for Entities
-
+    // MARK: - Entity Properties
     var artistEntities: [ArtistEntity] {
-        // Return cached value if available
-        if let cached = cachedArtistEntities {
-            return cached
-        }
-
-        // Otherwise compute and cache
-        var normalizedToArtistInfo: [String: (displayName: String, tracks: Set<Track>)] = [:]
-
-        for track in searchResults.isEmpty && globalSearchText.isEmpty ? tracks : searchResults {
-            let artists = ArtistParser.parse(track.artist)
-
-            for artist in artists {
-                let normalizedName = ArtistParser.normalizeArtistName(artist)
-
-                if var existing = normalizedToArtistInfo[normalizedName] {
-                    existing.tracks.insert(track)
-                    if artist.count > existing.displayName.count {
-                        existing.displayName = artist
-                    }
-                    normalizedToArtistInfo[normalizedName] = existing
-                } else {
-                    normalizedToArtistInfo[normalizedName] = (displayName: artist, tracks: [track])
-                }
-            }
-        }
-
-        let entities = normalizedToArtistInfo.map { _, info in
-            ArtistEntity(name: info.displayName, tracks: Array(info.tracks))
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        // Cache the result
-        cachedArtistEntities = entities
-        return entities
+        // Use normalized data from database
+        return databaseManager.getArtistEntities()
     }
 
     var albumEntities: [AlbumEntity] {
-        // Return cached value if available
-        if let cached = cachedAlbumEntities {
-            return cached
-        }
-
-        // Otherwise compute and cache
-        var albumMap: [String: (artist: String?, tracks: Set<Track>)] = [:]
-
-        for track in searchResults.isEmpty && globalSearchText.isEmpty ? tracks : searchResults {
-            let albumName = track.album.isEmpty ? "Unknown Album" : track.album
-            let artistName = track.albumArtist ?? track.artist
-
-            if var existing = albumMap[albumName] {
-                existing.tracks.insert(track)
-                if existing.artist == nil || existing.artist == artistName {
-                    existing.artist = artistName
-                } else if existing.artist != artistName {
-                    existing.artist = "Various Artists"
-                }
-                albumMap[albumName] = existing
-            } else {
-                albumMap[albumName] = (artist: artistName, tracks: [track])
-            }
-        }
-
-        let entities = albumMap.map { albumName, info in
-            AlbumEntity(name: albumName, artist: info.artist, tracks: Array(info.tracks))
-        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-
-        // Cache the result
-        cachedAlbumEntities = entities
-        return entities
+        // Use normalized data from database
+        return databaseManager.getAlbumEntities()
     }
     
     // MARK: - Private Properties
@@ -436,24 +366,32 @@ class LibraryManager: ObservableObject {
         }
     }
 
-    func getDistinctValues(for filterType: LibraryFilterType) -> [String] {
-        let values = databaseManager.getDistinctValues(for: filterType)
-        
-        // For composers, normalize empty strings to "Unknown Composer"
-        if filterType == .composers {
-            return values.map { value in
-                value.isEmpty ? filterType.unknownPlaceholder : value
-            }.removingDuplicates()
+    func getLibraryFilterItems(for filterType: LibraryFilterType) -> [LibraryFilterItem] {
+        // Call the appropriate method based on filter type
+        switch filterType {
+        case .artists:
+            return databaseManager.getArtistFilterItems()
+        case .albumArtists:
+            return databaseManager.getAlbumArtistFilterItems()
+        case .composers:
+            return databaseManager.getComposerFilterItems()
+        case .albums:
+            return databaseManager.getAlbumFilterItems()
+        case .genres:
+            return databaseManager.getGenreFilterItems()
+        case .years:
+            return databaseManager.getYearFilterItems()
         }
-        
-        return values
+    }
+
+    func getDistinctValues(for filterType: LibraryFilterType) -> [String] {
+        return databaseManager.getDistinctValues(for: filterType)
     }
     
     private func updateSearchResults() {
         if globalSearchText.isEmpty {
             searchResults = tracks
         } else {
-            invalidateEntityCaches()
             searchResults = LibrarySearch.searchTracks(tracks, with: globalSearchText)
         }
     }
@@ -607,12 +545,5 @@ class LibraryManager: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.handleAutoScanIntervalChange()
         }
-    }
-    
-    // MARK: - Cache Management
-
-    private func invalidateEntityCaches() {
-        cachedArtistEntities = nil
-        cachedAlbumEntities = nil
     }
 }

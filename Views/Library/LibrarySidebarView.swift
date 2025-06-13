@@ -263,8 +263,7 @@ struct LibrarySidebarView: View {
     }
     
     private func getFilterItems(for filterType: LibraryFilterType) -> [LibraryFilterItem] {
-        let tracksToFilter = libraryManager.searchResults
-        return filterType.getFilterItems(from: tracksToFilter)
+        return libraryManager.getLibraryFilterItems(for: filterType)
     }
 
     private func getArtistItemsForSearch(_ searchTerm: String) -> [LibraryFilterItem] {

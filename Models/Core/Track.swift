@@ -47,6 +47,8 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     var sortAlbumArtist: String?
 
     var extendedMetadata: ExtendedMetadata?
+
+    var albumId: Int64?
     
     // MARK: - Initialization
     
@@ -119,6 +121,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let sortAlbum = Column("sort_album")
         static let sortAlbumArtist = Column("sort_album_artist")
         static let extendedMetadata = Column("extended_metadata")
+        static let albumId = Column("album_id")
     }
     
     // MARK: - FetchableRecord
@@ -170,6 +173,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         sortAlbum = row[Columns.sortAlbum]
         sortAlbumArtist = row[Columns.sortAlbumArtist]
         isMetadataLoaded = true
+        albumId = row[Columns.albumId]
         
         // Load extended metadata
         let extendedMetadataJSON: String? = row[Columns.extendedMetadata]
@@ -218,6 +222,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         container[Columns.sortArtist] = sortArtist
         container[Columns.sortAlbum] = sortAlbum
         container[Columns.sortAlbumArtist] = sortAlbumArtist
+        container[Columns.albumId] = albumId
 
         // Save extended metadata as JSON
         container[Columns.extendedMetadata] = extendedMetadata?.toJSON()
@@ -231,9 +236,21 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     // MARK: - Associations
     
     static let folder = belongsTo(Folder.self)
+    static let album = belongsTo(Album.self, using: ForeignKey(["album_id"]))
+    static let trackArtists = hasMany(TrackArtist.self)
+    static let artists = hasMany(Artist.self, through: trackArtists, using: TrackArtist.artist)
+    static let genres = hasMany(Genre.self, through: hasMany(TrackGenre.self), using: TrackGenre.genre)
     
     var folder: QueryInterfaceRequest<Folder> {
         request(for: Track.folder)
+    }
+    
+    var artists: QueryInterfaceRequest<Artist> {
+        request(for: Track.artists)
+    }
+    
+    var genres: QueryInterfaceRequest<Genre> {
+        request(for: Track.genres)
     }
     
     // MARK: - Equatable

@@ -3,15 +3,15 @@ import GRDB
 
 class DatabaseManager: ObservableObject {
     // MARK: - Properties
-    
-    private let dbQueue: DatabaseQueue
     private let dbPath: String
     
-    private enum TrackProcessResult {
+    enum TrackProcessResult {
         case new(Track)
         case update(Track)
         case skipped
     }
+    
+    let dbQueue: DatabaseQueue
     
     // MARK: - Published Properties for UI Updates
     
@@ -53,100 +53,22 @@ class DatabaseManager: ObservableObject {
     }
     
     // MARK: - Database Setup
-    
+
     private func setupDatabase() throws {
         try dbQueue.write { db in
-            // Create tables
-            try db.create(table: "folders", ifNotExists: true) { t in
-                t.autoIncrementedPrimaryKey("id")
-                t.column("name", .text).notNull()
-                t.column("path", .text).notNull().unique()
-                t.column("track_count", .integer).notNull().defaults(to: 0)
-                t.column("date_added", .datetime).notNull()
-                t.column("date_updated", .datetime).notNull()
-                t.column("bookmark_data", .blob)
-            }
+            // Create tables in dependency order
+            try createFoldersTable(in: db)
+            try createArtistsTable(in: db)
+            try createAlbumsTable(in: db)
+            try createGenresTable(in: db)
+            try createTracksTable(in: db)
+            try createPlaylistsTable(in: db)
+            try createPlaylistTracksTable(in: db)
+            try createTrackArtistsTable(in: db)
+            try createTrackGenresTable(in: db)
             
-            try db.create(table: "tracks", ifNotExists: true) { t in
-                t.autoIncrementedPrimaryKey("id")
-                t.column("folder_id", .integer).notNull()
-                    .references("folders", onDelete: .cascade)
-                t.column("path", .text).notNull().unique()
-                t.column("filename", .text).notNull()
-                t.column("title", .text)
-                t.column("artist", .text)
-                t.column("album", .text)
-                t.column("composer", .text)
-                t.column("genre", .text)
-                t.column("year", .text)
-                t.column("duration", .double)
-                t.column("format", .text)
-                t.column("file_size", .integer)
-                t.column("date_added", .datetime).notNull()
-                t.column("date_modified", .datetime)
-                t.column("artwork_data", .blob)
-                t.column("is_favorite", .boolean).notNull().defaults(to: false)
-                t.column("play_count", .integer).notNull().defaults(to: 0)
-                t.column("last_played_date", .datetime)
-                t.column("album_artist", .text)
-                t.column("track_number", .integer)
-                t.column("total_tracks", .integer)
-                t.column("disc_number", .integer)
-                t.column("total_discs", .integer)
-                t.column("rating", .integer) // 0-5 scale
-                t.column("compilation", .boolean).defaults(to: false)
-                t.column("release_date", .text) // Full date string
-                t.column("original_release_date", .text) // For reissues
-                t.column("bpm", .integer)
-                t.column("media_type", .text) // Music, Audiobook, Podcast, etc.
-                t.column("bitrate", .integer) // in kbps
-                t.column("sample_rate", .integer) // in Hz
-                t.column("channels", .integer) // 1=mono, 2=stereo, etc
-                t.column("codec", .text) // specific codec
-                t.column("bit_depth", .integer) // for lossless formats
-
-                t.column("sort_title", .text)
-                t.column("sort_artist", .text)
-                t.column("sort_album", .text)
-                t.column("sort_album_artist", .text)
-
-                t.column("extended_metadata", .text) // JSON stored as text
-            }
-            
-            try db.create(table: "playlists", ifNotExists: true) { t in
-                t.column("id", .text).primaryKey()
-                t.column("name", .text).notNull()
-                t.column("type", .text).notNull() // "regular" or "smart"
-                t.column("smart_type", .text) // "favorites", "mostPlayed", "recentlyPlayed", "custom"
-                t.column("is_user_editable", .boolean).notNull()
-                t.column("is_content_editable", .boolean).notNull()
-                t.column("date_created", .datetime).notNull()
-                t.column("date_modified", .datetime).notNull()
-                t.column("cover_artwork_data", .blob)
-                t.column("smart_criteria", .text) // JSON string for smart playlist criteria
-            }
-            
-            try db.create(table: "playlist_tracks", ifNotExists: true) { t in
-                t.column("playlist_id", .text).notNull()
-                    .references("playlists", column: "id", onDelete: .cascade)
-                t.column("track_id", .integer).notNull()
-                    .references("tracks", column: "id", onDelete: .cascade)
-                t.column("position", .integer).notNull()
-                t.primaryKey(["playlist_id", "track_id"])
-            }
-            
-            // Create indices for better performance
-            try db.create(index: "idx_tracks_folder_id", on: "tracks", columns: ["folder_id"], ifNotExists: true)
-            try db.create(index: "idx_tracks_artist", on: "tracks", columns: ["artist"], ifNotExists: true)
-            try db.create(index: "idx_tracks_album", on: "tracks", columns: ["album"], ifNotExists: true)
-            try db.create(index: "idx_tracks_composer", on: "tracks", columns: ["composer"], ifNotExists: true)
-            try db.create(index: "idx_tracks_genre", on: "tracks", columns: ["genre"], ifNotExists: true)
-            try db.create(index: "idx_tracks_year", on: "tracks", columns: ["year"], ifNotExists: true)
-            try db.create(index: "idx_tracks_album_artist", on: "tracks", columns: ["album_artist"], ifNotExists: true)
-            try db.create(index: "idx_tracks_rating", on: "tracks", columns: ["rating"], ifNotExists: true)
-            try db.create(index: "idx_tracks_compilation", on: "tracks", columns: ["compilation"], ifNotExists: true)
-            try db.create(index: "idx_tracks_media_type", on: "tracks", columns: ["media_type"], ifNotExists: true)
-            try db.create(index: "idx_playlist_tracks_playlist_id", on: "playlist_tracks", columns: ["playlist_id"], ifNotExists: true)
+            // Create all indices
+            try createIndices(in: db)
         }
     }
     
@@ -299,20 +221,21 @@ class DatabaseManager: ObservableObject {
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else { return }
         
-        // Get existing tracks for this folder to check for updates
-        var existingTracks: [URL: Track] = [:]
-        if let folderId = folder.id {
-            let tracks = getTracksForFolder(folderId)
-            for track in tracks {
-                existingTracks[track.url] = track
-            }
+        guard let folderId = folder.id else {
+            print("ERROR: Folder has no ID")
+            return
         }
         
-        // Collect all music files first
+        // Get existing tracks for this folder to check for updates
+        let existingTracks = getTracksForFolder(folderId)
+        let existingTracksByURL = Dictionary(uniqueKeysWithValues: existingTracks.map { ($0.url, $0) })
+        
+        // Collect all music files first - do this synchronously before async context
         var musicFiles: [URL] = []
         var scannedPaths = Set<URL>()
         
-        for case let fileURL as URL in enumerator {
+        // Process enumerator synchronously
+        while let fileURL = enumerator.nextObject() as? URL {
             let fileExtension = fileURL.pathExtension.lowercased()
             if supportedExtensions.contains(fileExtension) {
                 musicFiles.append(fileURL)
@@ -320,33 +243,39 @@ class DatabaseManager: ObservableObject {
             }
         }
         
+        // Now we can safely use these in async context
+        let totalFiles = musicFiles.count
+        let foundPaths = scannedPaths
+        
         await MainActor.run {
-            self.scanStatusMessage = "Found \(musicFiles.count) tracks in \(folder.name)"
+            self.scanStatusMessage = "Found \(totalFiles) tracks in \(folder.name)"
         }
         
         // Process in batches
-        let batchSize = musicFiles.count > 1000 ? 100 : 50
+        let batchSize = totalFiles > 1000 ? 100 : 50
         var processedCount = 0
         
-        for batch in musicFiles.chunked(into: batchSize) {
-            try await processBatch(batch, folder: folder, existingTracks: existingTracks)
+        // Create immutable copy for async context
+        let fileBatches = musicFiles.chunked(into: batchSize)
+        
+        for batch in fileBatches {
+            let batchWithFolderId = batch.map { url in (url: url, folderId: folderId) }
+            try await processBatch(batchWithFolderId)
+            
             processedCount += batch.count
             
-            let progress = Double(processedCount) / Double(musicFiles.count)
-            await MainActor.run {
-                self.scanStatusMessage = "Processing \(folder.name): \(processedCount)/\(musicFiles.count) tracks"
+            await MainActor.run { [processedCount, totalFiles, folderName = folder.name] in
+                self.scanStatusMessage = "Processing \(folderName): \(processedCount)/\(totalFiles) tracks"
             }
         }
         
         // Remove tracks that no longer exist in the folder
-        if let folderId = folder.id {
-            try await dbQueue.write { db in
-                for (url, track) in existingTracks {
-                    if !scannedPaths.contains(url) {
-                        // File no longer exists, remove from database
-                        try track.delete(db)
-                        print("Removed track that no longer exists: \(url.lastPathComponent)")
-                    }
+        try await dbQueue.write { db in
+            for (url, track) in existingTracksByURL {
+                if !foundPaths.contains(url) {
+                    // File no longer exists, remove from database
+                    try track.delete(db)
+                    print("Removed track that no longer exists: \(url.lastPathComponent)")
                 }
             }
         }
@@ -354,131 +283,10 @@ class DatabaseManager: ObservableObject {
         // Update folder track count
         try await updateFolderTrackCount(folder)
     }
-    
-    private func processBatch(_ files: [URL], folder: Folder, existingTracks: [URL: Track]) async throws {
-        guard let folderId = folder.id else {
-            print("ERROR: Folder has no ID! Folder: \(folder.name)")
-            return
-        }
-        
-        // Process files concurrently
-        try await withThrowingTaskGroup(of: (URL, TrackProcessResult).self) { group in
-            for fileURL in files {
-                group.addTask {
-                    if let existingTrack = existingTracks[fileURL] {
-                        // Check modification date first
-                        if let attributes = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]),
-                           let modificationDate = attributes.contentModificationDate,
-                           let trackModifiedDate = existingTrack.dateModified,
-                           modificationDate <= trackModifiedDate {
-                            return (fileURL, .skipped) // Skip unchanged file
-                        }
-                        
-                        // File has changed, extract metadata
-                        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-                        var updatedTrack = existingTrack
-                        
-                        // Apply metadata updates
-                        self.applyMetadataToTrack(&updatedTrack, from: metadata, at: fileURL)
-                        
-                        return (fileURL, .update(updatedTrack))
-                    } else {
-                        // New track
-                        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-                        var track = Track(url: fileURL)
-                        track.folderId = folderId
-                        self.applyMetadataToTrack(&track, from: metadata, at: fileURL)
-                        
-                        return (fileURL, .new(track))
-                    }
-                }
-            }
-            
-            // Collect results
-            var newTracks: [Track] = []
-            var tracksToUpdate: [Track] = []
-            var skippedCount = 0
-            
-            for try await (_, result) in group {
-                switch result {
-                case .new(let track):
-                    newTracks.append(track)
-                case .update(let track):
-                    tracksToUpdate.append(track)
-                case .skipped:
-                    skippedCount += 1
-                }
-            }
-            
-            // Batch save to database
-            try await dbQueue.write { db in
-                // Insert new tracks
-                for track in newTracks {
-                    try track.save(db)
-                    print("Added new track: \(track.title)")
-                    self.logTrackMetadata(track)
-                }
-                
-                // Update existing tracks
-                for track in tracksToUpdate {
-                    try track.update(db)
-                    print("Updated metadata for: \(track.title)")
-                }
-            }
-            
-            if skippedCount > 0 {
-                print("Skipped \(skippedCount) unchanged files")
-            }
-        }
-    }
-
-    // MARK: - Track Creation and Update Helpers
-
-    private func createNewTrack(at fileURL: URL, folderId: Int64, in db: Database) throws {
-        // Extract metadata
-        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-        
-        // Create track
-        var track = Track(url: fileURL)
-        track.folderId = folderId
-        
-        // Apply metadata
-        applyMetadataToTrack(&track, from: metadata, at: fileURL)
-        
-        // Save to database
-        try track.save(db)
-        print("Added new track: \(track.title)")
-        
-        // Log interesting metadata
-        logTrackMetadata(track)
-    }
-
-    private func updateExistingTrack(_ existingTrack: Track, at fileURL: URL, in db: Database) throws {
-        // Check if file has been modified since last scan
-        if let attributes = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]),
-           let modificationDate = attributes.contentModificationDate,
-           let trackModifiedDate = existingTrack.dateModified,
-           modificationDate <= trackModifiedDate {
-            // File hasn't changed, skip metadata extraction
-            return
-        }
-        
-        // File has changed, extract metadata
-        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-        
-        var updatedTrack = existingTrack
-        let hasChanges = updateTrackIfNeeded(&updatedTrack, with: metadata, at: fileURL)
-        
-        // Update in database if there were changes
-        if hasChanges {
-            try updatedTrack.update(db)
-            print("Updated metadata for: \(updatedTrack.title) - Changes detected")
-        }
-    }
 
     // MARK: - Metadata Application
 
-    private func applyMetadataToTrack(_ track: inout Track, from metadata: TrackMetadata, at fileURL: URL) {
+    func applyMetadataToTrack(_ track: inout Track, from metadata: TrackMetadata, at fileURL: URL) {
         // Core fields
         track.title = metadata.title ?? fileURL.deletingPathExtension().lastPathComponent
         track.artist = metadata.artist ?? "Unknown Artist"
@@ -526,7 +334,7 @@ class DatabaseManager: ObservableObject {
         track.extendedMetadata = metadata.extended
     }
 
-    private func updateTrackIfNeeded(_ track: inout Track, with metadata: TrackMetadata, at fileURL: URL) -> Bool {
+    func updateTrackIfNeeded(_ track: inout Track, with metadata: TrackMetadata, at fileURL: URL) -> Bool {
         var hasChanges = false
         
         // Update core metadata
@@ -548,7 +356,7 @@ class DatabaseManager: ObservableObject {
         return hasChanges
     }
 
-    private func updateCoreMetadata(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
+    func updateCoreMetadata(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
         var hasChanges = false
         
         if let newTitle = metadata.title, !newTitle.isEmpty && newTitle != track.title {
@@ -594,7 +402,7 @@ class DatabaseManager: ObservableObject {
         return hasChanges
     }
 
-    private func updateAdditionalMetadata(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
+    func updateAdditionalMetadata(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
         var hasChanges = false
         
         // Album metadata
@@ -679,7 +487,7 @@ class DatabaseManager: ObservableObject {
         return hasChanges
     }
 
-    private func updateAudioProperties(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
+    func updateAudioProperties(_ track: inout Track, with metadata: TrackMetadata) -> Bool {
         var hasChanges = false
         
         if let newBitrate = metadata.bitrate, newBitrate != track.bitrate {
@@ -710,7 +518,7 @@ class DatabaseManager: ObservableObject {
         return hasChanges
     }
 
-    private func updateFileProperties(_ track: inout Track, at fileURL: URL) -> Bool {
+    func updateFileProperties(_ track: inout Track, at fileURL: URL) -> Bool {
         var hasChanges = false
         
         if let attributes = try? fileURL.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) {
@@ -727,33 +535,6 @@ class DatabaseManager: ObservableObject {
         
         return hasChanges
     }
-
-    private func logTrackMetadata(_ track: Track) {
-        // Log interesting metadata if present
-        if let albumArtist = track.albumArtist {
-            print("  Album Artist: \(albumArtist)")
-        }
-        if let trackNum = track.trackNumber {
-            let totalStr = track.totalTracks.map { "/\($0)" } ?? ""
-            print("  Track: \(trackNum)\(totalStr)")
-        }
-        if let discNum = track.discNumber {
-            let totalStr = track.totalDiscs.map { "/\($0)" } ?? ""
-            print("  Disc: \(discNum)\(totalStr)")
-        }
-        if track.compilation {
-            print("  Compilation: Yes")
-        }
-        if let bitrate = track.bitrate {
-            print("  Bitrate: \(bitrate) kbps")
-        }
-        if let sampleRate = track.sampleRate {
-            print("  Sample Rate: \(sampleRate) Hz")
-        }
-        if let codec = track.codec {
-            print("  Codec: \(codec)")
-        }
-    }
     
     private func updateFolderTrackCount(_ folder: Folder) async throws {
         try await dbQueue.write { db in
@@ -765,86 +546,6 @@ class DatabaseManager: ObservableObject {
             updatedFolder.trackCount = count
             updatedFolder.dateUpdated = Date()
             try updatedFolder.update(db)
-        }
-    }
-    
-    // MARK: - Query Track by Columns
-    
-    private func columnForFilterType(_ filterType: LibraryFilterType) -> Column? {
-        return Track.columnMap[filterType.databaseColumn]
-    }
-    
-    func getTracksByFilterType(_ filterType: LibraryFilterType, value: String) -> [Track] {
-        guard let dbColumn = columnForFilterType(filterType) else {
-            print("Unknown column for filter type: \(filterType)")
-            return []
-        }
-        
-        do {
-            return try dbQueue.read { db in
-                // Handle special cases for empty/unknown values
-                if value.starts(with: "Unknown ") {
-                    return try Track
-                        .filter(dbColumn == "" || dbColumn == nil || dbColumn == value)
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                } else if value.isEmpty {
-                    return try Track
-                        .filter(dbColumn == "" || dbColumn == nil)
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                } else {
-                    return try Track
-                        .filter(dbColumn == value)
-                        .order(Track.Columns.title)
-                        .fetchAll(db)
-                }
-            }
-        } catch {
-            print("Failed to fetch tracks by \(filterType): \(error)")
-            return []
-        }
-    }
-    
-    func getTracksByFilterTypeContaining(_ filterType: LibraryFilterType, value: String) -> [Track] {
-        guard let dbColumn = columnForFilterType(filterType) else {
-            print("Unknown column for filter type: \(filterType)")
-            return []
-        }
-        
-        do {
-            return try dbQueue.read { db in
-                return try Track
-                    .filter(dbColumn.like("%\(value)%"))
-                    .order(Track.Columns.title)
-                    .fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch tracks by \(filterType) containing '\(value)': \(error)")
-            return []
-        }
-    }
-
-    func getDistinctValues(for filterType: LibraryFilterType) -> [String] {
-        guard let dbColumn = columnForFilterType(filterType) else {
-            print("Unknown column for filter type: \(filterType)")
-            return []
-        }
-        
-        do {
-            return try dbQueue.read { db in
-                // Use GRDB's query interface to select distinct values
-                let request = Track
-                    .select(dbColumn, as: String.self)
-                    .filter(dbColumn != nil)
-                    .distinct()
-                    .order(dbColumn)
-                
-                return try request.fetchAll(db)
-            }
-        } catch {
-            print("Failed to fetch distinct values for \(filterType): \(error)")
-            return []
         }
     }
     
