@@ -24,6 +24,7 @@ extension DatabaseManager {
             t.column("name", .text).notNull()
             t.column("normalized_name", .text).notNull()
             t.column("sort_name", .text)
+            t.column("artwork_data", .blob)
             
             // External API metadata
             t.column("bio", .text)
@@ -65,6 +66,7 @@ extension DatabaseManager {
             t.column("sort_title", .text)
             t.column("artist_id", .integer)
                 .references("artists", onDelete: .setNull)
+            t.column("artwork_data", .blob)
             
             // Album metadata
             t.column("release_date", .text)

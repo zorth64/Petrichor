@@ -6,9 +6,8 @@ struct HomeSidebarView: View {
     @Binding var selectedItem: HomeSidebarItem?
     
     private var sidebarItems: [HomeSidebarItem] {
-        // TODO: Calculate actual artist and album counts
-        let artistCount = getUniqueArtistsCount()
-        let albumCount = getUniqueAlbumsCount()
+        let artistCount = libraryManager.databaseManager.getArtistCount()
+        let albumCount = libraryManager.databaseManager.getAlbumCount()
         
         return [
             HomeSidebarItem(type: .tracks, trackCount: libraryManager.tracks.count),
@@ -72,20 +71,6 @@ struct HomeSidebarView: View {
             iconColor: .secondary,
             showCount: false  // Set to false since we're using subtitle
         )
-    }
-    
-    // MARK: - Helper Methods
-    
-    private func getUniqueArtistsCount() -> Int {
-        let allArtists = libraryManager.tracks.flatMap { track in
-            ArtistParser.parse(track.artist)
-        }
-        return Set(allArtists).count
-    }
-    
-    private func getUniqueAlbumsCount() -> Int {
-        let albums = libraryManager.tracks.compactMap { $0.album }
-        return Set(albums).count
     }
 }
 

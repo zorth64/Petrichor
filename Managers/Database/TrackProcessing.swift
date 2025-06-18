@@ -10,7 +10,6 @@ extension DatabaseManager {
     func processBatch(_ batch: [(url: URL, folderId: Int64)]) async throws {
         await MainActor.run {
             self.isScanning = true
-            self.scanProgress = 0
             self.scanStatusMessage = "Processing \(batch.count) files..."
         }
         
@@ -19,6 +18,10 @@ extension DatabaseManager {
             for (fileURL, folderId) in batch {
                 group.addTask { [weak self] in
                     guard let self = self else { return (fileURL, TrackProcessResult.skipped) }
+                    
+                    await MainActor.run {
+                        self.scanStatusMessage = "Processing: \(fileURL.lastPathComponent)"
+                    }
                     
                     // Check if track already exists
                     if let existingTrack = try? await self.dbQueue.read({ db in
@@ -94,7 +97,6 @@ extension DatabaseManager {
         
         await MainActor.run {
             self.isScanning = false
-            self.scanProgress = 1.0
             self.scanStatusMessage = "Scan complete"
         }
     }
@@ -123,6 +125,25 @@ extension DatabaseManager {
         // Process normalized relationships
         try processTrackArtists(mutableTrack, metadata: metadata, in: db)
         try processTrackGenres(mutableTrack, in: db)
+        
+        // Update artwork for artists and album if this track has artwork
+        if let artworkData = mutableTrack.artworkData, !artworkData.isEmpty {
+            // Update artist artwork
+            let artistIds = try TrackArtist
+                .filter(TrackArtist.Columns.trackId == trackId)  // Use trackId from mutableTrack
+                .select(TrackArtist.Columns.artistId, as: Int64.self)
+                .distinct()
+                .fetchAll(db)
+            
+            for artistId in artistIds {
+                try updateArtistArtwork(artistId, artworkData: artworkData, in: db)
+            }
+            
+            // Update album artwork
+            if let albumId = mutableTrack.albumId {
+                try updateAlbumArtwork(albumId, artworkData: artworkData, in: db)
+            }
+        }
         
         // Log interesting metadata
         logTrackMetadata(mutableTrack)

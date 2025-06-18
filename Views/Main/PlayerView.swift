@@ -277,8 +277,8 @@ struct PlayerView: View {
                         .frame(width: 12, height: 12)
                         .opacity(isDraggingProgress || hoveredOverProgress ? 1.0 : 0.0)
                         .offset(x: (geometry.size.width * progressPercentage) - 6)
+                        .animation(isDraggingProgress ? .none : .easeInOut(duration: 0.15), value: progressPercentage)
                         .animation(.easeInOut(duration: 0.15), value: hoveredOverProgress)
-                        .animation(.easeInOut(duration: 0.15), value: isDraggingProgress)
                 }
                 .contentShape(Rectangle())
                 .gesture(progressDragGesture(in: geometry))
@@ -359,8 +359,12 @@ struct PlayerView: View {
     
     private var progressPercentage: Double {
         guard let duration = audioPlayerManager.currentTrack?.duration, duration > 0 else { return 0 }
-        let currentTime = isDraggingProgress ? tempProgressValue : audioPlayerManager.currentTime
-        return min(1, max(0, currentTime / duration))
+        
+        if isDraggingProgress {
+            return min(1, max(0, tempProgressValue / duration))
+        } else {
+            return min(1, max(0, audioPlayerManager.currentTime / duration))
+        }
     }
     
     private var volumeIcon: String {
@@ -396,17 +400,19 @@ struct PlayerView: View {
     private func progressDragGesture(in geometry: GeometryProxy) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                isDraggingProgress = true
+                if !isDraggingProgress {
+                    isDraggingProgress = true
+                }
                 let percentage = max(0, min(1, value.location.x / geometry.size.width))
                 tempProgressValue = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
             }
             .onEnded { value in
                 let percentage = max(0, min(1, value.location.x / geometry.size.width))
                 let newTime = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
-                isDraggingProgress = false
-                // Delay the seek slightly to prevent audio glitches
+                audioPlayerManager.seekTo(time: newTime)
+                // Reset dragging state after seek completes
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    audioPlayerManager.seekTo(time: newTime)
+                    isDraggingProgress = false
                 }
             }
     }

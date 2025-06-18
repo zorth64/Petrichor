@@ -206,33 +206,21 @@ extension DatabaseManager {
     
     // MARK: - Entity Queries (for Home tab)
     
-    /// Get all artist entities with track counts
+    /// Get all artist entities without loading tracks
     func getArtistEntities() -> [ArtistEntity] {
         do {
             return try dbQueue.read { db in
                 let artists = try Artist
+                    .filter(Artist.Columns.totalTracks > 0)
                     .order(Artist.Columns.sortName)
                     .fetchAll(db)
                 
-                return artists.compactMap { artist in
-                    guard let artistId = artist.id else { return nil }
-                    
-                    // Get tracks for this artist
-                    let trackIds = try? TrackArtist
-                        .filter(TrackArtist.Columns.artistId == artistId)
-                        .filter(TrackArtist.Columns.role == TrackArtist.Role.artist)
-                        .select(TrackArtist.Columns.trackId, as: Int64.self)
-                        .fetchAll(db)
-                    
-                    guard let ids = trackIds, !ids.isEmpty else { return nil }
-                    
-                    let tracks = try? Track
-                        .filter(ids.contains(Track.Columns.trackId))
-                        .fetchAll(db)
-                    
-                    guard let artistTracks = tracks, !artistTracks.isEmpty else { return nil }
-                    
-                    return ArtistEntity(name: artist.name, tracks: artistTracks)
+                return artists.map { artist in
+                    ArtistEntity(
+                        name: artist.name,
+                        trackCount: artist.totalTracks,
+                        artworkData: artist.artworkData
+                    )
                 }
             }
         } catch {
@@ -240,26 +228,20 @@ extension DatabaseManager {
             return []
         }
     }
-    
-    /// Get all album entities with track counts
+
+    /// Get all album entities without loading tracks
     func getAlbumEntities() -> [AlbumEntity] {
         do {
             return try dbQueue.read { db in
                 let albums = try Album
+                    .filter(Album.Columns.totalTracks > 0)
                     .order(Album.Columns.sortTitle)
                     .fetchAll(db)
                 
-                return albums.compactMap { album in
-                    guard let albumId = album.id else { return nil }
-                    
-                    let tracks = try? Track
-                        .filter(Track.Columns.albumId == albumId)
-                        .order(Track.Columns.discNumber, Track.Columns.trackNumber)
-                        .fetchAll(db)
-                    
-                    guard let albumTracks = tracks, !albumTracks.isEmpty else { return nil }
-                    
-                    // Get artist name directly from the album's artistId
+                print("DatabaseManager: Loading \(albums.count) albums")
+                
+                return albums.map { album in
+                    // Fetch artist name if artistId exists
                     var artistName: String? = nil
                     if let artistId = album.artistId {
                         artistName = try? Artist
@@ -267,10 +249,19 @@ extension DatabaseManager {
                             .fetchOne(db)?.name
                     }
                     
+                    // Debug logging
+                    if let artworkData = album.artworkData {
+                        print("DatabaseManager: Album '\(album.title)' has artwork (\(artworkData.count) bytes)")
+                    } else {
+                        print("DatabaseManager: Album '\(album.title)' has NO artwork")
+                    }
+                    
                     return AlbumEntity(
                         name: album.title,
                         artist: artistName,
-                        tracks: albumTracks
+                        trackCount: album.totalTracks ?? 0,
+                        artworkData: album.artworkData,
+                        albumId: album.id
                     )
                 }
             }
@@ -280,7 +271,33 @@ extension DatabaseManager {
         }
     }
     
-    // MARK: - Legacy Support
+    // MARK: - Quick Count Methods
+
+    func getArtistCount() -> Int {
+        do {
+            return try dbQueue.read { db in
+                try Artist
+                    .filter(Artist.Columns.totalTracks > 0)
+                    .fetchCount(db)
+            }
+        } catch {
+            print("Failed to get artist count: \(error)")
+            return 0
+        }
+    }
+
+    func getAlbumCount() -> Int {
+        do {
+            return try dbQueue.read { db in
+                try Album
+                    .filter(Album.Columns.totalTracks > 0)
+                    .fetchCount(db)
+            }
+        } catch {
+            print("Failed to get album count: \(error)")
+            return 0
+        }
+    }
     
     // MARK: - Library Filter Items
     

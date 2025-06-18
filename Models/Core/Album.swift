@@ -6,6 +6,7 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
     let title: String
     let normalizedTitle: String
     var sortTitle: String?
+    var artworkData: Data?
     
     // Artist relationship
     var artistId: Int64?
@@ -65,6 +66,7 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         static let title = Column("title")
         static let normalizedTitle = Column("normalized_title")
         static let sortTitle = Column("sort_title")
+        static let artworkData = Column("artwork_data")
         static let artistId = Column("artist_id")
         static let releaseDate = Column("release_date")
         static let releaseYear = Column("release_year")
@@ -95,6 +97,7 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         title = row[Columns.title]
         normalizedTitle = row[Columns.normalizedTitle]
         sortTitle = row[Columns.sortTitle]
+        artworkData = row[Columns.artworkData]
         artistId = row[Columns.artistId]
         releaseDate = row[Columns.releaseDate]
         releaseYear = row[Columns.releaseYear]

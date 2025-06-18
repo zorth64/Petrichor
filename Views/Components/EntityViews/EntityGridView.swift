@@ -187,27 +187,37 @@ private struct EntityGridItem<T: Entity>: View {
 }
 
 // MARK: - Preview
-#Preview {
-    let sampleTracks = (0..<12).map { i in
-        let track = Track(url: URL(fileURLWithPath: "/path/to/sample\(i).mp3"))
-        track.title = "Sample Song \(i)"
-        track.artist = "Artist \(i % 4)"
-        track.album = "Album \(i % 3)"
-        track.isMetadataLoaded = true
-        return track
-    }
-    
+
+#Preview("Artist Grid") {
     let artists = [
-        ArtistEntity(name: "Artist 0", tracks: Array(sampleTracks[0..<3])),
-        ArtistEntity(name: "Artist 1", tracks: Array(sampleTracks[3..<6])),
-        ArtistEntity(name: "Artist 2", tracks: Array(sampleTracks[6..<9])),
-        ArtistEntity(name: "Artist 3", tracks: Array(sampleTracks[9..<12]))
+        ArtistEntity(name: "The Beatles", trackCount: 25),
+        ArtistEntity(name: "Pink Floyd", trackCount: 18),
+        ArtistEntity(name: "Led Zeppelin", trackCount: 22),
+        ArtistEntity(name: "Queen", trackCount: 30)
     ]
     
     EntityGridView(
         entities: artists,
         onSelectEntity: { artist in
             print("Selected: \(artist.name)")
+        },
+        contextMenuItems: { _ in [] }
+    )
+    .frame(height: 600)
+}
+
+#Preview("Album Grid") {
+    let albums = [
+        AlbumEntity(name: "Abbey Road", artist: "The Beatles", trackCount: 17),
+        AlbumEntity(name: "The Dark Side of the Moon", artist: "Pink Floyd", trackCount: 10),
+        AlbumEntity(name: "Led Zeppelin IV", artist: "Led Zeppelin", trackCount: 8),
+        AlbumEntity(name: "A Night at the Opera", artist: "Queen", trackCount: 12)
+    ]
+    
+    EntityGridView(
+        entities: albums,
+        onSelectEntity: { album in
+            print("Selected: \(album.name)")
         },
         contextMenuItems: { _ in [] }
     )

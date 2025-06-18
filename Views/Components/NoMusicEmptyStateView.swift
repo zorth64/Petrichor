@@ -2,9 +2,8 @@ import SwiftUI
 
 struct NoMusicEmptyStateView: View {
     @EnvironmentObject var libraryManager: LibraryManager
-    @State private var isScanning = false
-    @State private var scanProgress: Double = 0.0
-    @State private var scanStatusMessage = ""
+    @State private var stableScanningState = false
+    @State private var scanningStateTimer: Timer?
     
     // Customization options
     let context: EmptyStateContext
@@ -24,7 +23,7 @@ struct NoMusicEmptyStateView: View {
             switch self {
             case .mainWindow: return 24
             case .settings: return 20
-            }
+        }
         }
         
         var titleFont: Font {
@@ -37,31 +36,72 @@ struct NoMusicEmptyStateView: View {
     
     var body: some View {
         VStack(spacing: context.spacing) {
-            if isScanning {
-                // Scanning progress view
+            if stableScanningState && libraryManager.folders.isEmpty {
+                // Only show scanning animation when truly empty (no folders)
                 scanningProgressContent
-            } else {
-                // Empty state content
+                    .transition(.opacity)
+            } else if libraryManager.folders.isEmpty {
+                // Show empty state only when no folders exist
                 emptyStateContent
+                    .transition(.opacity)
+            } else {
+                // Folders exist but view is empty - show appropriate message
+                noContentView
+                    .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: stableScanningState)
         .frame(maxWidth: context == .mainWindow ? .infinity : 500)
         .frame(maxHeight: context == .mainWindow ? .infinity : 400)
         .padding(context == .mainWindow ? 60 : 40)
-        .onReceive(libraryManager.$isScanning) { scanning in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isScanning = scanning
+        .onAppear {
+            setupScanningStateObserver()
+        }
+        .onDisappear {
+            scanningStateTimer?.invalidate()
+        }
+        .onChange(of: libraryManager.isScanning) { newValue in
+            updateStableScanningState(newValue)
+        }
+    }
+    
+    private func setupScanningStateObserver() {
+        // Initialize with current state
+        stableScanningState = libraryManager.isScanning
+    }
+    
+    private func updateStableScanningState(_ isScanning: Bool) {
+        // Cancel any pending timer
+        scanningStateTimer?.invalidate()
+        
+        if isScanning {
+            // Turn on immediately
+            stableScanningState = true
+        } else {
+            // Delay turning off to prevent flashing
+            scanningStateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                stableScanningState = false
             }
-        }
-        .onReceive(libraryManager.$scanProgress) { progress in
-            scanProgress = progress
-        }
-        .onReceive(libraryManager.$scanStatusMessage) { message in
-            scanStatusMessage = message
         }
     }
     
     // MARK: - Empty State Content
+    
+    private var noContentView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "music.note.list")
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+            
+            Text("No music found")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            Text("Your folders are being scanned for music files")
+                .font(.subheadline)
+                .foregroundColor(.secondary.opacity(0.8))
+        }
+    }
     
     private var emptyStateContent: some View {
         VStack(spacing: context.spacing) {
@@ -94,7 +134,7 @@ struct NoMusicEmptyStateView: View {
                 .multilineTextAlignment(.center)
             }
             
-            // Add button with hover effect
+            // Add button
             Button(action: { libraryManager.addFolder() }) {
                 HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill")
@@ -112,12 +152,6 @@ struct NoMusicEmptyStateView: View {
                 )
             }
             .buttonStyle(PlainButtonStyle())
-            .scaleEffect(1.0)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    // Hover effect handled by button style
-                }
-            }
             
             // Supported formats
             VStack(spacing: 4) {
@@ -133,85 +167,34 @@ struct NoMusicEmptyStateView: View {
             }
             .padding(.top, 8)
         }
+        .transition(.opacity)
     }
     
     // MARK: - Scanning Progress Content
-    
+
     private var scanningProgressContent: some View {
         VStack(spacing: 20) {
-            // Animated icon
-            ZStack {
-                Circle()
-                    .stroke(Color.accentColor.opacity(0.2), lineWidth: 4)
-                    .frame(width: 80, height: 80)
-                
-                Circle()
-                    .trim(from: 0, to: scanProgress)
-                    .stroke(
-                        Color.accentColor,
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 80, height: 80)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.5), value: scanProgress)
-                
-                Image(systemName: "music.note")
-                    .font(.system(size: 32, weight: .light))
-                    .foregroundColor(.accentColor)
-                    .symbolEffect(.pulse, options: .repeating)
-            }
+            // Use our new scanning animation
+            ScanningAnimation()
             
             VStack(spacing: 8) {
                 Text("Scanning Music Library")
                     .font(.title2)
                     .fontWeight(.semibold)
                 
-                if !scanStatusMessage.isEmpty {
-                    Text(scanStatusMessage)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 350)
-                }
-                
-                // Progress percentage
-                Text("\(Int(scanProgress * 100))%")
-                    .font(.title3)
-                    .fontWeight(.medium)
-                    .foregroundColor(.accentColor)
-                    .monospacedDigit()
+                Text(libraryManager.scanStatusMessage.isEmpty ? "Discovering your music..." : libraryManager.scanStatusMessage)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 350, minHeight: 40)
             }
-            
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.secondary.opacity(0.2))
-                        .frame(height: 6)
-                    
-                    Capsule()
-                        .fill(Color.accentColor)
-                        .frame(width: geometry.size.width * scanProgress, height: 6)
-                        .animation(.easeInOut(duration: 0.3), value: scanProgress)
-                }
-            }
-            .frame(height: 6)
-            .frame(maxWidth: 300)
             
             // Track count
             if libraryManager.tracks.count > 0 {
-                HStack(spacing: 16) {
-                    Label("\(libraryManager.tracks.count) tracks found", systemImage: "music.note")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    if libraryManager.folders.count > 0 {
-                        Label("\(libraryManager.folders.count) folders", systemImage: "folder")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+                Text("\(libraryManager.tracks.count) tracks found")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
             Text("This may take a few minutes for large libraries")
@@ -219,6 +202,7 @@ struct NoMusicEmptyStateView: View {
                 .foregroundColor(.secondary.opacity(0.7))
                 .italic()
         }
+        .transition(.opacity)
     }
 }
 
@@ -241,7 +225,6 @@ struct NoMusicEmptyStateView: View {
         .environmentObject({
             let manager = LibraryManager()
             manager.isScanning = true
-            manager.scanProgress = 0.65
             manager.scanStatusMessage = "Processing My Music Collection..."
             return manager
         }())

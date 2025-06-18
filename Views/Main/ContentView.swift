@@ -20,7 +20,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Persistent Contextual Toolbar - always present when we have music
-            if !libraryManager.tracks.isEmpty {
+            if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
                 ContextualToolbar(
                     viewType: $globalViewType,
                     disableTableView: selectedTab == .home && homeShowingEntities
@@ -31,8 +31,8 @@ struct ContentView: View {
             // Main Content Area with Queue
             mainContentArea
             
-            // Player controls at bottom
             playerControls
+                .animation(.easeInOut(duration: 0.3), value: libraryManager.folders.isEmpty)
         }
         .frame(minWidth: 1000, minHeight: 600)
         .onAppear(perform: handleOnAppear)
@@ -116,22 +116,26 @@ struct ContentView: View {
         }
     }
     
+    @ViewBuilder
     private var playerControls: some View {
-        PlayerView(showingQueue: Binding(
-            get: { showingQueue },
-            set: { newValue in
-                if newValue {
-                    showingTrackDetail = false
-                    detailTrack = nil
+        if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
+            PlayerView(showingQueue: Binding(
+                get: { showingQueue },
+                set: { newValue in
+                    if newValue {
+                        showingTrackDetail = false
+                        detailTrack = nil
+                    }
+                    showingQueue = newValue
+                    if let coordinator = AppCoordinator.shared {
+                        coordinator.isQueueVisible = newValue
+                    }
                 }
-                showingQueue = newValue
-                if let coordinator = AppCoordinator.shared {
-                    coordinator.isQueueVisible = newValue
-                }
-            }
-        ))
-        .frame(height: 90)
-        .background(Color(NSColor.windowBackgroundColor))
+            ))
+            .frame(height: 90)
+            .background(Color(NSColor.windowBackgroundColor))
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
     }
     
     // MARK: - Toolbar
@@ -142,7 +146,8 @@ struct ContentView: View {
             TabbedButtons(
                 items: MainTab.allCases,
                 selection: $selectedTab,
-                animation: .transform
+                animation: .transform,
+                isDisabled: libraryManager.folders.isEmpty
             )
         }
         

@@ -6,7 +6,6 @@ class LibraryManager: ObservableObject {
     @Published var tracks: [Track] = []
     @Published var folders: [Folder] = []
     @Published var isScanning: Bool = false
-    @Published var scanProgress: Double = 0.0
     @Published var scanStatusMessage: String = ""
     @Published var isBackgroundScanning: Bool = false
     @Published var globalSearchText: String = "" {
@@ -15,16 +14,23 @@ class LibraryManager: ObservableObject {
         }
     }
     @Published var searchResults: [Track] = []
+    @Published private var cachedArtistEntities: [ArtistEntity] = []
+    @Published private var cachedAlbumEntities: [AlbumEntity] = []
+    private var entitiesLoaded = false
     
     // MARK: - Entity Properties
     var artistEntities: [ArtistEntity] {
-        // Use normalized data from database
-        return databaseManager.getArtistEntities()
+        if !entitiesLoaded {
+            loadEntities()
+        }
+        return cachedArtistEntities
     }
 
     var albumEntities: [AlbumEntity] {
-        // Use normalized data from database
-        return databaseManager.getAlbumEntities()
+        if !entitiesLoaded {
+            loadEntities()
+        }
+        return cachedAlbumEntities
     }
     
     // MARK: - Private Properties
@@ -61,10 +67,6 @@ class LibraryManager: ObservableObject {
         databaseManager.$isScanning
             .receive(on: DispatchQueue.main)
             .assign(to: &$isScanning)
-        
-        databaseManager.$scanProgress
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$scanProgress)
         
         databaseManager.$scanStatusMessage
             .receive(on: DispatchQueue.main)
@@ -288,8 +290,22 @@ class LibraryManager: ObservableObject {
             coordinator.handleLibraryChanged()
         }
         
+        refreshEntities()
         // Post notification that library is loaded
         NotificationCenter.default.post(name: NSNotification.Name("LibraryDidLoad"), object: nil)
+    }
+    
+    private func loadEntities() {
+        guard !entitiesLoaded else { return }
+        entitiesLoaded = true
+        
+        cachedArtistEntities = databaseManager.getArtistEntities()
+        cachedAlbumEntities = databaseManager.getAlbumEntities()
+    }
+    
+    func refreshEntities() {
+        entitiesLoaded = false
+        loadEntities()
     }
     
     // MARK: - File Watching

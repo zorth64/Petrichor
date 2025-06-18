@@ -167,26 +167,36 @@ private struct EntityListRow<T: Entity>: View {
 }
 
 // MARK: - Preview
-#Preview {
-    let sampleTracks = (0..<10).map { i in
-        let track = Track(url: URL(fileURLWithPath: "/path/to/sample\(i).mp3"))
-        track.title = "Sample Song \(i)"
-        track.artist = "Artist \(i % 3)"
-        track.album = "Album \(i % 2)"
-        track.isMetadataLoaded = true
-        return track
-    }
-    
+
+#Preview("Artist List") {
     let artists = [
-        ArtistEntity(name: "Artist 0", tracks: Array(sampleTracks[0..<4])),
-        ArtistEntity(name: "Artist 1", tracks: Array(sampleTracks[4..<7])),
-        ArtistEntity(name: "Artist 2", tracks: Array(sampleTracks[7..<10]))
+        ArtistEntity(name: "Radiohead", trackCount: 15),
+        ArtistEntity(name: "Arcade Fire", trackCount: 12),
+        ArtistEntity(name: "The National", trackCount: 20)
     ]
     
     EntityListView(
         entities: artists,
         onSelectEntity: { artist in
             print("Selected: \(artist.name)")
+        },
+        contextMenuItems: { _ in [] }
+    )
+    .frame(height: 400)
+}
+
+#Preview("Album List") {
+    let albums = [
+        AlbumEntity(name: "OK Computer", artist: "Radiohead", trackCount: 12),
+        AlbumEntity(name: "The Suburbs", artist: "Arcade Fire", trackCount: 16),
+        AlbumEntity(name: "Sleep Well Beast", artist: "The National", trackCount: 12),
+        AlbumEntity(name: "In Rainbows", artist: "Radiohead", trackCount: 10)
+    ]
+    
+    EntityListView(
+        entities: albums,
+        onSelectEntity: { album in
+            print("Selected: \(album.name)")
         },
         contextMenuItems: { _ in [] }
     )

@@ -10,36 +10,40 @@ struct HomeView: View {
     @Binding var isShowingEntities: Bool
     
     var body: some View {
-        PersistentSplitView(
-            left: {
-                HomeSidebarView(selectedItem: $selectedSidebarItem)
-            },
-            main: {
-                VStack(spacing: 0) {
-                    if let selectedItem = selectedSidebarItem {
-                        switch selectedItem.type {
-                        case .tracks:
-                            tracksView
-                        case .artists:
-                            artistsView
-                        case .albums:
-                            albumsView
+        if libraryManager.folders.isEmpty || libraryManager.tracks.isEmpty {
+            NoMusicEmptyStateView(context: .mainWindow)
+        } else {
+            PersistentSplitView(
+                left: {
+                    HomeSidebarView(selectedItem: $selectedSidebarItem)
+                },
+                main: {
+                    VStack(spacing: 0) {
+                        if let selectedItem = selectedSidebarItem {
+                            switch selectedItem.type {
+                            case .tracks:
+                                tracksView
+                            case .artists:
+                                artistsView
+                            case .albums:
+                                albumsView
+                            }
+                        } else {
+                            emptySelectionView
                         }
-                    } else {
-                        emptySelectionView
+                    }
+                    .navigationTitle(selectedSidebarItem?.title ?? "Home")
+                    .navigationSubtitle("")
+                    .onChange(of: selectedSidebarItem) { _ in
+                        guard let selectedItem = selectedSidebarItem else {
+                            isShowingEntities = false
+                            return
+                        }
+                        isShowingEntities = (selectedItem.type == .artists || selectedItem.type == .albums)
                     }
                 }
-                .navigationTitle(selectedSidebarItem?.title ?? "Home")
-                .navigationSubtitle("")
-                .onChange(of: selectedSidebarItem) { _ in
-                    guard let selectedItem = selectedSidebarItem else {
-                        isShowingEntities = false
-                        return
-                    }
-                    isShowingEntities = (selectedItem.type == .artists || selectedItem.type == .albums)
-                }
-            }
-        )
+            )
+        }
     }
     
     // MARK: - Tracks View

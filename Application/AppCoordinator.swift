@@ -9,6 +9,7 @@ class AppCoordinator: ObservableObject {
     let nowPlayingManager: NowPlayingManager
     let menuBarManager: MenuBarManager
     
+    private var hadFoldersAtStartup: Bool = false
     private let playbackStateKey = "SavedPlaybackState"
     private let playbackUIStateKey = "SavedPlaybackUIState"
     
@@ -35,14 +36,26 @@ class AppCoordinator: ObservableObject {
         // Setup menubar
         menuBarManager = MenuBarManager(audioPlayerManager: audioPlayerManager, playlistManager: playlistManager)
         
+        hadFoldersAtStartup = !libraryManager.folders.isEmpty
+        
         Self.shared = self
         
-        // Restore UI state immediately
-        restoreUIStateImmediately()
-
-        // Schedule restoration after a delay to ensure everything is initialized
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.restorePlaybackState()
+        // Check if library is empty at startup - if so, clear any saved state
+        if !hadFoldersAtStartup {
+            print("AppCoordinator: No folders in library at startup, clearing saved playback state")
+            UserDefaults.standard.removeObject(forKey: playbackStateKey)
+            UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
+            // Clear any UI state that might have been set
+            audioPlayerManager.restoredUITrack = nil
+            audioPlayerManager.currentTrack = nil
+        } else {
+            // Only restore if we have folders
+            restoreUIStateImmediately()
+            
+            // Schedule restoration after a delay to ensure everything is initialized
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.restorePlaybackState()
+            }
         }
     }
     
@@ -120,6 +133,14 @@ class AppCoordinator: ObservableObject {
         // Don't restore immediately - wait for library to be fully loaded
         // Check if we have tracks loaded
         if libraryManager.tracks.isEmpty {
+            // Check if we have any folders - if not, this is likely a fresh start
+            if libraryManager.folders.isEmpty {
+                print("AppCoordinator: Library is empty (no folders), clearing saved playback state")
+                UserDefaults.standard.removeObject(forKey: playbackStateKey)
+                UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
+                return
+            }
+            
             print("AppCoordinator: Delaying playback restoration until library is loaded")
             
             // Observe for library changes
@@ -139,6 +160,20 @@ class AppCoordinator: ObservableObject {
     @objc private func libraryDidLoad() {
         // Remove observer
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name("LibraryDidLoad"), object: nil)
+        
+        // Don't restore if we didn't have folders at startup
+        if !hadFoldersAtStartup {
+            print("AppCoordinator: Ignoring library load notification - no folders at startup")
+            return
+        }
+        
+        // Check again if library is actually loaded with content
+        if libraryManager.tracks.isEmpty || libraryManager.folders.isEmpty {
+            print("AppCoordinator: Library loaded but is empty, clearing saved playback state")
+            UserDefaults.standard.removeObject(forKey: playbackStateKey)
+            UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
+            return
+        }
         
         // Now perform restoration
         performActualRestoration()

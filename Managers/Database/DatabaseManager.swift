@@ -16,7 +16,6 @@ class DatabaseManager: ObservableObject {
     // MARK: - Published Properties for UI Updates
     
     @Published var isScanning: Bool = false
-    @Published var scanProgress: Double = 0.0
     @Published var scanStatusMessage: String = ""
     
     // MARK: - Initialization
@@ -103,7 +102,6 @@ class DatabaseManager: ObservableObject {
     private func addFoldersAsync(_ urls: [URL], bookmarkDataMap: [URL: Data]) async throws -> [Folder] {
         await MainActor.run {
             self.isScanning = true
-            self.scanProgress = 0.0
             self.scanStatusMessage = "Adding folders..."
         }
         
@@ -197,17 +195,11 @@ class DatabaseManager: ObservableObject {
         var processedFolders = 0
         
         for folder in folders {
-            await MainActor.run {
-                self.scanStatusMessage = "Scanning \(folder.name)..."
-                self.scanProgress = Double(processedFolders) / Double(totalFolders)
-            }
-            
             try await scanSingleFolder(folder, supportedExtensions: supportedExtensions)
             processedFolders += 1
         }
         
         await MainActor.run {
-            self.scanProgress = 1.0
             self.scanStatusMessage = "Scan complete"
         }
     }
@@ -247,10 +239,6 @@ class DatabaseManager: ObservableObject {
         let totalFiles = musicFiles.count
         let foundPaths = scannedPaths
         
-        await MainActor.run {
-            self.scanStatusMessage = "Found \(totalFiles) tracks in \(folder.name)"
-        }
-        
         // Process in batches
         let batchSize = totalFiles > 1000 ? 100 : 50
         var processedCount = 0
@@ -258,15 +246,11 @@ class DatabaseManager: ObservableObject {
         // Create immutable copy for async context
         let fileBatches = musicFiles.chunked(into: batchSize)
         
-        for batch in fileBatches {
+        for (batchIndex, batch) in fileBatches.enumerated() {
             let batchWithFolderId = batch.map { url in (url: url, folderId: folderId) }
             try await processBatch(batchWithFolderId)
             
             processedCount += batch.count
-            
-            await MainActor.run { [processedCount, totalFiles, folderName = folder.name] in
-                self.scanStatusMessage = "Processing \(folderName): \(processedCount)/\(totalFiles) tracks"
-            }
         }
         
         // Remove tracks that no longer exist in the folder

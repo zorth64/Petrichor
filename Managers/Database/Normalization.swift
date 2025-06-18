@@ -1,7 +1,6 @@
 import Foundation
 import GRDB
 
-// MARK: - Normalized Data Management
 extension DatabaseManager {
     
     // MARK: - Artist Management
@@ -78,31 +77,58 @@ extension DatabaseManager {
         }
     }
     
+    /// Update artist artwork
+    func updateArtistArtwork(_ artistId: Int64, artworkData: Data?, in db: Database) throws {
+        guard let artworkData = artworkData else { return }
+        
+        // Check if artist already has artwork
+        guard var artist = try Artist.fetchOne(db, key: artistId),
+              artist.artworkData == nil else { return }
+        
+        // Update artwork
+        artist.artworkData = artworkData
+        artist.updatedAt = Date()
+        try artist.update(db)
+    }
+    
     // MARK: - Album Management
     
-    /// Find or create an album
+    /// Find or create an album with better duplicate prevention
     func findOrCreateAlbum(_ title: String, artistName: String?, in db: Database) throws -> Album {
-        let normalizedTitle = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedTitle = title.lowercased()
+            .replacingOccurrences(of: " - ", with: " ")
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Try to find existing album with same normalized title
-        var query = Album.filter(Album.Columns.normalizedTitle == normalizedTitle)
-        
-        // If we have an artist name, try to find the artist first
-        var artistId: Int64?
-        if let artistName = artistName, !artistName.isEmpty && artistName != "Unknown Artist" {
-            // For albums, we use the album artist as-is (no parsing)
-            if let artist = try findOrCreateArtist(artistName, in: db).id {
-                artistId = artist
-                query = query.filter(Album.Columns.artistId == artist)
+        // First, try to find ANY album with the same normalized title
+        // This helps prevent duplicates when artist names vary slightly
+        if let existingAlbum = try Album
+            .filter(Album.Columns.normalizedTitle == normalizedTitle)
+            .fetchOne(db) {
+            
+            // If the existing album doesn't have an artist and we do, update it
+            if existingAlbum.artistId == nil && artistName != nil && !artistName!.isEmpty {
+                let artist = try findOrCreateArtist(artistName!, in: db)
+                if let artistId = artist.id {
+                    var updatedAlbum = existingAlbum
+                    updatedAlbum.artistId = artistId
+                    try updatedAlbum.update(db)
+                    return updatedAlbum
+                }
             }
+            
+            return existingAlbum
         }
         
-        if let existing = try query.fetchOne(db) {
-            return existing
+        // No existing album found, create new one
+        var album = Album(title: title)
+        
+        // Set artist if provided
+        if let artistName = artistName, !artistName.isEmpty && artistName != "Unknown Artist" {
+            let artist = try findOrCreateArtist(artistName, in: db)
+            album.artistId = artist.id
         }
         
-        // Create new album
-        let album = Album(title: title, artistId: artistId)
         try album.insert(db)
         return album
     }
@@ -165,6 +191,27 @@ extension DatabaseManager {
         
         if needsUpdate {
             try album.update(db)
+        }
+    }
+    
+    /// Update album artwork
+    func updateAlbumArtwork(_ albumId: Int64, artworkData: Data?, in db: Database) throws {
+        guard let artworkData = artworkData, !artworkData.isEmpty else { return }
+        
+        // Check current state
+        if let album = try Album.fetchOne(db, key: albumId) {
+            print("DatabaseManager: Before update - Album '\(album.title)' has \(album.artworkData?.count ?? 0) bytes")
+        }
+        
+        // Direct update using SQL
+        try db.execute(
+            sql: "UPDATE albums SET artwork_data = ?, updated_at = ? WHERE id = ?",
+            arguments: [artworkData, Date(), albumId]
+        )
+        
+        // Verify update
+        if let album = try Album.fetchOne(db, key: albumId) {
+            print("DatabaseManager: After update - Album '\(album.title)' has \(album.artworkData?.count ?? 0) bytes")
         }
     }
     

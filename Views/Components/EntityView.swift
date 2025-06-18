@@ -62,20 +62,12 @@ extension NSImage {
 }
 
 // MARK: - Preview
+
 #Preview("Artist List") {
-    let sampleTracks = (0..<10).map { i in
-        let track = Track(url: URL(fileURLWithPath: "/path/to/sample\(i).mp3"))
-        track.title = "Sample Song \(i)"
-        track.artist = "Artist \(i % 3)"
-        track.album = "Album \(i % 2)"
-        track.isMetadataLoaded = true
-        return track
-    }
-    
     let artists = [
-        ArtistEntity(name: "Artist 0", tracks: Array(sampleTracks[0..<4])),
-        ArtistEntity(name: "Artist 1", tracks: Array(sampleTracks[4..<7])),
-        ArtistEntity(name: "Artist 2", tracks: Array(sampleTracks[7..<10]))
+        ArtistEntity(name: "Artist 0", trackCount: 4),
+        ArtistEntity(name: "Artist 1", trackCount: 7),
+        ArtistEntity(name: "Artist 2", trackCount: 3)
     ]
     
     EntityView(
@@ -90,20 +82,11 @@ extension NSImage {
 }
 
 #Preview("Album Grid") {
-    let sampleTracks = (0..<12).map { i in
-        let track = Track(url: URL(fileURLWithPath: "/path/to/sample\(i).mp3"))
-        track.title = "Sample Song \(i)"
-        track.artist = "Artist \(i % 3)"
-        track.album = "Album \(i % 4)"
-        track.isMetadataLoaded = true
-        return track
-    }
-    
     let albums = [
-        AlbumEntity(name: "Album 0", artist: "Artist 0", tracks: Array(sampleTracks[0..<3])),
-        AlbumEntity(name: "Album 1", artist: "Artist 1", tracks: Array(sampleTracks[3..<6])),
-        AlbumEntity(name: "Album 2", artist: "Artist 2", tracks: Array(sampleTracks[6..<9])),
-        AlbumEntity(name: "Album 3", artist: "Artist 0", tracks: Array(sampleTracks[9..<12]))
+        AlbumEntity(name: "Album 0", artist: "Artist 0", trackCount: 3),
+        AlbumEntity(name: "Album 1", artist: "Artist 1", trackCount: 6),
+        AlbumEntity(name: "Album 2", artist: "Artist 2", trackCount: 9),
+        AlbumEntity(name: "Album 3", artist: "Artist 0", trackCount: 12)
     ]
     
     EntityView(

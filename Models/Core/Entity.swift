@@ -13,25 +13,32 @@ protocol Entity: Identifiable {
 struct ArtistEntity: Entity {
     let id: UUID
     let name: String
+    let tracks: [Track]
+    let trackCount: Int
+    let artworkData: Data?  // This should be a stored property, not computed
+    
     var subtitle: String? {
         "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
     }
-    let trackCount: Int
-    var artworkData: Data? {
-        // Compute artwork data on demand instead of storing it
-        tracks.first(where: { $0.artworkData != nil })?.artworkData
-    }
-    let tracks: [Track]
     
+    // Original initializer
     init(name: String, tracks: [Track]) {
-        // Create a deterministic UUID based on the artist name
-        // This ensures the same artist always has the same ID
-        let namespace = UUID(uuidString: "6BA7B810-9DAD-11D1-80B4-00C04FD430C8")! // Fixed namespace
+        let namespace = UUID(uuidString: "6BA7B810-9DAD-11D1-80B4-00C04FD430C8")!
         self.id = UUID(name: name.lowercased(), namespace: namespace)
-        
         self.name = name
         self.tracks = tracks
         self.trackCount = tracks.count
+        self.artworkData = tracks.first(where: { $0.artworkData != nil })?.artworkData
+    }
+    
+    // New lightweight initializer
+    init(name: String, trackCount: Int, artworkData: Data? = nil) {
+        let namespace = UUID(uuidString: "6BA7B810-9DAD-11D1-80B4-00C04FD430C8")!
+        self.id = UUID(name: name.lowercased(), namespace: namespace)
+        self.name = name
+        self.tracks = []
+        self.trackCount = trackCount
+        self.artworkData = artworkData
     }
 }
 
@@ -39,31 +46,49 @@ struct ArtistEntity: Entity {
 struct AlbumEntity: Entity {
     let id: UUID
     let name: String
+    let artist: String?
+    let tracks: [Track]
+    let trackCount: Int
+    let artworkData: Data?
+    
     var subtitle: String? {
         if let artist = artist {
             return "\(artist) • \(trackCount) \(trackCount == 1 ? "song" : "songs")"
         }
         return "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
     }
-    let artist: String?
-    let trackCount: Int
-    var artworkData: Data? {
-        // Compute artwork data on demand instead of storing it
-        tracks.first(where: { $0.artworkData != nil })?.artworkData
-    }
-    let tracks: [Track]
     
+    // Original initializer
     init(name: String, artist: String?, tracks: [Track]) {
-        // Create a deterministic UUID based on album name and artist
-        // This ensures the same album always has the same ID
-        let namespace = UUID(uuidString: "6BA7B811-9DAD-11D1-80B4-00C04FD430C8")! // Fixed namespace for albums
+        let namespace = UUID(uuidString: "6BA7B811-9DAD-11D1-80B4-00C04FD430C8")!
         let combinedName = "\(name.lowercased())-\(artist?.lowercased() ?? "")"
         self.id = UUID(name: combinedName, namespace: namespace)
-        
         self.name = name
         self.artist = artist
         self.tracks = tracks
         self.trackCount = tracks.count
+        self.artworkData = tracks.first(where: { $0.artworkData != nil })?.artworkData
+    }
+    
+    // New lightweight initializer with optional albumId for uniqueness
+    init(name: String, artist: String?, trackCount: Int, artworkData: Data? = nil, albumId: Int64? = nil) {
+        // If we have an albumId, use it for a truly unique ID
+        if let albumId = albumId {
+            // Create a deterministic UUID from the album ID
+            let uuidString = String(format: "00000000-0000-0000-0000-%012d", albumId)
+            self.id = UUID(uuidString: uuidString) ?? UUID()
+        } else {
+            // Fallback to name-based UUID
+            let namespace = UUID(uuidString: "6BA7B811-9DAD-11D1-80B4-00C04FD430C8")!
+            let combinedName = "\(name.lowercased())-\(artist?.lowercased() ?? "")"
+            self.id = UUID(name: combinedName, namespace: namespace)
+        }
+        
+        self.name = name
+        self.artist = artist
+        self.tracks = []
+        self.trackCount = trackCount
+        self.artworkData = artworkData
     }
 }
 

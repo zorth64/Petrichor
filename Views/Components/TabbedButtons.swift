@@ -34,17 +34,20 @@ struct TabbedButtons<Item: TabbedItem>: View {
     @Binding var selection: Item
     let style: TabbedButtonStyle
     let animation: TabbedButtonAnimation
+    let isDisabled: Bool
     
     init(
         items: [Item],
         selection: Binding<Item>,
         style: TabbedButtonStyle = .standard,
-        animation: TabbedButtonAnimation = .fade
+        animation: TabbedButtonAnimation = .fade,
+        isDisabled: Bool = false
     ) {
         self.items = items
         self._selection = selection
         self.style = style
         self.animation = animation
+        self.isDisabled = isDisabled
     }
     
     var body: some View {
@@ -55,9 +58,12 @@ struct TabbedButtons<Item: TabbedItem>: View {
                     isSelected: selection == item,
                     style: style,
                     animation: animation,
+                    isDisabled: isDisabled,
                     action: {
-                        withAnimation(.easeInOut(duration: AnimationConstants.transformDuration)) {
-                            selection = item
+                        if !isDisabled {
+                            withAnimation(.easeInOut(duration: AnimationConstants.transformDuration)) {
+                                selection = item
+                            }
                         }
                     }
                 )
@@ -80,6 +86,7 @@ struct TabbedButtons<Item: TabbedItem>: View {
                 }
             }
         )
+        .opacity(isDisabled ? 0.5 : 1.0)
     }
     
     @ViewBuilder
@@ -112,12 +119,15 @@ private struct TabbedButton<Item: TabbedItem>: View {
     let isSelected: Bool
     let style: TabbedButtonStyle
     let animation: TabbedButtonAnimation
+    let isDisabled: Bool
     let action: () -> Void
     @State private var isHovered = false
     
     var body: some View {
         Button(action: {
-            action()
+            if !isDisabled {
+                action()
+            }
         }) {
             HStack(spacing: style.iconTextSpacing) {
                 if style.showIcon {
@@ -145,8 +155,11 @@ private struct TabbedButton<Item: TabbedItem>: View {
             .contentShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
+        .disabled(isDisabled)
         .onHover { hovering in
-            isHovered = hovering
+            if !isDisabled {
+                isHovered = hovering
+            }
         }
         .if(item.tooltip != nil) { view in
             view.help(item.tooltip!)
@@ -213,8 +226,8 @@ private struct TabbedButton<Item: TabbedItem>: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(
                     isSelected ? Color.accentColor :
-                    isHovered ? Color.primary.opacity(0.06) :
-                    Color.clear
+                        isHovered ? Color.primary.opacity(0.06) :
+                        Color.clear
                 )
                 .animation(.easeOut(duration: AnimationConstants.fadeDuration), value: isSelected)
                 .animation(.easeOut(duration: AnimationConstants.hoverDuration), value: isHovered)
@@ -239,7 +252,7 @@ struct TabbedButtonStyle {
     let buttonWidth: CGFloat?
     let verticalPadding: CGFloat
     let expandButtons: Bool
-
+    
     var buttonHeight: CGFloat? {
         return (self.iconSize == 14 && !self.showTitle && self.verticalPadding == 0) ? 24 : nil
     }
@@ -254,7 +267,7 @@ struct TabbedButtonStyle {
         verticalPadding: 5,
         expandButtons: false
     )
-
+    
     static let compact = TabbedButtonStyle(
         showIcon: true,
         showTitle: true,
@@ -265,7 +278,7 @@ struct TabbedButtonStyle {
         verticalPadding: 5,
         expandButtons: false
     )
-
+    
     static let iconOnly = TabbedButtonStyle(
         showIcon: true,
         showTitle: false,
@@ -276,7 +289,7 @@ struct TabbedButtonStyle {
         verticalPadding: 5,
         expandButtons: false
     )
-
+    
     static let flexible = TabbedButtonStyle(
         showIcon: true,
         showTitle: true,
@@ -287,7 +300,7 @@ struct TabbedButtonStyle {
         verticalPadding: 4,
         expandButtons: true
     )
-
+    
     static let viewToggle = TabbedButtonStyle(
         showIcon: true,
         showTitle: false,
@@ -326,7 +339,7 @@ extension LibraryViewType: TabbedItem {
         case .table: return "tablecells"
         }
     }
-
+    
     var tooltip: String? {
         switch self {
         case .list: return "List View"
