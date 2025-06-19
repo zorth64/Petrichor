@@ -3,7 +3,6 @@ import AVFoundation
 import CoreMedia
 
 class MetadataExtractor {
-    
     // MARK: - Known metadata keys for different formats
     private static let composerKeys = [
         "composer",
@@ -16,7 +15,7 @@ class MetadataExtractor {
         AVMetadataKey.id3MetadataKeyComposer.rawValue,
         AVMetadataKey.quickTimeMetadataKeyProducer.rawValue
     ]
-    
+
     private static let genreKeys = [
         "genre",
         "gnre",
@@ -27,7 +26,7 @@ class MetadataExtractor {
         AVMetadataKey.iTunesMetadataKeyUserGenre.rawValue,
         AVMetadataKey.quickTimeMetadataKeyGenre.rawValue
     ]
-    
+
     private static let yearKeys = [
         "year",
         "date",
@@ -53,7 +52,7 @@ class MetadataExtractor {
         AVMetadataKey.iTunesMetadataKeyAlbumArtist.rawValue,
         AVMetadataKey.id3MetadataKeyBand.rawValue
     ]
-    
+
     private static let trackNumberKeys = [
         "TRCK",
         "tracknumber",
@@ -61,14 +60,14 @@ class MetadataExtractor {
         AVMetadataKey.id3MetadataKeyTrackNumber.rawValue,
         AVMetadataKey.iTunesMetadataKeyTrackNumber.rawValue
     ]
-    
+
     private static let discNumberKeys = [
         "TPOS",
         "discnumber",
         "disc",
         AVMetadataKey.iTunesMetadataKeyDiscNumber.rawValue
     ]
-    
+
     private static let copyrightKeys = [
         "TCOP",
         "©cpy",
@@ -78,14 +77,14 @@ class MetadataExtractor {
         AVMetadataKey.id3MetadataKeyCopyright.rawValue,
         AVMetadataKey.iTunesMetadataKeyCopyright.rawValue
     ]
-    
+
     private static let bpmKeys = [
         "TBPM",
         "bpm",
         "beatsperminute",
         AVMetadataKey.iTunesMetadataKeyBeatsPerMin.rawValue
     ]
-    
+
     private static let commentKeys = [
         "COMM",
         "comment",
@@ -94,7 +93,7 @@ class MetadataExtractor {
         AVMetadataKey.commonKeyDescription.rawValue,
         AVMetadataKey.iTunesMetadataKeyUserComment.rawValue
     ]
-    
+
     static func extractMetadata(from url: URL, completion: @escaping (TrackMetadata) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let metadata = extractMetadataSync(from: url)
@@ -103,35 +102,35 @@ class MetadataExtractor {
             }
         }
     }
-    
+
     // Synchronous version for batch processing in database operations
     static func extractMetadataSync(from url: URL) -> TrackMetadata {
         let asset = AVURLAsset(url: url)
         var metadata = TrackMetadata(url: url)
-        
+
         // Set a timeout for loading
         let semaphore = DispatchSemaphore(value: 0)
         var loadingComplete = false
-        
+
         // Load metadata asynchronously but wait for it
         asset.loadValuesAsynchronously(forKeys: ["commonMetadata", "metadata", "availableMetadataFormats", "duration", "tracks"]) {
             defer {
                 loadingComplete = true
                 semaphore.signal()
             }
-            
+
             var error: NSError?
             let metadataStatus = asset.statusOfValue(forKey: "commonMetadata", error: &error)
             let durationStatus = asset.statusOfValue(forKey: "duration", error: &error)
-            
+
             guard metadataStatus == .loaded && durationStatus == .loaded else {
                 return
             }
-            
+
             // Process common metadata first
             let commonMetadata = asset.commonMetadata
             processMetadataItems(commonMetadata, into: &metadata)
-            
+
             // Process all available format-specific metadata
             for format in asset.availableMetadataFormats {
                 let formatMetadata = asset.metadata(forFormat: format)
@@ -139,31 +138,31 @@ class MetadataExtractor {
                     processMetadataItems(formatMetadata, into: &metadata)
                 }
             }
-            
+
             // Get duration
             metadata.duration = CMTimeGetSeconds(asset.duration)
-            
+
             // Get audio format information
             if let audioTrack = asset.tracks(withMediaType: .audio).first {
                 let formatDescriptions = audioTrack.formatDescriptions as? [CMFormatDescription] ?? []
-                
+
                 if let formatDescription = formatDescriptions.first {
                     // Get audio stream basic description
                     if let streamBasicDesc = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription) {
                         metadata.sampleRate = Int(streamBasicDesc.pointee.mSampleRate)
                         metadata.channels = Int(streamBasicDesc.pointee.mChannelsPerFrame)
-                        
+
                         // Bit depth from bits per channel
                         if streamBasicDesc.pointee.mBitsPerChannel > 0 {
                             metadata.bitDepth = Int(streamBasicDesc.pointee.mBitsPerChannel)
                         }
                     }
-                    
+
                     // Get codec
                     let audioCodec = CMFormatDescriptionGetMediaSubType(formatDescription)
                     metadata.codec = fourCCToString(audioCodec)
                 }
-                
+
                 // Estimate bitrate
                 let dataRate = audioTrack.estimatedDataRate
                 if dataRate > 0 {
@@ -171,25 +170,25 @@ class MetadataExtractor {
                 }
             }
         }
-        
+
         // Wait for loading to complete (with timeout)
         let timeout = DispatchTime.now() + .seconds(5)
         if semaphore.wait(timeout: timeout) == .timedOut {
             print("MetadataExtractor: Timeout loading metadata for \(url.lastPathComponent)")
         }
-        
+
         return metadata
     }
-    
+
     // MARK: - Private Helper Methods
-    
+
     private static func processMetadataItems(_ items: [AVMetadataItem], into metadata: inout TrackMetadata) {
         for item in items {
             // Get all possible representations of the key
             let keyString = getKeyString(from: item)
             let identifier = item.identifier?.rawValue ?? ""
             let commonKey = item.commonKey?.rawValue ?? ""
-            
+
             // Try to get string value
             if let stringValue = getStringValue(from: item) {
                 // Check common keys first
@@ -215,53 +214,53 @@ class MetadataExtractor {
                         break
                     }
                 }
-                
+
                 // Core metadata
                 if metadata.composer == nil && (isComposerKey(keyString) || isComposerKey(identifier) || isComposerKey(commonKey)) {
                     metadata.composer = stringValue
                 }
-                
+
                 if metadata.genre == nil && (isGenreKey(keyString) || isGenreKey(identifier) || isGenreKey(commonKey)) {
                     metadata.genre = stringValue
                 }
-                
+
                 if metadata.year == nil && (isYearKey(keyString) || isYearKey(identifier) || isYearKey(commonKey)) {
                     metadata.year = extractYear(from: stringValue)
                 }
-                
+
                 // Core additional metadata
                 if metadata.albumArtist == nil && isAlbumArtistKey(keyString, identifier, commonKey) {
                     metadata.albumArtist = stringValue
                 }
-                
+
                 if metadata.trackNumber == nil && isTrackNumberKey(keyString, identifier, commonKey) {
                     let (track, total) = parseNumbering(stringValue)
                     metadata.trackNumber = track.flatMap { Int($0) }
                     metadata.totalTracks = total.flatMap { Int($0) }
                 }
-                
+
                 if metadata.discNumber == nil && isDiscNumberKey(keyString, identifier, commonKey) {
                     let (disc, total) = parseNumbering(stringValue)
                     metadata.discNumber = disc.flatMap { Int($0) }
                     metadata.totalDiscs = total.flatMap { Int($0) }
                 }
-                
+
                 if metadata.extended.copyright == nil && isCopyrightKey(keyString, identifier, commonKey) {
                     metadata.extended.copyright = stringValue
                 }
-                
+
                 if metadata.bpm == nil && isBPMKey(keyString, identifier, commonKey) {
                     metadata.bpm = Int(stringValue)
                 }
-                
+
                 if metadata.extended.comment == nil && isCommentKey(keyString, identifier, commonKey) {
                     metadata.extended.comment = stringValue
                 }
-                
+
                 // Additional extended fields
                 extractExtendedFields(keyString, identifier, stringValue, into: &metadata)
             }
-            
+
             // Check for artwork
             if item.commonKey == AVMetadataKey.commonKeyArtwork {
                 if let data = item.dataValue {
@@ -277,136 +276,136 @@ class MetadataExtractor {
             }
         }
     }
-    
+
     // NEW: Extract additional extended fields
     private static func extractExtendedFields(_ keyString: String, _ identifier: String, _ value: String, into metadata: inout TrackMetadata) {
         let lowercaseKey = keyString.lowercased()
         let lowercaseIdentifier = identifier.lowercased()
-        
+
         // Label
         if lowercaseKey.contains("label") || lowercaseKey == "tpub" || lowercaseIdentifier.contains("label") {
             metadata.extended.label = value
         }
-        
+
         // ISRC
         if lowercaseKey == "tsrc" || lowercaseKey.contains("isrc") || lowercaseIdentifier.contains("isrc") {
             metadata.extended.isrc = value
         }
-        
+
         // Lyrics
         if lowercaseKey == "uslt" || lowercaseKey.contains("lyrics") || lowercaseIdentifier.contains("lyrics") {
             metadata.extended.lyrics = value
         }
-        
+
         // Original Artist
         if lowercaseKey == "tope" || lowercaseKey.contains("originalartist") || lowercaseIdentifier.contains("originalartist") {
             metadata.extended.originalArtist = value
         }
-        
+
         // Release dates
         if lowercaseKey.contains("releasedate") || lowercaseKey == "tdrl" {
             metadata.releaseDate = value
         } else if lowercaseKey.contains("originaldate") || lowercaseKey == "tdor" {
             metadata.originalReleaseDate = value
         }
-        
+
         // Key
         if lowercaseKey == "tkey" || lowercaseKey.contains("initialkey") || lowercaseKey.contains("musicalkey") {
             metadata.extended.key = value
         }
-        
+
         // MusicBrainz IDs
         if lowercaseKey.contains("musicbrainz") || identifier.contains("MusicBrainz") {
             parseMusicBrainzTag(keyString, identifier, value, into: &metadata)
         }
-        
+
         // Sorting fields
         if lowercaseKey.contains("sort") || identifier.contains("sort") {
             parseSortingTag(keyString, identifier, value, into: &metadata)
         }
-        
+
         // ReplayGain
         if lowercaseKey.contains("replaygain") || identifier.contains("replaygain") {
             parseReplayGainTag(keyString, identifier, value, into: &metadata)
         }
-        
+
         // iTunes specific
         if lowercaseKey.contains("itunes") || identifier.contains("iTunes") {
             parseITunesTag(keyString, identifier, value, into: &metadata)
         }
-        
+
         // Additional personnel
         if lowercaseKey == "tpe3" || lowercaseKey.contains("conductor") {
             metadata.extended.conductor = value
         }
-        
+
         if lowercaseKey == "tpe4" || lowercaseKey.contains("remixer") {
             metadata.extended.remixer = value
         }
-        
+
         if lowercaseKey == "tpro" || lowercaseKey.contains("producer") {
             metadata.extended.producer = value
         }
-        
+
         if lowercaseKey.contains("engineer") {
             metadata.extended.engineer = value
         }
-        
+
         if lowercaseKey == "text" || lowercaseKey.contains("lyricist") {
             metadata.extended.lyricist = value
         }
-        
+
         // Additional descriptive fields
         if lowercaseKey.contains("subtitle") || lowercaseKey == "tit3" {
             metadata.extended.subtitle = value
         }
-        
+
         if lowercaseKey.contains("grouping") || lowercaseKey == "tit1" || lowercaseKey == "grp1" {
             metadata.extended.grouping = value
         }
-        
+
         if lowercaseKey.contains("movement") {
             metadata.extended.movement = value
         }
-        
+
         if lowercaseKey.contains("mood") {
             metadata.extended.mood = value
         }
-        
+
         if lowercaseKey == "tlan" || lowercaseKey.contains("language") {
             metadata.extended.language = value
         }
-        
+
         // Publisher
         if lowercaseKey == "tpub" || lowercaseKey.contains("publisher") {
             metadata.extended.publisher = value
         }
-        
+
         // Barcode
         if lowercaseKey.contains("barcode") || lowercaseKey.contains("upc") {
             metadata.extended.barcode = value
         }
-        
+
         // Catalog number
         if lowercaseKey.contains("catalog") {
             metadata.extended.catalogNumber = value
         }
-        
+
         // Encoded by
         if lowercaseKey == "tenc" || lowercaseKey.contains("encodedby") {
             metadata.extended.encodedBy = value
         }
-        
+
         // Encoder settings
         if lowercaseKey == "tsse" || lowercaseKey.contains("encodersettings") {
             metadata.extended.encoderSettings = value
         }
     }
-    
+
     // Helper methods for parsing specific tag types
     private static func parseMusicBrainzTag(_ key: String, _ identifier: String, _ value: String, into metadata: inout TrackMetadata) {
         let lowercaseKey = key.lowercased()
-        
+
         if lowercaseKey.contains("artist") && lowercaseKey.contains("id") {
             metadata.extended.musicBrainzArtistId = value
         } else if lowercaseKey.contains("album") && lowercaseKey.contains("id") {
@@ -419,10 +418,10 @@ class MetadataExtractor {
             metadata.extended.musicBrainzWorkId = value
         }
     }
-    
+
     private static func parseSortingTag(_ key: String, _ identifier: String, _ value: String, into metadata: inout TrackMetadata) {
         let lowercaseKey = key.lowercased()
-        
+
         if lowercaseKey.contains("albumsort") || lowercaseKey == "tsoa" {
             metadata.sortAlbum = value
         } else if lowercaseKey.contains("artistsort") || lowercaseKey == "tsop" {
@@ -435,20 +434,20 @@ class MetadataExtractor {
             metadata.extended.sortComposer = value
         }
     }
-    
+
     private static func parseReplayGainTag(_ key: String, _ identifier: String, _ value: String, into metadata: inout TrackMetadata) {
         let lowercaseKey = key.lowercased()
-        
+
         if lowercaseKey.contains("album") {
             metadata.extended.replayGainAlbum = value
         } else if lowercaseKey.contains("track") {
             metadata.extended.replayGainTrack = value
         }
     }
-    
+
     private static func parseITunesTag(_ key: String, _ identifier: String, _ value: String, into metadata: inout TrackMetadata) {
         let lowercaseKey = key.lowercased()
-        
+
         if lowercaseKey.contains("compilation") {
             metadata.compilation = (value == "1" || value.lowercased() == "true")
         } else if lowercaseKey.contains("gapless") {
@@ -468,7 +467,7 @@ class MetadataExtractor {
             metadata.extended.itunesPurchaseDate = value
         }
     }
-    
+
     // Parse track/disc numbering (e.g., "5/12" -> ("5", "12"))
     private static func parseNumbering(_ value: String) -> (String?, String?) {
         let components = value.split(separator: "/").map { String($0).trimmingCharacters(in: .whitespaces) }
@@ -479,44 +478,44 @@ class MetadataExtractor {
         }
         return (nil, nil)
     }
-    
+
     // Key checking methods
     private static func isAlbumArtistKey(_ key: String, _ identifier: String, _ commonKey: String) -> Bool {
         let combined = (key + identifier + commonKey).lowercased()
         return albumArtistKeys.contains { combined.contains($0.lowercased()) }
     }
-    
+
     private static func isTrackNumberKey(_ key: String, _ identifier: String, _ commonKey: String) -> Bool {
         let combined = (key + identifier + commonKey).lowercased()
         return trackNumberKeys.contains { combined.contains($0.lowercased()) }
     }
-    
+
     private static func isDiscNumberKey(_ key: String, _ identifier: String, _ commonKey: String) -> Bool {
         let combined = (key + identifier + commonKey).lowercased()
         return discNumberKeys.contains { combined.contains($0.lowercased()) }
     }
-    
+
     private static func isCopyrightKey(_ key: String, _ identifier: String, _ commonKey: String) -> Bool {
         let combined = (key + identifier + commonKey).lowercased()
         return copyrightKeys.contains { combined.contains($0.lowercased()) }
     }
-    
+
     private static func isBPMKey(_ key: String, _ identifier: String, _ commonKey: String) -> Bool {
         let combined = (key + identifier + commonKey).lowercased()
         return bpmKeys.contains { combined.contains($0.lowercased()) }
     }
-    
+
     private static func isCommentKey(_ key: String, _ identifier: String, _ commonKey: String) -> Bool {
         let combined = (key + identifier + commonKey).lowercased()
         return commentKeys.contains { combined.contains($0.lowercased()) }
     }
-    
+
     private static func getStringValue(from item: AVMetadataItem) -> String? {
         // Try direct string value
         if let stringValue = item.stringValue {
             return stringValue
         }
-        
+
         // Try to get value and convert to string
         if let value = item.value {
             if let stringValue = value as? String {
@@ -528,15 +527,15 @@ class MetadataExtractor {
                 return String(data: dataValue, encoding: .utf8)
             }
         }
-        
+
         // Try data value as string
         if let dataValue = item.dataValue {
             return String(data: dataValue, encoding: .utf8)
         }
-        
+
         return nil
     }
-    
+
     private static func getKeyString(from item: AVMetadataItem) -> String {
         if let key = item.key {
             if let stringKey = key as? String {
@@ -555,15 +554,15 @@ class MetadataExtractor {
         }
         return ""
     }
-    
+
     private static func isComposerKey(_ key: String) -> Bool {
         let lowercaseKey = key.lowercased()
-        
+
         // Direct match
         if composerKeys.contains(where: { $0.lowercased() == lowercaseKey }) {
             return true
         }
-        
+
         // Check if key contains composer-related terms
         return lowercaseKey.contains("composer") ||
                lowercaseKey.contains("tcom") ||
@@ -571,15 +570,15 @@ class MetadataExtractor {
                lowercaseKey == "©wrt" ||
                lowercaseKey == "\u{00A9}wrt"
     }
-    
+
     private static func isGenreKey(_ key: String) -> Bool {
         let lowercaseKey = key.lowercased()
-        
+
         // Direct match
         if genreKeys.contains(where: { $0.lowercased() == lowercaseKey }) {
             return true
         }
-        
+
         // Check if key contains genre-related terms
         return lowercaseKey.contains("genre") ||
                lowercaseKey.contains("gnre") ||
@@ -587,15 +586,15 @@ class MetadataExtractor {
                lowercaseKey == "©gen" ||
                lowercaseKey == "\u{00A9}gen"
     }
-    
+
     private static func isYearKey(_ key: String) -> Bool {
         let lowercaseKey = key.lowercased()
-        
+
         // Direct match
         if yearKeys.contains(where: { $0.lowercased() == lowercaseKey }) {
             return true
         }
-        
+
         // Check if key contains year/date-related terms
         return lowercaseKey.contains("year") ||
                lowercaseKey.contains("date") ||
@@ -605,16 +604,16 @@ class MetadataExtractor {
                lowercaseKey == "©day" ||
                lowercaseKey == "\u{00A9}day"
     }
-    
+
     private static func extractYear(from dateString: String) -> String {
         // Try to extract just the year from various date formats
         let trimmed = dateString.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // If it's already just a year (4 digits), return it
         if trimmed.count == 4 && Int(trimmed) != nil {
             return trimmed
         }
-        
+
         // Try to find a 4-digit year in the string
         let pattern = #"\b(19\d{2}|20\d{2})\b"#
         if let regex = try? NSRegularExpression(pattern: pattern),
@@ -622,7 +621,7 @@ class MetadataExtractor {
            let yearRange = Range(match.range(at: 1), in: trimmed) {
             return String(trimmed[yearRange])
         }
-        
+
         // Try date formatter as last resort
         let dateFormatters = [
             "yyyy-MM-dd",
@@ -636,7 +635,7 @@ class MetadataExtractor {
             "yyyy-MM-dd'T'HH:mm:ssZ", // ISO 8601
             "yyyy-MM-dd HH:mm:ss"
         ]
-        
+
         for format in dateFormatters {
             let formatter = DateFormatter()
             formatter.dateFormat = format
@@ -647,11 +646,11 @@ class MetadataExtractor {
                 return yearFormatter.string(from: date)
             }
         }
-        
+
         // If all else fails, return the original string
         return trimmed
     }
-    
+
     // Helper to convert FourCC to string
     private static func fourCCToString(_ fourCC: FourCharCode) -> String {
         let bytes: [UInt8] = [
@@ -660,7 +659,7 @@ class MetadataExtractor {
             UInt8((fourCC >> 8) & 0xFF),
             UInt8(fourCC & 0xFF)
         ]
-        
+
         // Common audio codecs mapping
         switch fourCC {
         case kAudioFormatMPEG4AAC: return "AAC"
@@ -712,7 +711,7 @@ struct TrackMetadata {
     var sortAlbumArtist: String?
 
     var extended: ExtendedMetadata
-    
+
     init(url: URL) {
         self.url = url
         self.extended = ExtendedMetadata()

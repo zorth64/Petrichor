@@ -8,22 +8,22 @@ class DatabaseManager: ObservableObject {
 
     let dbQueue: DatabaseQueue
     private let dbPath: String
-    
+
     // MARK: - Initialization
-    
+
     init() throws {
         // Create database in app support directory
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory,
                                                   in: .userDomainMask).first!
         let appDirectory = appSupport.appendingPathComponent("Petrichor", isDirectory: true)
-        
+
         // Create directory if it doesn't exist
         try FileManager.default.createDirectory(at: appDirectory,
                                                 withIntermediateDirectories: true,
                                                 attributes: nil)
-        
+
         dbPath = appDirectory.appendingPathComponent("petrichor.db").path
-        
+
         // Configure database before creating the queue
         var config = Configuration()
         config.prepareDatabase { db in
@@ -34,14 +34,14 @@ class DatabaseManager: ObservableObject {
             // Set a reasonable busy timeout
             try db.execute(sql: "PRAGMA busy_timeout = 5000")
         }
-        
+
         // Initialize database queue with configuration
         dbQueue = try DatabaseQueue(path: dbPath, configuration: config)
-        
+
         // Setup database schema
         try setupDatabase()
     }
-    
+
     // MARK: - Database Setup
 
     private func setupDatabase() throws {
@@ -56,12 +56,12 @@ class DatabaseManager: ObservableObject {
             try createPlaylistTracksTable(in: db)
             try createTrackArtistsTable(in: db)
             try createTrackGenresTable(in: db)
-            
+
             // Create all indices
             try createIndices(in: db)
         }
     }
-    
+
     func checkpoint() {
         do {
             try dbQueue.writeWithoutTransaction { db in
@@ -74,7 +74,7 @@ class DatabaseManager: ObservableObject {
     }
 
     // MARK: - Helper Methods
-    
+
     // Clean up database file
     func resetDatabase() throws {
         try dbQueue.erase()
@@ -99,7 +99,7 @@ enum DatabaseError: Error {
 
 extension Array {
     func chunked(into size: Int) -> [[Element]] {
-        return stride(from: 0, to: count, by: size).map {
+        stride(from: 0, to: count, by: size).map {
             Array(self[$0 ..< Swift.min($0 + size, count)])
         }
     }

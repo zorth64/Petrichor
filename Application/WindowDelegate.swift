@@ -1,7 +1,6 @@
 import AppKit
 
 class WindowDelegate: NSObject, NSWindowDelegate {
-    
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         // Save playback state when window closes
         AppCoordinator.shared?.savePlaybackState()
@@ -9,24 +8,24 @@ class WindowDelegate: NSObject, NSWindowDelegate {
         // If menubar mode is enabled, hide instead of close
         if UserDefaults.standard.bool(forKey: "closeToMenubar") {
             print("Menubar mode enabled - hiding window instead of closing")
-            
+
             // Hide the window
             sender.orderOut(nil)
-            
+
             // Hide dock icon after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 print("Hiding dock icon...")
                 NSApp.setActivationPolicy(.accessory)
             }
-            
+
             // Prevent actual close
             return false
         }
-        
+
         // Normal close if menubar mode is disabled
         return true
     }
-    
+
     // Add this new method to validate window frame
     func windowWillUseStandardFrame(_ window: NSWindow, defaultFrame newFrame: NSRect) -> NSRect {
         // If the window frame looks like a preview frame, return a proper default
@@ -40,17 +39,17 @@ class WindowDelegate: NSObject, NSWindowDelegate {
         }
         return newFrame
     }
-    
+
     // Add this to prevent saving corrupted frames
     func windowDidMove(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
-        
+
         // Check if the window is in a suspicious position (like preview pane)
         let frame = window.frame
         if frame.width < 800 || frame.height < 600 || frame.origin.x > NSScreen.main!.frame.width - 700 {
             // Don't save this frame
             window.setFrameAutosaveName("")
-            
+
             // Re-enable autosave after centering
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 window.setFrame(NSRect(x: 0, y: 0, width: 1200, height: 800), display: true)

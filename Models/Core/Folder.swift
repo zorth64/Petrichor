@@ -9,9 +9,9 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
     var dateAdded: Date
     var dateUpdated: Date
     var bookmarkData: Data?
-    
+
     // MARK: - Initialization
-    
+
     init(url: URL, id: Int64? = nil, bookmarkData: Data? = nil) {
         self.id = id
         self.url = url
@@ -21,11 +21,11 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         self.dateUpdated = Date()
         self.bookmarkData = bookmarkData
     }
-    
+
     // MARK: - DB Configuration
-    
+
     static let databaseTableName = "folders"
-    
+
     enum Columns {
         static let id = Column(CodingKeys.id)
         static let path = Column("path")
@@ -35,16 +35,16 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         static let dateUpdated = Column("date_updated")
         static let bookmarkData = Column("bookmark_data")
     }
-    
+
     // MARK: - Coding Keys
-    
+
     enum CodingKeys: String, CodingKey {
         case id, name, trackCount, dateAdded, dateUpdated
         case path // For database storage
     }
-    
+
     // MARK: - Codable
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(Int64.self, forKey: .id)
@@ -55,7 +55,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         let path = try container.decode(String.self, forKey: .path)
         url = URL(fileURLWithPath: path)
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(id, forKey: .id)
@@ -65,9 +65,9 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         try container.encode(dateUpdated, forKey: .dateUpdated)
         try container.encode(url.path, forKey: .path)
     }
-    
+
     // MARK: - FetchableRecord
-    
+
     init(row: Row) throws {
         id = row[Columns.id]
         name = row[Columns.name]
@@ -75,13 +75,13 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         dateAdded = row[Columns.dateAdded]
         dateUpdated = row[Columns.dateUpdated]
         bookmarkData = row[Columns.bookmarkData]
-        
+
         let path: String = row[Columns.path]
         url = URL(fileURLWithPath: path)
     }
-    
+
     // MARK: - PersistableRecord
-    
+
     func encode(to container: inout PersistenceContainer) throws {
         container[Columns.id] = id
         container[Columns.path] = url.path
@@ -91,27 +91,27 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         container[Columns.dateUpdated] = dateUpdated
         container[Columns.bookmarkData] = bookmarkData
     }
-    
+
     // Auto-incrementing id
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
     }
-    
+
     // MARK: - Associations
-    
+
     static let tracks = hasMany(Track.self)
-    
+
     var tracks: QueryInterfaceRequest<Track> {
         request(for: Folder.tracks)
     }
-    
+
     // MARK: - Hashable & Identifiable
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id ?? 0)
         hasher.combine(url)
     }
-    
+
     static func == (lhs: Folder, rhs: Folder) -> Bool {
         lhs.id == rhs.id && lhs.url == rhs.url
     }

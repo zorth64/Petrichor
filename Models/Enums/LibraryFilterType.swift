@@ -20,7 +20,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .years: return "year"
         }
     }
-    
+
     var stableIndex: Int {
         switch self {
         case .artists: return 0
@@ -42,7 +42,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .years: return "Unknown Year"
         }
     }
-    
+
     var singularDisplayName: String {
         switch self {
         case .artists: return "Artist"
@@ -53,7 +53,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .years: return "Year"
         }
     }
-    
+
     var allItemIcon: String {
         switch self {
         case .artists: return "person.2.fill"
@@ -64,7 +64,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .years: return "calendar.circle.fill"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .artists: return "person.fill"
@@ -75,7 +75,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .years: return "calendar"
         }
     }
-    
+
     var emptyStateMessage: String {
         switch self {
         case .artists: return "No artists found in your library"
@@ -86,14 +86,14 @@ enum LibraryFilterType: String, CaseIterable {
         case .years: return "No release years found in your library"
         }
     }
-    
+
     var usesMultiArtistParsing: Bool {
         switch self {
         case .artists, .albumArtists, .composers: return true
         default: return false
         }
     }
-    
+
     // MARK: - Methods
 
     func getValue(from track: Track) -> String {
@@ -106,28 +106,28 @@ enum LibraryFilterType: String, CaseIterable {
         case .years: return track.year
         }
     }
-    
+
     func getFilterItems(from tracks: [Track]) -> [LibraryFilterItem] {
         if usesMultiArtistParsing {
             // Multi-artist parsing with deduplication
             var normalizedToArtistInfo: [String: (displayName: String, tracks: Set<Track>)] = [:]
-            
+
             for track in tracks {
                 let value = getValue(from: track)
                 let artists = ArtistParser.parse(value, unknownPlaceholder: unknownPlaceholder)
-                
+
                 for artist in artists {
                     let normalizedName = ArtistParser.normalizeArtistName(artist)
-                    
+
                     if var existing = normalizedToArtistInfo[normalizedName] {
                         // Add track to existing artist
                         existing.tracks.insert(track)
-                        
+
                         // Keep the "better" display name (usually longer with more formatting)
                         if artist.count > existing.displayName.count {
                             existing.displayName = artist
                         }
-                        
+
                         normalizedToArtistInfo[normalizedName] = existing
                     } else {
                         // New artist
@@ -135,7 +135,7 @@ enum LibraryFilterType: String, CaseIterable {
                     }
                 }
             }
-            
+
             // Convert to filter items using the best display name
             return normalizedToArtistInfo.map { _, info in
                 LibraryFilterItem(name: info.displayName, count: info.tracks.count, filterType: self)
@@ -143,25 +143,25 @@ enum LibraryFilterType: String, CaseIterable {
         } else {
             // Generic handling (unchanged)
             var itemCounts: [String: Int] = [:]
-            
+
             for track in tracks {
                 let value = getValue(from: track)
                 let normalizedValue = value.isEmpty ? unknownPlaceholder : value
                 itemCounts[normalizedValue, default: 0] += 1
             }
-            
+
             return itemCounts.map { name, count in
                 LibraryFilterItem(name: name, count: count, filterType: self)
             }
         }
     }
-    
+
     func trackMatches(_ track: Track, filterValue: String) -> Bool {
         if usesMultiArtistParsing && filterValue != unknownPlaceholder {
             // Multi-artist parsing with normalization
             let value = getValue(from: track)
             let artists = ArtistParser.parse(value, unknownPlaceholder: unknownPlaceholder)
-            
+
             // Check if any parsed artist matches the filter value
             return artists.contains { artist in
                 artist == filterValue || ArtistParser.normalizeArtistName(artist) == ArtistParser.normalizeArtistName(filterValue)

@@ -7,9 +7,9 @@ struct TrackView: View {
     @Binding var selectedTrackID: UUID?
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
-    
+
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
-    
+
     var body: some View {
         switch viewType {
         case .list:
@@ -37,13 +37,13 @@ struct TrackView: View {
 // MARK: - Track Context Menu
 struct TrackContextMenuContent: View {
     let items: [ContextMenuItem]
-    
+
     var body: some View {
         ForEach(items, id: \.id) { item in
             contextMenuItem(item)
         }
     }
-    
+
     @ViewBuilder
     private func contextMenuItem(_ item: ContextMenuItem) -> some View {
         switch item {
@@ -85,9 +85,9 @@ struct TrackContextMenuContent: View {
         track.isMetadataLoaded = true
         return track
     }
-    
-    @State var selectedTrackID: UUID? = nil
-    
+
+    @State var selectedTrackID: UUID?
+
     return TrackView(
         tracks: sampleTracks,
         viewType: .list,
@@ -111,9 +111,9 @@ struct TrackContextMenuContent: View {
         track.isMetadataLoaded = true
         return track
     }
-    
-    @State var selectedTrackID: UUID? = nil
-    
+
+    @State var selectedTrackID: UUID?
+
     return TrackView(
         tracks: sampleTracks,
         viewType: .grid,
@@ -139,9 +139,9 @@ struct TrackContextMenuContent: View {
         track.isMetadataLoaded = true
         return track
     }
-    
-    @State var selectedTrackID: UUID? = nil
-    
+
+    @State var selectedTrackID: UUID?
+
     return TrackView(
         tracks: sampleTracks,
         viewType: .table,

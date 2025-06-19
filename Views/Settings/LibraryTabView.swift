@@ -7,7 +7,7 @@ struct LibraryTabView: View {
     @State private var selectedFolderIDs: Set<Int64> = []
     @State private var isSelectMode: Bool = false
     @State private var folderToRemove: Folder?
-    
+
     var body: some View {
         VStack(spacing: 0) {
             if libraryManager.folders.isEmpty {
@@ -42,7 +42,7 @@ struct LibraryTabView: View {
             Text("This will permanently remove all library data, including added folders, tracks, and playlists. This action cannot be undone.")
         }
     }
-    
+
     private var libraryManagementContent: some View {
         VStack(spacing: 0) {
             libraryHeader
@@ -50,26 +50,26 @@ struct LibraryTabView: View {
             libraryFooter
         }
     }
-    
+
     private var libraryHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Watched Folders")
                     .font(.system(size: 14, weight: .semibold))
-                
+
                 Text("\(libraryManager.folders.count) folders • \(libraryManager.tracks.count) tracks")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             Button(action: { libraryManager.refreshLibrary() }) {
                 Label("Refresh Library", systemImage: "arrow.clockwise")
             }
             .disabled(libraryManager.isScanning)
             .help("Scan for new files and update metadata")
-            
+
             Button(action: { libraryManager.addFolder() }) {
                 Label("Add Folder", systemImage: "plus")
             }
@@ -90,16 +90,16 @@ struct LibraryTabView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
-                    
+
                     if isSelectMode {
                         Text("\(selectedFolderIDs.count) selected")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.leading, 8)
                     }
-                    
+
                     Spacer()
-                    
+
                     if isSelectMode && !selectedFolderIDs.isEmpty {
                         Button(action: removeSelectedFolders) {
                             Label("Remove Selected", systemImage: "trash")
@@ -113,7 +113,7 @@ struct LibraryTabView: View {
                 .padding(.horizontal, 0)
                 .padding(.vertical, 5)
             }
-            
+
             // Folders list
             ScrollView {
                 LazyVStack(spacing: 2) {
@@ -131,7 +131,7 @@ struct LibraryTabView: View {
         }
         .padding(.horizontal, 35)
     }
-    
+
     @ViewBuilder
     private var refreshOverlay: some View {
         if libraryManager.isScanning || libraryManager.isBackgroundScanning {
@@ -139,7 +139,7 @@ struct LibraryTabView: View {
                 // Semi-transparent background
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.black.opacity(0.5))
-                
+
                 // Content container with background
                 VStack(spacing: 20) {
                     // Animated icon (same as NoMusicEmptyStateView)
@@ -147,7 +147,7 @@ struct LibraryTabView: View {
                         Circle()
                             .stroke(Color.accentColor.opacity(0.2), lineWidth: 4)
                             .frame(width: 60, height: 60)
-                        
+
                         Circle()
                             .trim(from: 0, to: 0.7)
                             .stroke(
@@ -158,17 +158,17 @@ struct LibraryTabView: View {
                             .rotationEffect(.degrees(-90))
                             .rotationEffect(.degrees(libraryManager.isScanning || libraryManager.isBackgroundScanning ? 360 : 0))
                             .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: libraryManager.isScanning || libraryManager.isBackgroundScanning)
-                        
+
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 24, weight: .light))
                             .foregroundColor(.accentColor)
                     }
-                    
+
                     VStack(spacing: 8) {
                         Text("Refreshing Library")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.white)
-                        
+
                         if !libraryManager.scanStatusMessage.isEmpty {
                             Text(libraryManager.scanStatusMessage)
                                 .font(.system(size: 12))
@@ -213,7 +213,7 @@ struct LibraryTabView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
-                
+
                 Button(action: { showingResetConfirmation = true }) {
                     HStack(spacing: 6) {
                         Image(systemName: "trash.fill")
@@ -230,14 +230,14 @@ struct LibraryTabView: View {
                 }
                 .buttonStyle(.plain)
             }
-            
+
             // Status info
             if let lastScan = UserDefaults.standard.object(forKey: "LastScanDate") as? Date {
                 HStack {
                     Text("Last scan: \(lastScan, style: .relative) ago")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
+
                     Spacer()
                 }
             }
@@ -245,13 +245,13 @@ struct LibraryTabView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
     }
-    
+
     // MARK: - Folder Row
     @ViewBuilder
     private func compactFolderRow(for folder: Folder) -> some View {
         let isSelected = selectedFolderIDs.contains(folder.id ?? -1)
         let trackCount = folder.trackCount
-        
+
         CompactFolderRowView(
             folder: folder,
             trackCount: trackCount,
@@ -278,7 +278,7 @@ struct LibraryTabView: View {
 
     private func toggleFolderSelection(_ folder: Folder) {
         guard let folderId = folder.id else { return }
-        
+
         withAnimation(.easeInOut(duration: 0.1)) {
             if selectedFolderIDs.contains(folderId) {
                 selectedFolderIDs.remove(folderId)
@@ -293,14 +293,14 @@ struct LibraryTabView: View {
             guard let id = folder.id else { return false }
             return selectedFolderIDs.contains(id)
         }
-        
+
         let alert = NSAlert()
         alert.messageText = "Remove Selected Folders"
         alert.informativeText = "Are you sure you want to remove \(selectedFolders.count) folders? This will remove all tracks from these folders from your library."
         alert.addButton(withTitle: "Remove")
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
-        
+
         if alert.runModal() == .alertFirstButtonReturn {
             for folder in selectedFolders {
                 libraryManager.removeFolder(folder)
@@ -309,7 +309,7 @@ struct LibraryTabView: View {
             isSelectMode = false
         }
     }
-    
+
     private func resetLibraryData() {
         // Stop any current playback
         if let coordinator = AppCoordinator.shared {
@@ -322,11 +322,11 @@ struct LibraryTabView: View {
         UserDefaults.standard.removeObject(forKey: "SavedMusicTracks")
         UserDefaults.standard.removeObject(forKey: "SecurityBookmarks")
         UserDefaults.standard.removeObject(forKey: "LastScanDate")
-        
+
         // Clear playback state
         UserDefaults.standard.removeObject(forKey: "SavedPlaybackState")
         UserDefaults.standard.removeObject(forKey: "SavedPlaybackUIState")
-        
+
         Task {
             do {
                 try await libraryManager.resetAllData()
@@ -346,9 +346,9 @@ private struct CompactFolderRowView: View {
     let onToggleSelection: () -> Void
     let onRefresh: () -> Void
     let onRemove: () -> Void
-    
+
     @State private var isHovered = false
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // Selection checkbox (only in select mode)
@@ -360,27 +360,27 @@ private struct CompactFolderRowView: View {
                         onToggleSelection()
                     }
             }
-            
+
             // Folder icon
             Image(systemName: "folder.fill")
                 .font(.system(size: 16))
                 .foregroundColor(.accentColor)
-            
+
             // Folder info
             VStack(alignment: .leading, spacing: 2) {
                 Text(folder.name)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
-                
+
                 HStack(spacing: 4) {
                     Text(folder.url.path)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    
+
                     Spacer()
-                    
+
                     Text("\(trackCount)")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.secondary)
@@ -390,7 +390,7 @@ private struct CompactFolderRowView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             // Individual actions (when not in select mode)
             if !isSelectMode {
                 HStack(spacing: 4) {
@@ -401,7 +401,7 @@ private struct CompactFolderRowView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Refresh this folder")
-                    
+
                     Button(action: onRemove) {
                         Image(systemName: "minus.circle.fill")
                             .font(.system(size: 14))

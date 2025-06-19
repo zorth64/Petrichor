@@ -16,20 +16,20 @@ extension DatabaseManager {
             }
         }
     }
-    
+
     func addFoldersAsync(_ urls: [URL], bookmarkDataMap: [URL: Data]) async throws -> [Folder] {
         await MainActor.run {
             self.isScanning = true
             self.scanStatusMessage = "Adding folders..."
         }
-        
+
         var addedFolders: [Folder] = []
-        
+
         try await dbQueue.write { db in
             for url in urls {
                 let bookmarkData = bookmarkDataMap[url]
                 var folder = Folder(url: url, bookmarkData: bookmarkData)
-                
+
                 // Check if folder already exists
                 if let existing = try Folder
                     .filter(Folder.Columns.path == url.path)
@@ -43,7 +43,7 @@ extension DatabaseManager {
                 } else {
                     // Insert new folder
                     try folder.insert(db)
-                    
+
                     // Fetch the inserted folder to get the generated ID
                     if let insertedFolder = try Folder
                         .filter(Folder.Columns.path == url.path)
@@ -54,16 +54,16 @@ extension DatabaseManager {
                 }
             }
         }
-        
+
         // Now scan the folders for tracks
         if !addedFolders.isEmpty {
             try await scanFoldersForTracks(addedFolders)
         }
-        
+
         await MainActor.run {
             self.isScanning = false
         }
-        
+
         return addedFolders
     }
 
@@ -79,7 +79,7 @@ extension DatabaseManager {
             return []
         }
     }
-    
+
     func refreshFolder(_ folder: Folder, completion: @escaping (Result<Void, Error>) -> Void) {
         Task {
             do {
@@ -87,18 +87,18 @@ extension DatabaseManager {
                     self.isScanning = true
                     self.scanStatusMessage = "Refreshing \(folder.name)..."
                 }
-                
+
                 // Log the current state
                 let trackCountBefore = getTracksForFolder(folder.id ?? -1).count
                 print("DatabaseManager: Starting refresh for folder \(folder.name) with \(trackCountBefore) tracks")
-                
+
                 // Scan the folder - this will now always check for metadata updates
                 try await scanSingleFolder(folder, supportedExtensions: ["mp3", "m4a", "wav", "aac", "aiff", "flac"])
-                
+
                 // Log the result
                 let trackCountAfter = getTracksForFolder(folder.id ?? -1).count
                 print("DatabaseManager: Completed refresh for folder \(folder.name) with \(trackCountAfter) tracks (was \(trackCountBefore))")
-                
+
                 await MainActor.run {
                     self.isScanning = false
                     self.scanStatusMessage = ""
@@ -113,7 +113,7 @@ extension DatabaseManager {
             }
         }
     }
-    
+
     func removeFolder(_ folder: Folder, completion: @escaping (Result<Void, Error>) -> Void) {
         Task {
             do {
@@ -130,7 +130,7 @@ extension DatabaseManager {
             }
         }
     }
-    
+
     func updateFolderBookmark(_ folderId: Int64, bookmarkData: Data) async throws {
         try await dbQueue.write { db in
             try Folder
@@ -138,7 +138,7 @@ extension DatabaseManager {
                 .updateAll(db, Folder.Columns.bookmarkData.set(to: bookmarkData))
         }
     }
-    
+
     func getTracksInFolder(_ folder: Folder) -> [Track] {
         guard let folderId = folder.id else { return [] }
         return getTracksForFolder(folderId)

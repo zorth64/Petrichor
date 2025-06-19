@@ -7,14 +7,14 @@ struct PlayQueueView: View {
     @State private var draggedTrack: Track?
     @State private var showingClearConfirmation = false
     @State private var hasAppeared = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             queueHeader
-            
+
             Divider()
-            
+
             // Queue content
             if playlistManager.currentQueue.isEmpty {
                 emptyQueueView
@@ -42,31 +42,31 @@ struct PlayQueueView: View {
             hasAppeared = false
         }
     }
-    
+
     // MARK: - Queue Header
-    
+
     private var queueHeader: some View {
         ListHeader {
             Text("Play Queue")
                 .headerTitleStyle()
-            
+
             Spacer()
-            
+
             queueHeaderControls
         }
     }
-    
+
     private var queueHeaderControls: some View {
         HStack(spacing: 12) {
             Text("\(playlistManager.currentQueue.count) tracks")
                 .headerSubtitleStyle()
-            
+
             if !playlistManager.currentQueue.isEmpty {
                 clearQueueButton
             }
         }
     }
-    
+
     private var clearQueueButton: some View {
         Button(action: { showingClearConfirmation = true }) {
             Image(systemName: "trash")
@@ -76,31 +76,30 @@ struct PlayQueueView: View {
         .buttonStyle(.plain)
         .help("Clear Queue")
     }
-    
+
     // MARK: - Queue Content
-    
+
     private var queueContent: some View {
         Group {
             if playlistManager.currentQueue.isEmpty {
                 emptyQueueView
             } else {
-                
                 queueListView
             }
         }
     }
-    
+
     // MARK: - Empty Queue View
-    
+
     private var emptyQueueView: some View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text("Queue is Empty")
                 .font(.headline)
-            
+
             Text("Play a song to start building your queue")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -109,9 +108,9 @@ struct PlayQueueView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
-    
+
     // MARK: - Queue List View
-    
+
     private var queueListView: some View {
         ScrollViewReader { proxy in
             List {
@@ -132,18 +131,17 @@ struct PlayQueueView: View {
             }
         }
     }
-    
+
     private func queueRow(for track: Track, at index: Int) -> some View {
         PlayQueueRow(
             track: track,
             position: index,
             isCurrentTrack: index == playlistManager.currentQueueIndex,
             isPlaying: index == playlistManager.currentQueueIndex && audioPlayerManager.isPlaying,
-            playlistManager: playlistManager,
-            onRemove: {
+            playlistManager: playlistManager
+        ) {
                 playlistManager.removeFromQueue(at: index)
-            }
-        )
+        }
         .id(track.id)
         .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
         .listRowBackground(Color.clear)
@@ -159,9 +157,9 @@ struct PlayQueueView: View {
             playlistManager: playlistManager
         ))
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func handleQueueIndexChange(newIndex: Int, proxy: ScrollViewProxy) {
         // Auto-scroll to current track only after initial appearance
         if hasAppeared && newIndex >= 0 && newIndex < playlistManager.currentQueue.count {
@@ -170,7 +168,7 @@ struct PlayQueueView: View {
             }
         }
     }
-    
+
     private func scrollToCurrentTrack(proxy: ScrollViewProxy) {
         // Scroll to current track on appear
         if playlistManager.currentQueueIndex >= 0 &&
@@ -189,17 +187,17 @@ struct PlayQueueRow: View {
     let isPlaying: Bool
     let playlistManager: PlaylistManager
     let onRemove: () -> Void
-    
+
     @State private var isHovered = false
-    
+
     var body: some View {
         HStack(spacing: 10) {
             positionIndicator
-            
+
             trackInfo
-            
+
             Spacer()
-            
+
             trackControls
         }
         .padding(.horizontal, 10)
@@ -216,9 +214,9 @@ struct PlayQueueRow: View {
             handleDoubleClick()
         }
     }
-    
+
     // MARK: - Row Components
-    
+
     private var positionIndicator: some View {
         ZStack {
             if isCurrentTrack && isPlaying {
@@ -238,34 +236,34 @@ struct PlayQueueRow: View {
             }
         }
     }
-    
+
     private var trackInfo: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(track.title)
                 .font(.system(size: 13, weight: isCurrentTrack ? .medium : .regular))
                 .lineLimit(1)
                 .foregroundColor(isCurrentTrack ? .accentColor : .primary)
-            
+
             Text(track.artist)
                 .font(.system(size: 11))
                 .lineLimit(1)
                 .foregroundColor(.secondary)
         }
     }
-    
+
     private var trackControls: some View {
         HStack(spacing: 5) {
             Text(formatDuration(track.duration))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .monospacedDigit()
-            
+
             if isHovered && !isCurrentTrack {
                 removeButton
             }
         }
     }
-    
+
     private var removeButton: some View {
         Button(action: onRemove) {
             Image(systemName: "xmark.circle.fill")
@@ -275,12 +273,12 @@ struct PlayQueueRow: View {
         .buttonStyle(.plain)
         .transition(.scale.combined(with: .opacity))
     }
-    
+
     private var rowBackground: some View {
         RoundedRectangle(cornerRadius: 6)
             .fill(backgroundColor)
     }
-    
+
     private var backgroundColor: Color {
         if isCurrentTrack {
             return Color.accentColor.opacity(0.25)
@@ -290,15 +288,15 @@ struct PlayQueueRow: View {
             return Color.clear
         }
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func formatDuration(_ seconds: Double) -> String {
         let minutes = Int(seconds) / 60
         let remainingSeconds = Int(seconds) % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
-    
+
     private func handleDoubleClick() {
         // Double-click to play
         if !isCurrentTrack {
@@ -314,17 +312,19 @@ struct QueueDropDelegate: DropDelegate {
     let tracks: [Track]
     @Binding var draggedTrack: Track?
     let playlistManager: PlaylistManager
-    
+
     func performDrop(info: DropInfo) -> Bool {
-        return true
+        true
     }
-    
+
     func dropEntered(info: DropInfo) {
         guard let draggedTrack = self.draggedTrack else { return }
         
         if draggedTrack.id != track.id {
+            // swiftlint:disable:next all
             let from = tracks.firstIndex(where: { $0.id == draggedTrack.id }) ?? 0
             let to = tracks.firstIndex(where: { $0.id == track.id }) ?? 0
+            // swiftlint:disable:previous all
             
             withAnimation(.default) {
                 playlistManager.moveInQueue(from: from, to: to)
@@ -342,15 +342,15 @@ struct QueueDropDelegate: DropDelegate {
             sampleTrack1.title = "Sample Song 1"
             sampleTrack1.artist = "Sample Artist"
             sampleTrack1.duration = 180
-            
+
             let sampleTrack2 = Track(url: URL(fileURLWithPath: "/sample2.mp3"))
             sampleTrack2.title = "Sample Song 2"
             sampleTrack2.artist = "Another Artist"
             sampleTrack2.duration = 240
-            
+
             coordinator.playlistManager.currentQueue = [sampleTrack1, sampleTrack2]
             coordinator.playlistManager.currentQueueIndex = 0
-            
+
             return coordinator.playlistManager
         }())
         .environmentObject({

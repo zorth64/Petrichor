@@ -5,9 +5,9 @@ struct IconOnlyDropdown<Item: Hashable>: View {
     @Binding var selection: Item
     let iconProvider: (Item) -> String
     let tooltipProvider: (Item) -> String
-    
+
     @State private var isHovered = false
-    
+
     var body: some View {
         Menu {
             ForEach(items, id: \.self) { item in

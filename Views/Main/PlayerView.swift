@@ -5,28 +5,28 @@ struct PlayerView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @Binding var showingQueue: Bool
-    
+
     @State private var isDraggingProgress = false
     @State private var tempProgressValue: Double = 0
-    @State private var currentTrackId: UUID? = nil
-    @State private var cachedArtworkImage: NSImage? = nil
+    @State private var currentTrackId: UUID?
+    @State private var cachedArtworkImage: NSImage?
     @State private var hoveredOverProgress = false
     @State private var playButtonPressed = false
     @State private var isMuted = false
     @State private var previousVolume: Float = 0.7
-    
+
     var body: some View {
         HStack(spacing: 20) {
             // Left section: Album art and track info
             leftSection
-            
+
             Spacer()
-            
+
             // Center section: Playback controls and progress
             centerSection
-            
+
             Spacer()
-            
+
             // Right section: Volume and queue controls
             rightSection
         }
@@ -38,9 +38,9 @@ struct PlayerView: View {
         }
         .background(Color.clear)
     }
-    
+
     // MARK: - View Sections
-    
+
     private var leftSection: some View {
         HStack(spacing: 16) {
             albumArtwork
@@ -48,7 +48,7 @@ struct PlayerView: View {
         }
         .frame(width: 250, alignment: .leading)
     }
-    
+
     private var centerSection: some View {
         VStack(spacing: 8) {
             playbackControls
@@ -56,7 +56,7 @@ struct PlayerView: View {
         }
         .frame(maxWidth: 500)
     }
-    
+
     private var rightSection: some View {
         HStack(spacing: 12) {
             volumeControl
@@ -64,15 +64,15 @@ struct PlayerView: View {
         }
         .frame(width: 250, alignment: .trailing)
     }
-    
+
     // MARK: - Left Section Components
-    
+
     private var albumArtwork: some View {
         let trackArtworkInfo = audioPlayerManager.currentTrack.map { track in
             TrackArtworkInfo(id: track.id, artworkData: track.artworkData)
         }
-        
-        return PlayerAlbumArtView(trackInfo: trackArtworkInfo, onTap: {
+
+        return PlayerAlbumArtView(trackInfo: trackArtworkInfo) {
             if let currentTrack = audioPlayerManager.currentTrack {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("ShowTrackInfo"),
@@ -80,10 +80,10 @@ struct PlayerView: View {
                     userInfo: ["track": currentTrack]
                 )
             }
-        })
+        }
         .equatable()
     }
-    
+
     private var trackDetails: some View {
         VStack(alignment: .leading, spacing: 4) {
             // Title row with favorite button
@@ -94,11 +94,11 @@ struct PlayerView: View {
                     .foregroundColor(.primary)
                     .truncationMode(.tail)
                     .help(audioPlayerManager.currentTrack?.title ?? "")  // Always show tooltip with full title
-                
+
                 favoriteButton
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             // Artist with marquee
             MarqueeText(
                 text: audioPlayerManager.currentTrack?.artist ?? "",
@@ -107,7 +107,7 @@ struct PlayerView: View {
             )
             .frame(height: 16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             // Album with marquee
             MarqueeText(
                 text: audioPlayerManager.currentTrack?.album ?? "",
@@ -119,7 +119,7 @@ struct PlayerView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     private var favoriteButton: some View {
         Group {
             if let track = audioPlayerManager.currentTrack {
@@ -137,9 +137,9 @@ struct PlayerView: View {
             }
         }
     }
-    
+
     // MARK: - Center Section Components
-    
+
     private var playbackControls: some View {
         HStack(spacing: 12) {
             shuffleButton
@@ -149,7 +149,7 @@ struct PlayerView: View {
             repeatButton
         }
     }
-    
+
     private var shuffleButton: some View {
         Button(action: {
             playlistManager.toggleShuffle()
@@ -164,7 +164,7 @@ struct PlayerView: View {
         .disabled(audioPlayerManager.currentTrack == nil)
         .help(playlistManager.isShuffleEnabled ? "Disable Shuffle" : "Enable Shuffle")
     }
-    
+
     private var previousButton: some View {
         Button(action: {
             playlistManager.playPreviousTrack()
@@ -179,7 +179,7 @@ struct PlayerView: View {
         .disabled(audioPlayerManager.currentTrack == nil)
         .help("Previous")
     }
-    
+
     private var playPauseButton: some View {
         Button(action: {
             audioPlayerManager.togglePlayPause()
@@ -202,7 +202,7 @@ struct PlayerView: View {
         .help(audioPlayerManager.isPlaying ? "Pause" : "Play")
         .id("playPause")
     }
-    
+
     private var nextButton: some View {
         Button(action: {
             playlistManager.playNextTrack()
@@ -217,7 +217,7 @@ struct PlayerView: View {
         .help("Next")
         .disabled(audioPlayerManager.currentTrack == nil)
     }
-    
+
     private var repeatButton: some View {
         Button(action: {
             playlistManager.toggleRepeatMode()
@@ -241,10 +241,10 @@ struct PlayerView: View {
                 .foregroundColor(.secondary)
                 .monospacedDigit()
                 .frame(width: 40, alignment: .trailing)
-            
+
             // Progress slider
             progressSlider
-            
+
             // Total duration
             Text(formatDuration(audioPlayerManager.currentTrack?.duration ?? 0))
                 .font(.system(size: 11, weight: .medium))
@@ -253,7 +253,7 @@ struct PlayerView: View {
                 .frame(width: 40, alignment: .leading)
         }
     }
-    
+
     private var progressSlider: some View {
         ZStack {
             GeometryReader { geometry in
@@ -262,7 +262,7 @@ struct PlayerView: View {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color.secondary.opacity(0.2))
                         .frame(height: 4)
-                    
+
                     // Progress track
                     RoundedRectangle(cornerRadius: 2)
                         .fill(Color.accentColor)
@@ -270,7 +270,7 @@ struct PlayerView: View {
                             width: geometry.size.width * progressPercentage,
                             height: 4
                         )
-                    
+
                     // Drag handle
                     Circle()
                         .fill(Color.accentColor)
@@ -293,16 +293,16 @@ struct PlayerView: View {
         .frame(height: 10)
         .frame(maxWidth: 400)
     }
-    
+
     // MARK: - Right Section Components
-    
+
     private var volumeControl: some View {
         HStack(spacing: 8) {
             volumeButton
             volumeSlider
         }
     }
-    
+
     private var volumeButton: some View {
         Button(action: toggleMute) {
             Image(systemName: volumeIcon)
@@ -315,7 +315,7 @@ struct PlayerView: View {
         .hoverEffect(scale: 1.1)
         .help(isMuted ? "Unmute" : "Mute")
     }
-    
+
     private var volumeSlider: some View {
         Slider(
             value: Binding(
@@ -334,7 +334,7 @@ struct PlayerView: View {
         .controlSize(.small)
         .disabled(isMuted)
     }
-    
+
     private var queueButton: some View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.3)) {
@@ -354,19 +354,19 @@ struct PlayerView: View {
         .hoverEffect(scale: 1.1)
         .help(showingQueue ? "Hide Queue" : "Show Queue")
     }
-    
+
     // MARK: - Computed Properties
-    
+
     private var progressPercentage: Double {
         guard let duration = audioPlayerManager.currentTrack?.duration, duration > 0 else { return 0 }
-        
+
         if isDraggingProgress {
             return min(1, max(0, tempProgressValue / duration))
         } else {
             return min(1, max(0, audioPlayerManager.currentTime / duration))
         }
     }
-    
+
     private var volumeIcon: String {
         if isMuted || audioPlayerManager.volume < 0.01 {
             return "speaker.slash.fill"
@@ -378,9 +378,9 @@ struct PlayerView: View {
             return "speaker.wave.2.fill"
         }
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func setupInitialState() {
         // Initialize the cached album art
         if let artworkData = audioPlayerManager.currentTrack?.artworkData,
@@ -396,7 +396,7 @@ struct PlayerView: View {
             previousVolume = audioPlayerManager.volume
         }
     }
-    
+
     private func progressDragGesture(in geometry: GeometryProxy) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
@@ -416,20 +416,20 @@ struct PlayerView: View {
                 }
             }
     }
-    
+
     private func handleProgressTap(at x: CGFloat, in width: CGFloat) {
         let percentage = x / width
         let newTime = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
         audioPlayerManager.seekTo(time: newTime)
     }
-    
+
     private func formatDuration(_ seconds: Double) -> String {
         let totalSeconds = Int(max(0, seconds))
         let minutes = totalSeconds / 60
         let remainingSeconds = totalSeconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
-    
+
     private func repeatImageName(for mode: RepeatMode) -> String {
         switch mode {
         case .off: return "repeat"
@@ -437,7 +437,7 @@ struct PlayerView: View {
         case .all: return "repeat"
         }
     }
-    
+
     private func toggleMute() {
         if isMuted {
             // Unmute - restore previous volume
@@ -459,7 +459,7 @@ struct PlayerView: View {
 struct TrackArtworkInfo: Equatable {
     let id: UUID
     let artworkData: Data?
-    
+
     static func == (lhs: TrackArtworkInfo, rhs: TrackArtworkInfo) -> Bool {
         lhs.id == rhs.id
     }
@@ -468,11 +468,11 @@ struct TrackArtworkInfo: Equatable {
 struct PlayerAlbumArtView: View, Equatable {
     let trackInfo: TrackArtworkInfo?
     let onTap: (() -> Void)?
-    
+
     static func == (lhs: PlayerAlbumArtView, rhs: PlayerAlbumArtView) -> Bool {
         lhs.trackInfo == rhs.trackInfo
     }
-    
+
     var body: some View {
         AlbumArtworkImage(trackInfo: trackInfo)
             .onTapGesture {
@@ -484,7 +484,7 @@ struct PlayerAlbumArtView: View, Equatable {
 private struct AlbumArtworkImage: View {
     let trackInfo: TrackArtworkInfo?
     @State private var isHovered = false
-    
+
     var body: some View {
         ZStack {
             // Static image content
@@ -508,7 +508,7 @@ private struct AlbumArtworkImage: View {
 
 private struct AlbumArtworkContent: View {
     let trackInfo: TrackArtworkInfo?
-    
+
     var body: some View {
         if let artworkData = trackInfo?.artworkData,
            let nsImage = NSImage(data: artworkData) {
@@ -542,7 +542,7 @@ struct ControlButtonStyle: ButtonStyle {
 
 private struct PlayPauseIcon: View {
     let isPlaying: Bool
-    
+
     var body: some View {
         ZStack {
             Image(systemName: "play.fill")
@@ -551,7 +551,7 @@ private struct PlayPauseIcon: View {
                 .opacity(isPlaying ? 0 : 1)
                 .scaleEffect(isPlaying ? 0.8 : 1)
                 .rotationEffect(.degrees(isPlaying ? -90 : 0))
-            
+
             Image(systemName: "pause.fill")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.white)
@@ -568,11 +568,11 @@ private struct PlayPauseIcon: View {
 struct HoverEffect: ViewModifier {
     let scaleAmount: CGFloat
     @State private var isHovered = false
-    
+
     init(scale: CGFloat = 1.1) {
         self.scaleAmount = scale
     }
-    
+
     func body(content: Content) -> some View {
         content
             .scaleEffect(isHovered ? scaleAmount : 1.0)
@@ -592,7 +592,7 @@ extension View {
 #Preview {
     struct PreviewWrapper: View {
         @State private var showingQueue = false
-        
+
         var body: some View {
             PlayerView(showingQueue: $showingQueue)
                 .environmentObject({
@@ -606,6 +606,6 @@ extension View {
                 .frame(height: 200)
         }
     }
-    
+
     return PreviewWrapper()
 }

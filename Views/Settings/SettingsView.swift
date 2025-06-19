@@ -3,12 +3,12 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var selectedTab: SettingsTab = .general
-    
+
     enum SettingsTab: String, CaseIterable {
         case general = "General"
         case library = "Library"
         case about = "About"
-        
+
         var icon: String {
             switch self {
             case .general: return "gear"
@@ -16,7 +16,7 @@ struct SettingsView: View {
             case .about: return "info.circle"
             }
         }
-        
+
         var selectedIcon: String {
             switch self {
             case .general: return "gear"
@@ -25,7 +25,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             TabbedButtons(
@@ -38,7 +38,7 @@ struct SettingsView: View {
             .focusable(false)
 
             Divider()
-            
+
             // Tab content
             Group {
                 switch selectedTab {

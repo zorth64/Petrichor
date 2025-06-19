@@ -22,23 +22,23 @@ struct SidebarView<Item: SidebarItem>: View {
     let onItemTap: (Item) -> Void
     let contextMenuItems: ((Item) -> [ContextMenuItem])?
     let onRename: ((Item, String) -> Void)?
-    
+
     // Header configuration
     let headerTitle: String?
     let headerControls: AnyView?
-    
+
     // Customization
     let showIcon: Bool
     let iconColor: Color
     let showCount: Bool
-    
+
     @State private var hoveredItemID: UUID?
     @State private var editingItemID: UUID?
     @State private var editingText: String = ""
     @FocusState private var isEditingFieldFocused: Bool
     @State private var lastClickTime = Date()
     @State private var lastClickedItemID: UUID?
-    
+
     init(
         items: [Item],
         selectedItem: Binding<Item?>,
@@ -62,7 +62,7 @@ struct SidebarView<Item: SidebarItem>: View {
         self.iconColor = iconColor
         self.showCount = showCount
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -72,7 +72,7 @@ struct SidebarView<Item: SidebarItem>: View {
                 Divider()
                     .background(Color(NSColor.separatorColor))
             }
-            
+
             // Items list
             if items.isEmpty {
                 emptyView
@@ -81,18 +81,18 @@ struct SidebarView<Item: SidebarItem>: View {
             }
         }
     }
-    
+
     // MARK: - Header
-    
+
     private var sidebarHeader: some View {
         HStack {
             if let title = headerTitle {
                 Text(title)
                     .headerTitleStyle()
             }
-            
+
             Spacer()
-            
+
             if let controls = headerControls {
                 controls
             }
@@ -100,9 +100,9 @@ struct SidebarView<Item: SidebarItem>: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
-    
+
     // MARK: - Items List
-    
+
     private var itemsList: some View {
         ScrollView {
             LazyVStack(spacing: 1) {
@@ -149,7 +149,7 @@ struct SidebarView<Item: SidebarItem>: View {
                         if editingItemID != item.id {
                             let now = Date()
                             let timeSinceLastClick = now.timeIntervalSince(lastClickTime)
-                            
+
                             // Check for double-click on the same item
                             if timeSinceLastClick < 0.3 && lastClickedItemID == item.id && item.isEditable {
                                 editingItemID = item.id
@@ -161,7 +161,7 @@ struct SidebarView<Item: SidebarItem>: View {
                                 selectedItem = item
                                 onItemTap(item)
                             }
-                            
+
                             lastClickTime = now
                             lastClickedItemID = item.id
                         }
@@ -172,15 +172,15 @@ struct SidebarView<Item: SidebarItem>: View {
             .padding(.vertical, 4)
         }
     }
-    
+
     // MARK: - Empty View
-    
+
     private var emptyView: some View {
         VStack(spacing: 16) {
             Image(systemName: "tray")
                 .font(.system(size: 32))
                 .foregroundColor(.gray)
-            
+
             Text("No Items")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -189,9 +189,9 @@ struct SidebarView<Item: SidebarItem>: View {
         .padding()
         .background(Color(NSColor.windowBackgroundColor))
     }
-    
+
     // MARK: - Context Menu Helper
-    
+
     @ViewBuilder
     private func contextMenuItem(_ item: ContextMenuItem) -> some View {
         switch item {
@@ -240,7 +240,7 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
     let onStartEditing: () -> Void
     let onCommitEditing: () -> Void
     let onCancelEditing: () -> Void
-    
+
     var body: some View {
         HStack(spacing: 10) {
             // Icon
@@ -250,7 +250,7 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
                     .font(.system(size: 16))
                     .frame(width: 16, height: 16)
             }
-            
+
             // Content
             if isEditing {
                 TextField("", text: $editingText)
@@ -270,7 +270,7 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
                         .font(.system(size: 13, weight: isSelected ? .medium : .regular))
                         .lineLimit(1)
                         .foregroundColor(isSelected ? .white : .primary)
-                    
+
                     if let subtitle = item.subtitle {
                         Text(subtitle)
                             .font(.system(size: 11))
@@ -279,9 +279,9 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
                     }
                 }
             }
-            
+
             Spacer(minLength: 0)
-            
+
             // Count badge
             if showCount, let count = item.count, count > 0 {
                 Text("\(count)")
@@ -311,7 +311,7 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
             }
         }
     }
-    
+
     private var backgroundColor: Color {
         if isSelected {
             return Color.accentColor
@@ -331,15 +331,15 @@ struct HomeSidebarItem: SidebarItem {
     let title: String
     var subtitle: String?
     let icon: String?
-    var count: Int? = nil  // Not used for display since we use subtitle
+    var count: Int?  // Not used for display since we use subtitle
     let isEditable: Bool = false
     let type: HomeItemType
-    
+
     enum HomeItemType: CaseIterable {
         case tracks
         case artists
         case albums
-        
+
         var stableID: UUID {
             switch self {
             case .tracks:
@@ -350,7 +350,7 @@ struct HomeSidebarItem: SidebarItem {
                 return UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
             }
         }
-        
+
         var title: String {
             switch self {
             case .tracks: return "Tracks"
@@ -358,7 +358,7 @@ struct HomeSidebarItem: SidebarItem {
             case .albums: return "Albums"
             }
         }
-        
+
         var icon: String {
             switch self {
             case .tracks: return "music.note"
@@ -367,13 +367,13 @@ struct HomeSidebarItem: SidebarItem {
             }
         }
     }
-    
+
     init(type: HomeItemType, trackCount: Int? = nil, artistCount: Int? = nil, albumCount: Int? = nil) {
         self.id = type.stableID
         self.type = type
         self.title = type.title
         self.icon = type.icon
-        
+
         // Set subtitle based on type
         switch type {
         case .tracks:
@@ -408,7 +408,7 @@ struct LibrarySidebarItem: SidebarItem {
     let filterType: LibraryFilterType
     let filterName: String
     let isEditable: Bool = false // Library items are not editable
-    
+
     init(filterItem: LibraryFilterItem) {
         self.id = filterItem.id  // Use the stable ID from filterItem
         self.title = filterItem.name
@@ -419,7 +419,7 @@ struct LibrarySidebarItem: SidebarItem {
         self.filterType = filterItem.filterType
         self.filterName = filterItem.name
     }
-    
+
     // Special "All" item
     init(allItemFor filterType: LibraryFilterType, count: Int) {
         self.id = UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012d", filterType.stableIndex))") ?? UUID()
@@ -431,9 +431,9 @@ struct LibrarySidebarItem: SidebarItem {
         self.filterType = filterType
         self.filterName = ""
     }
-    
+
     private static func getIcon(for filterType: LibraryFilterType, isAllItem: Bool) -> String {
-        return isAllItem ? filterType.allItemIcon : filterType.icon
+        isAllItem ? filterType.allItemIcon : filterType.icon
     }
 }
 
@@ -446,14 +446,14 @@ struct PlaylistSidebarItem: SidebarItem {
     let count: Int?
     let playlist: Playlist
     let isEditable: Bool
-    
+
     init(playlist: Playlist) {
         self.id = playlist.id
         self.title = playlist.name
         self.icon = Self.getIcon(for: playlist)
         self.playlist = playlist
         self.isEditable = playlist.isUserEditable
-        
+
         // Set subtitle and count based on playlist type
         if playlist.type == .smart {
             let trackCount = playlist.tracks.count
@@ -468,7 +468,7 @@ struct PlaylistSidebarItem: SidebarItem {
             self.count = nil
         }
     }
-    
+
     private static func getIcon(for playlist: Playlist) -> String {
         switch playlist.smartType {
         case .favorites:
@@ -492,7 +492,7 @@ struct FolderNodeSidebarItem: SidebarItem {
     let count: Int?
     let folderNode: FolderNode
     let isEditable: Bool = false
-    
+
     init(folderNode: FolderNode) {
         self.id = folderNode.id
         self.title = folderNode.name
@@ -530,14 +530,14 @@ extension SidebarView where Item == LibrarySidebarItem {
     ) {
         // Create items list
         var items: [LibrarySidebarItem] = []
-        
+
         // Add "All" item first
         let allItem = LibrarySidebarItem(allItemFor: filterType, count: totalTracksCount)
         items.append(allItem)
-        
+
         // Add filter items (which should already be sorted with Unknown first)
         items.append(contentsOf: filterItems.map { LibrarySidebarItem(filterItem: $0) })
-        
+
         self.init(
             items: items,
             selectedItem: selectedItem,

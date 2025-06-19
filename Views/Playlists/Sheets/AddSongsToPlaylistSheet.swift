@@ -5,23 +5,23 @@ struct AddSongsToPlaylistSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
-    
+
     @State private var searchText = ""
     @State private var selectedTracks: Set<UUID> = []
     @State private var tracksToRemove: Set<UUID> = []
     @State private var sortOrder: SortOrder = .title
-    
+
     // Cache playlist track database IDs for faster lookup
     private var playlistTrackDatabaseIDs: Set<Int64> {
         Set(playlist.tracks.compactMap { $0.trackId })
     }
-    
+
     enum SortOrder: String, CaseIterable {
         case title = "Title"
         case artist = "Artist"
         case album = "Album"
         case dateAdded = "Date Added"
-        
+
         var icon: String {
             switch self {
             case .title: return "textformat"
@@ -31,25 +31,25 @@ struct AddSongsToPlaylistSheet: View {
             }
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             sheetHeader
-            
+
             Divider()
-            
+
             // Search and sort controls
             controlsSection
-            
+
             Divider()
-            
+
             // Select all header
             if !visibleTracks.isEmpty {
                 selectAllHeader
                 Divider()
             }
-            
+
             // Track list using List for better performance
             if libraryManager.tracks.isEmpty {
                 emptyLibrary
@@ -70,24 +70,24 @@ struct AddSongsToPlaylistSheet: View {
                 .listStyle(.plain)
                 .background(Color(NSColor.textBackgroundColor))
             }
-            
+
             Divider()
-            
+
             // Footer with action buttons
             sheetFooter
         }
         .frame(width: 600, height: 700)
     }
-    
+
     // MARK: - Cached Properties
-    
+
     // Cache playlist track IDs for faster lookup
     private var playlistTrackIDs: Set<UUID> {
         Set(playlist.tracks.map { $0.id })
     }
-    
+
     // MARK: - Subviews
-    
+
     private var selectAllHeader: some View {
         HStack {
             Button(action: toggleSelectAll) {
@@ -95,10 +95,10 @@ struct AddSongsToPlaylistSheet: View {
                     Image(systemName: selectAllCheckboxImage)
                         .font(.system(size: 16))
                         .foregroundColor(selectAllCheckboxColor)
-                    
+
                     Text("Select all \(selectableTracksCount) results")
                         .font(.system(size: 13))
-                    
+
                     if !searchText.isEmpty {
                         Text("for \"\(searchText)\"")
                             .font(.system(size: 13))
@@ -107,27 +107,27 @@ struct AddSongsToPlaylistSheet: View {
                 }
             }
             .buttonStyle(.plain)
-            
+
             Spacer()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
     }
-    
+
     private var sheetHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Add Songs to \"\(playlist.name)\"")
                     .font(.headline)
-                
+
                 Text("Select songs to add or remove from this playlist")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
@@ -138,17 +138,17 @@ struct AddSongsToPlaylistSheet: View {
         .padding()
         .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
     }
-    
+
     private var controlsSection: some View {
         HStack(spacing: 16) {
             // Search field
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
-                
+
                 TextField("Search by title, artist, album, or genre...", text: $searchText)
                     .textFieldStyle(.plain)
-                
+
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -161,7 +161,7 @@ struct AddSongsToPlaylistSheet: View {
             .padding(.vertical, 6)
             .background(Color(NSColor.textBackgroundColor))
             .cornerRadius(6)
-            
+
             // Sort picker
             Picker("Sort by", selection: $sortOrder) {
                 ForEach(SortOrder.allCases, id: \.self) { order in
@@ -175,16 +175,16 @@ struct AddSongsToPlaylistSheet: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
     }
-    
+
     private var emptyLibrary: some View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text("No Music in Library")
                 .font(.headline)
-            
+
             Text("Add some music to your library first")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -192,23 +192,23 @@ struct AddSongsToPlaylistSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.textBackgroundColor))
     }
-    
+
     private var sheetFooter: some View {
         HStack {
             // Selection info
             Text(selectionInfoText)
                 .font(.caption)
                 .foregroundColor(.secondary)
-            
+
             Spacer()
-            
+
             // Action buttons
             HStack(spacing: 12) {
                 Button("Cancel") {
                     dismiss()
                 }
                 .keyboardShortcut(.escape)
-                
+
                 Button(actionButtonTitle) {
                     applyChanges()
                 }
@@ -219,16 +219,16 @@ struct AddSongsToPlaylistSheet: View {
         .padding()
         .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
     }
-    
+
     // MARK: - Helper Properties
-    
+
     private var selectableTracksCount: Int {
         visibleTracks.filter { track in
             guard let trackId = track.trackId else { return true }
             return !playlistTrackDatabaseIDs.contains(trackId)
         }.count
     }
-    
+
     private var allSelectableTracksSelected: Bool {
         let selectableTracks = visibleTracks.filter { track in
             guard let trackId = track.trackId else { return true }
@@ -236,7 +236,7 @@ struct AddSongsToPlaylistSheet: View {
         }
         return !selectableTracks.isEmpty && selectableTracks.allSatisfy { selectedTracks.contains($0.id) }
     }
-    
+
     private var someSelectableTracksSelected: Bool {
         let selectableTracks = visibleTracks.filter { track in
             guard let trackId = track.trackId else { return true }
@@ -245,7 +245,7 @@ struct AddSongsToPlaylistSheet: View {
         let selectedCount = selectableTracks.filter { selectedTracks.contains($0.id) }.count
         return selectedCount > 0 && selectedCount < selectableTracks.count
     }
-    
+
     private var selectAllCheckboxImage: String {
         if allSelectableTracksSelected {
             return "checkmark.square.fill"
@@ -255,7 +255,7 @@ struct AddSongsToPlaylistSheet: View {
             return "square"
         }
     }
-    
+
     private var selectAllCheckboxColor: Color {
         if allSelectableTracksSelected || someSelectableTracksSelected {
             return .accentColor
@@ -263,7 +263,7 @@ struct AddSongsToPlaylistSheet: View {
             return .secondary
         }
     }
-    
+
     private var visibleTracks: [Track] {
         let filtered: [Track]
         if searchText.isEmpty {
@@ -280,7 +280,7 @@ struct AddSongsToPlaylistSheet: View {
                 track.genre.lowercased().contains(searchLower)
             }
         }
-        
+
         // Then sort
         return filtered.sorted { track1, track2 in
             switch sortOrder {
@@ -295,47 +295,47 @@ struct AddSongsToPlaylistSheet: View {
             }
         }
     }
-    
+
     private var hasChanges: Bool {
         !selectedTracks.isEmpty || !tracksToRemove.isEmpty
     }
-    
+
     private var actionButtonTitle: String {
         var parts: [String] = []
-        
+
         if !selectedTracks.isEmpty {
             parts.append("Add \(selectedTracks.count)")
         }
-        
+
         if !tracksToRemove.isEmpty {
             parts.append("Remove \(tracksToRemove.count)")
         }
-        
+
         return parts.isEmpty ? "Apply" : parts.joined(separator: ", ")
     }
-    
+
     private var selectionInfoText: String {
         var parts: [String] = []
-        
+
         if !selectedTracks.isEmpty {
             parts.append("\(selectedTracks.count) to add")
         }
-        
+
         if !tracksToRemove.isEmpty {
             parts.append("\(tracksToRemove.count) to remove")
         }
-        
+
         return parts.isEmpty ? "No changes" : parts.joined(separator: ", ")
     }
-    
+
     // MARK: - Actions
-    
+
     private func toggleSelectAll() {
         let selectableTracks = visibleTracks.filter { track in
             guard let trackId = track.trackId else { return true }
             return !playlistTrackDatabaseIDs.contains(trackId)
         }
-        
+
         if allSelectableTracksSelected {
             // Deselect all
             selectedTracks.removeAll()
@@ -345,13 +345,13 @@ struct AddSongsToPlaylistSheet: View {
                 selectedTracks.insert(track.id)
             }
         }
-        
+
         // Don't auto-select tracks for removal
     }
-    
+
     private func toggleTrackSelection(_ track: Track) {
         let isInPlaylist = track.trackId != nil && playlistTrackDatabaseIDs.contains(track.trackId!)
-        
+
         if isInPlaylist {
             // Track is in playlist - toggle removal
             if tracksToRemove.contains(track.id) {
@@ -368,7 +368,7 @@ struct AddSongsToPlaylistSheet: View {
             }
         }
     }
-    
+
     private func applyChanges() {
         // Collect tracks to add
         var tracksToAdd: [Track] = []
@@ -377,7 +377,7 @@ struct AddSongsToPlaylistSheet: View {
                 tracksToAdd.append(track)
             }
         }
-        
+
         // Collect tracks to remove
         var tracksToRemoveList: [Track] = []
         for trackId in tracksToRemove {
@@ -385,16 +385,16 @@ struct AddSongsToPlaylistSheet: View {
                 tracksToRemoveList.append(track)
             }
         }
-        
+
         // Apply batch operations
         if !tracksToAdd.isEmpty {
             playlistManager.addTracksToPlaylist(tracks: tracksToAdd, playlistID: playlist.id)
         }
-        
+
         if !tracksToRemoveList.isEmpty {
             playlistManager.removeTracksFromPlaylist(tracks: tracksToRemoveList, playlistID: playlist.id)
         }
-        
+
         dismiss()
     }
 }
@@ -407,7 +407,7 @@ struct TrackSelectionRow: View {
     let isAlreadyInPlaylist: Bool
     let isMarkedForRemoval: Bool
     let onToggle: () -> Void
-    
+
     var body: some View {
         Button(action: onToggle) {
             HStack(spacing: 12) {
@@ -416,7 +416,7 @@ struct TrackSelectionRow: View {
                     .font(.system(size: 16))
                     .foregroundColor(checkboxColor)
                     .frame(width: 20)
-                
+
                 // Track info
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title)
@@ -424,15 +424,15 @@ struct TrackSelectionRow: View {
                         .lineLimit(1)
                         .foregroundColor(textColor)
                         .strikethrough(isMarkedForRemoval)
-                    
+
                     Text("\(track.artist) • \(track.album)")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
-                
+
                 Spacer()
-                
+
                 // Status
                 if isAlreadyInPlaylist && !isMarkedForRemoval {
                     Text("In playlist")
@@ -447,7 +447,7 @@ struct TrackSelectionRow: View {
                         .font(.caption)
                         .foregroundColor(.green)
                 }
-                
+
                 // Duration
                 Text(formatDuration(track.duration))
                     .font(.system(size: 11))
@@ -459,7 +459,7 @@ struct TrackSelectionRow: View {
         .buttonStyle(.plain)
         .background(backgroundColor)
     }
-    
+
     private var checkboxImage: String {
         if isAlreadyInPlaylist {
             return isMarkedForRemoval ? "xmark.square.fill" : "checkmark.square.fill"
@@ -467,7 +467,7 @@ struct TrackSelectionRow: View {
             return isSelected ? "checkmark.square.fill" : "square"
         }
     }
-    
+
     private var checkboxColor: Color {
         if isMarkedForRemoval {
             return .red
@@ -477,7 +477,7 @@ struct TrackSelectionRow: View {
             return .secondary
         }
     }
-    
+
     private var textColor: Color {
         if isMarkedForRemoval {
             return .secondary
@@ -485,7 +485,7 @@ struct TrackSelectionRow: View {
             return .primary
         }
     }
-    
+
     private var backgroundColor: Color {
         if isMarkedForRemoval {
             return Color.red.opacity(0.08)
@@ -495,7 +495,7 @@ struct TrackSelectionRow: View {
             return Color.clear
         }
     }
-    
+
     private func formatDuration(_ seconds: Double) -> String {
         let minutes = Int(seconds) / 60
         let seconds = Int(seconds) % 60

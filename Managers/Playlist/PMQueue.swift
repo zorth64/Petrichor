@@ -47,16 +47,16 @@ extension PlaylistManager {
             audioPlayer?.playTrack(track)
             return
         }
-        
+
         let insertIndex = currentQueueIndex + 1
-        
+
         if let existingIndex = currentQueue.firstIndex(where: { $0.id == track.id }) {
             currentQueue.remove(at: existingIndex)
             if existingIndex <= currentQueueIndex {
                 currentQueueIndex -= 1
             }
         }
-        
+
         currentQueue.insert(track, at: min(insertIndex, currentQueue.count))
     }
 
@@ -68,7 +68,7 @@ extension PlaylistManager {
             audioPlayer?.playTrack(track)
             return
         }
-        
+
         if !currentQueue.contains(where: { $0.id == track.id }) {
             currentQueue.append(track)
         }
@@ -76,13 +76,13 @@ extension PlaylistManager {
 
     func removeFromQueue(at index: Int) {
         guard index >= 0 && index < currentQueue.count else { return }
-        
+
         if index == currentQueueIndex {
             return
         }
-        
+
         currentQueue.remove(at: index)
-        
+
         if index < currentQueueIndex {
             currentQueueIndex -= 1
         }
@@ -92,10 +92,10 @@ extension PlaylistManager {
         guard sourceIndex >= 0, sourceIndex < currentQueue.count,
               destinationIndex >= 0, destinationIndex < currentQueue.count,
               sourceIndex != destinationIndex else { return }
-        
+
         let track = currentQueue.remove(at: sourceIndex)
         currentQueue.insert(track, at: destinationIndex)
-        
+
         if sourceIndex == currentQueueIndex {
             currentQueueIndex = destinationIndex
         } else if sourceIndex < currentQueueIndex && destinationIndex >= currentQueueIndex {
@@ -107,23 +107,22 @@ extension PlaylistManager {
 
     func playFromQueue(at index: Int) {
         guard index >= 0 && index < currentQueue.count else { return }
-        
+
         currentQueueIndex = index
         let track = currentQueue[index]
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
     }
-    
+
     internal func shuffleCurrentQueue() {
         guard !currentQueue.isEmpty else { return }
-        
+
         if let currentTrack = audioPlayer?.currentTrack,
            let currentIndex = currentQueue.firstIndex(where: { $0.id == currentTrack.id }) {
-            
             var tracksToShuffle = currentQueue
             tracksToShuffle.remove(at: currentIndex)
             tracksToShuffle.shuffle()
-            
+
             currentQueue = [currentTrack] + tracksToShuffle
             currentQueueIndex = 0
         } else {

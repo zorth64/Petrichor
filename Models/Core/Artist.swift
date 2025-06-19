@@ -7,22 +7,22 @@ class Artist: Identifiable, ObservableObject, FetchableRecord, PersistableRecord
     let normalizedName: String
     var sortName: String?
     var artworkData: Data?
-    
+
     // External API metadata
     @Published var bio: String?
     var bioSource: String?
     var bioUpdatedAt: Date?
-    
+
     @Published var imageUrl: String?
     var imageSource: String?
     var imageUpdatedAt: Date?
-    
+
     // External identifiers
     var discogsId: String?
     var musicbrainzId: String?
     var spotifyId: String?
     var appleMusicId: String?
-    
+
     // Additional metadata
     var country: String?
     var formedYear: Int?
@@ -30,27 +30,27 @@ class Artist: Identifiable, ObservableObject, FetchableRecord, PersistableRecord
     var genres: [String]?
     var websites: [String]?
     var members: [String]?
-    
+
     // Stats
     @Published var totalTracks: Int = 0
     @Published var totalAlbums: Int = 0
-    
+
     // Timestamps
     var createdAt: Date?
     var updatedAt: Date?
-    
+
     // MARK: - Initialization
-    
+
     init(name: String) {
         self.name = name
         self.normalizedName = ArtistParser.normalizeArtistName(name)
         self.sortName = name
     }
-    
+
     // MARK: - GRDB Configuration
-    
+
     static let databaseTableName = "artists"
-    
+
     enum Columns {
         static let id = Column("id")
         static let name = Column("name")
@@ -78,9 +78,9 @@ class Artist: Identifiable, ObservableObject, FetchableRecord, PersistableRecord
         static let createdAt = Column("created_at")
         static let updatedAt = Column("updated_at")
     }
-    
+
     // MARK: - FetchableRecord
-    
+
     required init(row: Row) throws {
         id = row[Columns.id]
         name = row[Columns.name]
@@ -100,31 +100,31 @@ class Artist: Identifiable, ObservableObject, FetchableRecord, PersistableRecord
         country = row[Columns.country]
         formedYear = row[Columns.formedYear]
         disbandedYear = row[Columns.disbandedYear]
-        
+
         // Decode JSON arrays
         if let genresJSON: String = row[Columns.genres],
            let data = genresJSON.data(using: .utf8) {
             genres = try? JSONDecoder().decode([String].self, from: data)
         }
-        
+
         if let websitesJSON: String = row[Columns.websites],
            let data = websitesJSON.data(using: .utf8) {
             websites = try? JSONDecoder().decode([String].self, from: data)
         }
-        
+
         if let membersJSON: String = row[Columns.members],
            let data = membersJSON.data(using: .utf8) {
             members = try? JSONDecoder().decode([String].self, from: data)
         }
-        
+
         totalTracks = row[Columns.totalTracks]
         totalAlbums = row[Columns.totalAlbums]
         createdAt = row[Columns.createdAt]
         updatedAt = row[Columns.updatedAt]
     }
-    
+
     // MARK: - PersistableRecord
-    
+
     func encode(to container: inout PersistenceContainer) throws {
         container[Columns.id] = id
         container[Columns.name] = name
@@ -144,32 +144,32 @@ class Artist: Identifiable, ObservableObject, FetchableRecord, PersistableRecord
         container[Columns.country] = country
         container[Columns.formedYear] = formedYear
         container[Columns.disbandedYear] = disbandedYear
-        
+
         // Encode JSON arrays
         if let genres = genres {
             container[Columns.genres] = try? JSONEncoder().encode(genres).utf8String
         }
-        
+
         if let websites = websites {
             container[Columns.websites] = try? JSONEncoder().encode(websites).utf8String
         }
-        
+
         if let members = members {
             container[Columns.members] = try? JSONEncoder().encode(members).utf8String
         }
-        
+
         container[Columns.totalTracks] = totalTracks
         container[Columns.totalAlbums] = totalAlbums
         container[Columns.createdAt] = createdAt ?? Date()
         container[Columns.updatedAt] = Date()
     }
-    
+
     func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
     }
-    
+
     // MARK: - Associations
-    
+
     static let tracks = hasMany(TrackArtist.self)
     static let albums = hasMany(Album.self)
 }
@@ -178,7 +178,7 @@ class Artist: Identifiable, ObservableObject, FetchableRecord, PersistableRecord
 
 extension Artist: Equatable {
     static func == (lhs: Artist, rhs: Artist) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id
     }
 }
 
@@ -194,6 +194,6 @@ extension Artist: Hashable {
 
 extension Data {
     var utf8String: String? {
-        return String(data: self, encoding: .utf8)
+        String(data: self, encoding: .utf8)
     }
 }

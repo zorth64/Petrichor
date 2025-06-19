@@ -4,38 +4,37 @@ struct TrackGridView: View {
     let tracks: [Track]
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
-    
+
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @State private var gridWidth: CGFloat = 0
     @State private var visibleRange: Range<Int> = 0..<0
-    
+
     private let itemWidth: CGFloat = 180
     private let itemHeight: CGFloat = 240
     private let spacing: CGFloat = 16
-    
+
     private var columns: Int {
         max(1, Int((gridWidth + spacing) / (itemWidth + spacing)))
     }
-    
+
     private var gridColumns: [GridItem] {
         Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns)
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
-            ScrollViewReader { scrollProxy in
+            ScrollViewReader { _ in
                 ScrollView {
                     LazyVGrid(columns: gridColumns, spacing: spacing) {
                         ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                             TrackGridItem(
-                                track: track,
-                                onPlay: {
+                                track: track
+                            ) {
                                     let isCurrentTrack = audioPlayerManager.currentTrack?.url.path == track.url.path
                                     if !isCurrentTrack {
                                         onPlayTrack(track)
                                     }
-                                }
-                            )
+                            }
                             .frame(width: itemWidth, height: itemHeight)
                             .contextMenu {
                                 TrackContextMenuContent(items: contextMenuItems(track))
@@ -61,7 +60,7 @@ struct TrackGridView: View {
             }
         }
     }
-    
+
     private func updateVisibleRange(index: Int) {
         // Track visible range for potential future optimizations
         if visibleRange.isEmpty {
@@ -76,21 +75,21 @@ struct TrackGridView: View {
 private struct TrackGridItem: View {
     @ObservedObject var track: Track
     let onPlay: () -> Void
-    
+
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @State private var isHovered = false
     @State private var artworkImage: NSImage?
     @State private var artworkLoadTask: Task<Void, Never>?
-    
+
     private var isCurrentTrack: Bool {
         guard let currentTrack = audioPlayerManager.currentTrack else { return false }
         return currentTrack.url.path == track.url.path
     }
-    
+
     private var isPlaying: Bool {
         isCurrentTrack && audioPlayerManager.isPlaying
     }
-    
+
     var body: some View {
         VStack(spacing: 8) {
             artworkSection
@@ -118,26 +117,26 @@ private struct TrackGridItem: View {
             artworkImage = nil
         }
     }
-    
+
     // MARK: - Subviews
-    
+
     @ViewBuilder
     private var artworkSection: some View {
         ZStack {
             artworkView
-            
+
             if isHovered || isCurrentTrack {
                 playOverlay
                     .transition(.opacity)
             }
-            
+
             if isCurrentTrack && isPlaying {
                 playingIndicatorOverlay
             }
         }
         .frame(width: 160, height: 160)
     }
-    
+
     @ViewBuilder
     private var artworkView: some View {
         if let artworkImage = artworkImage {
@@ -156,7 +155,7 @@ private struct TrackGridItem: View {
                 )
         }
     }
-    
+
     private var playOverlay: some View {
         RoundedRectangle(cornerRadius: 8)
             .fill(Color.black.opacity(0.4))
@@ -177,7 +176,7 @@ private struct TrackGridItem: View {
                 .buttonStyle(.borderless)
             )
     }
-    
+
     private var playingIndicatorOverlay: some View {
         VStack {
             HStack {
@@ -189,7 +188,7 @@ private struct TrackGridItem: View {
             Spacer()
         }
     }
-    
+
     private var trackInfoSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(track.title)
@@ -197,12 +196,12 @@ private struct TrackGridItem: View {
                 .foregroundColor(isCurrentTrack ? .accentColor : .primary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
-            
+
             Text(track.artist)
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
-            
+
             if !track.album.isEmpty && track.album != "Unknown Album" {
                 Text(track.album)
                     .font(.system(size: 11))
@@ -212,7 +211,7 @@ private struct TrackGridItem: View {
         }
         .frame(width: 160, alignment: .leading)
     }
-    
+
     private var backgroundView: some View {
         RoundedRectangle(cornerRadius: 10)
             .fill(
@@ -224,29 +223,29 @@ private struct TrackGridItem: View {
     }
 
     // MARK: - Artwork Loading
-    
+
     private func loadArtworkIfNeeded() {
         guard artworkImage == nil, artworkLoadTask == nil else { return }
-        
+
         artworkLoadTask = Task { @MainActor in
             // Small delay to prevent loading during fast scrolling
             try? await Task.sleep(nanoseconds: 150_000_000) // 0.1 seconds
-            
+
             guard !Task.isCancelled else { return }
-            
+
             if let artworkData = track.artworkData {
                 // Load image in background
                 let image = await loadImage(from: artworkData)
-                
+
                 guard !Task.isCancelled else { return }
-                
+
                 artworkImage = image
             }
-            
+
             artworkLoadTask = nil
         }
     }
-    
+
     private func loadImage(from data: Data) async -> NSImage? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {

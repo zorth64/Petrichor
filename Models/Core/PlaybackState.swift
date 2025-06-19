@@ -18,11 +18,11 @@ struct PlaybackState: Codable {
     // Track identification
     let currentTrackPath: String?
     let currentTrackId: Int64?
-    
+
     // Playback position
     let playbackPosition: Double
     let trackDuration: Double
-    
+
     // Queue state
     let queueVisible: Bool
     let queueTrackPaths: [String]
@@ -30,17 +30,17 @@ struct PlaybackState: Codable {
     let currentQueueIndex: Int
     let queueSource: String // "library", "folder", "playlist"
     let sourceIdentifier: String? // folder path or playlist ID
-    
+
     // Playback settings
     let volume: Float
     let isMuted: Bool
     let shuffleEnabled: Bool
     let repeatMode: String // "off", "one", "all"
-    
+
     // Metadata for validation
     let savedDate: Date
     let appVersion: String
-    
+
     init(
         currentTrack: Track?,
         playbackPosition: Double,
@@ -59,12 +59,12 @@ struct PlaybackState: Codable {
         self.currentTrackId = currentTrack?.trackId
         self.playbackPosition = playbackPosition
         self.trackDuration = currentTrack?.duration ?? 0
-        
+
         self.queueVisible = queueVisible
         self.queueTrackPaths = queue.map { $0.url.path }
         self.queueTrackIds = queue.compactMap { $0.trackId }
         self.currentQueueIndex = currentQueueIndex
-        
+
         // Convert queue source to string
         switch queueSource {
         case .library:
@@ -74,12 +74,12 @@ struct PlaybackState: Codable {
         case .playlist:
             self.queueSource = "playlist"
         }
-        
+
         self.sourceIdentifier = sourceIdentifier
         self.volume = volume
         self.isMuted = isMuted
         self.shuffleEnabled = shuffleEnabled
-        
+
         // Convert repeat mode to string
         switch repeatMode {
         case .off:
@@ -89,24 +89,24 @@ struct PlaybackState: Codable {
         case .all:
             self.repeatMode = "all"
         }
-        
+
         self.savedDate = Date()
         self.appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
+
         // Check version first
         let version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 0
-        
+
         // If version is incompatible, throw an error
         if version > Self.currentVersion {
             throw PlaybackStateError.incompatibleVersion
         }
-        
+
         self.version = version
-        
+
         // Decode all other properties
         self.currentTrackPath = try container.decodeIfPresent(String.self, forKey: .currentTrackPath)
         self.currentTrackId = try container.decodeIfPresent(Int64.self, forKey: .currentTrackId)
@@ -125,7 +125,7 @@ struct PlaybackState: Codable {
         self.savedDate = try container.decode(Date.self, forKey: .savedDate)
         self.appVersion = try container.decode(String.self, forKey: .appVersion)
     }
-    
+
     // Helper to convert back to RepeatMode enum
     var repeatModeEnum: RepeatMode {
         switch repeatMode {
@@ -134,7 +134,7 @@ struct PlaybackState: Codable {
         default: return .off
         }
     }
-    
+
     // Helper to convert back to QueueSource enum
     var queueSourceEnum: PlaylistManager.QueueSource {
         switch queueSource {
@@ -143,10 +143,10 @@ struct PlaybackState: Codable {
         default: return .library
         }
     }
-    
+
     func createUIState(from track: Track?) -> PlaybackUIState? {
         guard let track = track else { return nil }
-        
+
         return PlaybackUIState(
             trackTitle: track.title,
             trackArtist: track.artist,

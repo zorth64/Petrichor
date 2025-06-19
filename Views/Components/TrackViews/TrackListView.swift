@@ -4,14 +4,14 @@ struct TrackListView: View {
     let tracks: [Track]
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
-    
+
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @State private var hoveredTrackID: UUID?
-    
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0, pinnedViews: []) {
-                ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
+                ForEach(Array(tracks.enumerated()), id: \.element.id) { _, track in
                     TrackListRow(
                         track: track,
                         isHovered: hoveredTrackID == track.id,
@@ -42,10 +42,10 @@ private struct TrackListRow: View {
     let isHovered: Bool
     let onPlay: () -> Void
     let onHover: (Bool) -> Void
-    
+
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @State private var artworkImage: NSImage?
-    
+
     var body: some View {
         HStack(spacing: 0) {
             playButtonSection
@@ -57,20 +57,20 @@ private struct TrackListRow: View {
         .background(backgroundView)
         .onHover(perform: onHover)
     }
-    
+
     // MARK: - Computed Properties
-    
+
     private var isCurrentTrack: Bool {
         guard let currentTrack = audioPlayerManager.currentTrack else { return false }
         return currentTrack.url.path == track.url.path
     }
-    
+
     private var isPlaying: Bool {
         isCurrentTrack && audioPlayerManager.isPlaying
     }
-    
+
     // MARK: - View Components
-    
+
     private var playButtonSection: some View {
         ZStack {
             if shouldShowPlayButton {
@@ -91,7 +91,7 @@ private struct TrackListRow: View {
         .animation(.easeInOut(duration: 0.15), value: shouldShowPlayButton)
         .animation(.easeInOut(duration: 0.15), value: isPlaying)
     }
-    
+
     private var trackContent: some View {
         HStack(spacing: 12) {
             albumArtwork
@@ -102,7 +102,7 @@ private struct TrackListRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
-    
+
     private var albumArtwork: some View {
         Group {
             if let artworkImage = artworkImage {
@@ -120,7 +120,7 @@ private struct TrackListRow: View {
         .task { await loadArtwork() }
         .onDisappear { artworkImage = nil }
     }
-    
+
     private var placeholderArtwork: some View {
         RoundedRectangle(cornerRadius: 4)
             .fill(Color.gray.opacity(0.2))
@@ -131,7 +131,7 @@ private struct TrackListRow: View {
                     .foregroundColor(.secondary)
             )
     }
-    
+
     private var loadingArtwork: some View {
         ProgressView()
             .scaleEffect(0.5)
@@ -139,14 +139,14 @@ private struct TrackListRow: View {
             .background(Color.gray.opacity(0.1))
             .cornerRadius(4)
     }
-    
+
     private var trackInfo: some View {
         VStack(alignment: .leading, spacing: 2) {
             titleLabel
             detailsLabel
         }
     }
-    
+
     private var titleLabel: some View {
         Text(track.title)
             .font(.system(size: 14, weight: isCurrentTrack ? .medium : .regular))
@@ -154,7 +154,7 @@ private struct TrackListRow: View {
             .lineLimit(1)
             .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
     }
-    
+
     private var detailsLabel: some View {
         HStack(spacing: 4) {
             Text(track.artist)
@@ -162,31 +162,31 @@ private struct TrackListRow: View {
                 .foregroundColor(.secondary)
                 .lineLimit(1)
                 .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
-            
+
             if shouldShowAlbum {
                 Text("•")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
-                
+
                 Text(track.album)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
             }
-            
+
             if shouldShowYear {
                 Text("•")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
-                
+
                 Text(track.year)
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
         }
     }
-    
+
     private var durationLabel: some View {
         Text(formatDuration(track.duration))
             .font(.system(size: 12))
@@ -194,33 +194,33 @@ private struct TrackListRow: View {
             .monospacedDigit()
             .redacted(reason: track.isMetadataLoaded ? [] : .placeholder)
     }
-    
+
     private var backgroundView: some View {
         RoundedRectangle(cornerRadius: 6)
             .fill(backgroundColor)
             .animation(.easeInOut(duration: 0.1), value: isHovered)
     }
-    
+
     // MARK: - Helper Properties
-    
+
     private var shouldShowPlayButton: Bool {
         // Show button if:
         // 1. Hovered (play or pause depending on state)
         // 2. Current track but paused (persistent play button)
-        return isHovered || (isCurrentTrack && !audioPlayerManager.isPlaying)
+        isHovered || (isCurrentTrack && !audioPlayerManager.isPlaying)
     }
-    
+
     private var playButtonIcon: String {
         if isCurrentTrack {
             return isPlaying ? "pause.fill" : "play.fill"
         }
         return "play.fill"
     }
-    
+
     private var playButtonColor: Color {
-        return isCurrentTrack ? .accentColor : .primary
+        isCurrentTrack ? .accentColor : .primary
     }
-    
+
     private var backgroundColor: Color {
         if isPlaying {
             return isHovered ? Color(NSColor.selectedContentBackgroundColor).opacity(0.08) : Color.clear
@@ -234,13 +234,13 @@ private struct TrackListRow: View {
     private var shouldShowAlbum: Bool {
         !track.album.isEmpty && track.album != "Unknown Album"
     }
-    
+
     private var shouldShowYear: Bool {
         track.isMetadataLoaded && !track.year.isEmpty && track.year != "Unknown Year"
     }
-    
+
     // MARK: - Methods
-    
+
     private func handlePlayButtonTap() {
         if isCurrentTrack {
             audioPlayerManager.togglePlayPause()
@@ -248,10 +248,10 @@ private struct TrackListRow: View {
             onPlay()
         }
     }
-    
+
     private func loadArtwork() async {
         guard artworkImage == nil else { return }
-        
+
         await withCheckedContinuation { continuation in
             Task {
                 if let artworkData = track.artworkData,
@@ -264,7 +264,7 @@ private struct TrackListRow: View {
             }
         }
     }
-    
+
     private func formatDuration(_ seconds: Double) -> String {
         let totalSeconds = Int(max(0, seconds))
         let minutes = totalSeconds / 60

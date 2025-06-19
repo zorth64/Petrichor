@@ -15,9 +15,9 @@ struct FoldersView: View {
     @State private var newPlaylistName = ""
 
     @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
-    
+
     let viewType: LibraryViewType
-    
+
     var body: some View {
         if libraryManager.folders.isEmpty {
             // Show unified empty state when no folders exist
@@ -42,9 +42,9 @@ struct FoldersView: View {
             }
         }
     }
-    
+
     // MARK: - Folders Sidebar
-    
+
     private var foldersSidebar: some View {
         FoldersSidebarView(selectedNode: $selectedFolderNode)
             .onAppear {
@@ -60,49 +60,47 @@ struct FoldersView: View {
                 }
             }
     }
-    
+
     // MARK: - Folder Tracks View
-    
+
     private var folderTracksView: some View {
         VStack(alignment: .leading, spacing: 0) {
             folderTracksHeader
-            
+
             Divider()
-            
+
             folderTracksContent
         }
     }
-    
+
     @ViewBuilder
     private var folderTracksHeader: some View {
         if let node = selectedFolderNode {
             if viewType == .table {
                 TrackListHeader(
                     title: node.name,
-                    trackCount: folderTracks.count,
-                    trailing: {
+                    trackCount: folderTracks.count
+                ) {
                         TrackTableColumnMenu()
-                    }
-                )
+                }
             } else {
                 TrackListHeader(
                     title: node.name,
-                    trackCount: folderTracks.count,
-                    trailing: {
+                    trackCount: folderTracks.count
+                ) {
                         Button(action: { trackListSortAscending.toggle() }) {
                             Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
                                 .font(.system(size: 11, weight: .medium))
                         }
                         .buttonStyle(.borderless)
                         .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
-                    }
-                )
+                }
             }
         } else {
             TrackListHeader(title: "Select a Folder", trackCount: 0)
         }
     }
-    
+
     private var folderTracksContent: some View {
         Group {
             if selectedFolderNode == nil {
@@ -117,23 +115,23 @@ struct FoldersView: View {
             }
         }
     }
-    
+
     // MARK: - Content Views
-    
+
     private var loadingTracksView: some View {
         ProgressView("Loading tracks...")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var emptyFolderView: some View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text("No Music Files")
                 .font(.headline)
-            
+
             Text("No playable music files found in this folder")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -142,7 +140,7 @@ struct FoldersView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
-    
+
     private var trackListView: some View {
         TrackView(
             tracks: folderTracks,
@@ -180,16 +178,16 @@ struct FoldersView: View {
             }
         )
     }
-    
+
     private var noFolderSelectedView: some View {
         VStack(spacing: 16) {
             Image(systemName: "folder")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text("Select a Folder")
                 .font(.headline)
-            
+
             Text("Choose a folder from the list to view its music files")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -198,24 +196,24 @@ struct FoldersView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
-    
+
     // MARK: - Create Playlist Sheet
-    
+
     private var createPlaylistSheet: some View {
         VStack(spacing: 20) {
             Text("New Playlist")
                 .font(.headline)
-            
+
             TextField("Playlist Name", text: $newPlaylistName)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 250)
-            
+
             if let track = trackToAddToNewPlaylist {
                 Text("Will add: \(track.title)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             HStack(spacing: 12) {
                 Button("Cancel") {
                     newPlaylistName = ""
@@ -223,7 +221,7 @@ struct FoldersView: View {
                     showingCreatePlaylistWithTrack = false
                 }
                 .keyboardShortcut(.escape)
-                
+
                 Button("Create") {
                     if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
                         let newPlaylist = playlistManager.createPlaylist(
@@ -242,13 +240,13 @@ struct FoldersView: View {
         .padding(30)
         .frame(width: 350)
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func refreshFolder(_ folder: Folder) {
         libraryManager.refreshFolder(folder)
     }
-    
+
     // MARK: - Hierarchical Sidebar Helper Methods
 
     private func handleHierarchicalSidebarAppear() {
@@ -261,16 +259,16 @@ struct FoldersView: View {
             folderTracks = []
             return
         }
-        
+
         loadTracksForFolderNode(node)
     }
 
     private func loadTracksForFolderNode(_ node: FolderNode) {
         isLoadingTracks = true
-        
+
         // Get immediate tracks for this folder node
         let tracks = node.getImmediateTracks(using: libraryManager)
-        
+
         // Sort tracks based on current sort direction
         let sortedTracks = tracks.sorted { track1, track2 in
             let comparison = track1.title.localizedCaseInsensitiveCompare(track2.title)
@@ -278,7 +276,7 @@ struct FoldersView: View {
                 comparison == .orderedAscending :
                 comparison == .orderedDescending
         }
-        
+
         DispatchQueue.main.async {
             self.folderTracks = sortedTracks
             self.isLoadingTracks = false

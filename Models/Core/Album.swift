@@ -7,45 +7,45 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
     let normalizedTitle: String
     var sortTitle: String?
     var artworkData: Data?
-    
+
     // Artist relationship
     var artistId: Int64?
-    
+
     // Album metadata
     @Published var releaseDate: String?
     var releaseYear: Int?
     var albumType: String? // 'album', 'single', 'ep', 'compilation'
     var totalTracks: Int?
     var totalDiscs: Int?
-    
+
     // External API metadata
     var description: String?
     var review: String?
     var reviewSource: String?
     var coverArtUrl: String?
     var thumbnailUrl: String?
-    
+
     // External identifiers
     var discogsId: String?
     var musicbrainzId: String?
     var spotifyId: String?
     var appleMusicId: String?
-    
+
     // Additional metadata
     var label: String?
     var catalogNumber: String?
     var barcode: String?
     var genres: [String]?
-    
+
     // Timestamps
     var createdAt: Date?
     var updatedAt: Date?
-    
+
     // Transient properties
     @Published var trackCount: Int = 0
-    
+
     // MARK: - Initialization
-    
+
     init(title: String, artistId: Int64? = nil) {
         self.title = title
         self.normalizedTitle = title.lowercased()
@@ -56,11 +56,11 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         self.sortTitle = title
         self.artistId = artistId
     }
-    
+
     // MARK: - GRDB Configuration
-    
+
     static let databaseTableName = "albums"
-    
+
     enum Columns {
         static let id = Column("id")
         static let title = Column("title")
@@ -89,9 +89,9 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         static let createdAt = Column("created_at")
         static let updatedAt = Column("updated_at")
     }
-    
+
     // MARK: - FetchableRecord
-    
+
     required init(row: Row) throws {
         id = row[Columns.id]
         title = row[Columns.title]
@@ -116,19 +116,19 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         label = row[Columns.label]
         catalogNumber = row[Columns.catalogNumber]
         barcode = row[Columns.barcode]
-        
+
         // Decode JSON array
         if let genresJSON: String = row[Columns.genres],
            let data = genresJSON.data(using: .utf8) {
             genres = try? JSONDecoder().decode([String].self, from: data)
         }
-        
+
         createdAt = row[Columns.createdAt]
         updatedAt = row[Columns.updatedAt]
     }
-    
+
     // MARK: - PersistableRecord
-    
+
     func encode(to container: inout PersistenceContainer) throws {
         container[Columns.id] = id
         container[Columns.title] = title
@@ -152,36 +152,36 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         container[Columns.label] = label
         container[Columns.catalogNumber] = catalogNumber
         container[Columns.barcode] = barcode
-        
+
         // Encode JSON array
         if let genres = genres {
             container[Columns.genres] = try? JSONEncoder().encode(genres).utf8String
         }
-        
+
         container[Columns.createdAt] = createdAt ?? Date()
         container[Columns.updatedAt] = Date()
     }
-    
+
     func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
     }
-    
+
     // MARK: - Associations
-    
+
     static let artist = belongsTo(Artist.self)
     static let tracks = hasMany(Track.self, using: ForeignKey(["album_id"]))
-    
+
     // Helper to extract year from release date
     func extractReleaseYear() -> Int? {
         guard let releaseDate = releaseDate else { return nil }
-        
+
         // Try to parse year from common date formats
         let yearPatterns = [
             "^(\\d{4})",           // YYYY at start
             "(\\d{4})$",           // YYYY at end
             "(\\d{4})-\\d{2}-\\d{2}" // YYYY-MM-DD
         ]
-        
+
         for pattern in yearPatterns {
             if let regex = try? NSRegularExpression(pattern: pattern),
                let match = regex.firstMatch(in: releaseDate, range: NSRange(releaseDate.startIndex..., in: releaseDate)),
@@ -189,7 +189,7 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
                 return Int(releaseDate[yearRange])
             }
         }
-        
+
         return nil
     }
 }
@@ -198,7 +198,7 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
 
 extension Album: Equatable {
     static func == (lhs: Album, rhs: Album) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id
     }
 }
 

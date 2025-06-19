@@ -3,23 +3,23 @@ import SwiftUI
 struct ScanningAnimation: View {
     @State private var isAnimating = false
     @State private var rotationAngle: Double = 0
-    
+
     // Customizable properties
     let size: CGFloat
     let lineWidth: CGFloat
-    
+
     init(size: CGFloat = 80, lineWidth: CGFloat = 4) {
         self.size = size
         self.lineWidth = lineWidth
     }
-    
+
     var body: some View {
         ZStack {
             // Background circle
             Circle()
                 .stroke(Color.secondary.opacity(0.2), lineWidth: lineWidth)
                 .frame(width: size, height: size)
-            
+
             // Animated arc
             Circle()
                 .trim(from: 0, to: 0.7)
@@ -47,7 +47,7 @@ struct ScanningAnimation: View {
                         rotationAngle = 360
                     }
                 }
-            
+
             // Center icon with pulsing effect
             Image(systemName: "music.note")
                 .font(.system(size: size * 0.4, weight: .light))

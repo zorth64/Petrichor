@@ -9,13 +9,13 @@ extension LibraryManager {
         openPanel.allowsMultipleSelection = true
         openPanel.prompt = "Add Music Folder"
         openPanel.message = "Select folders containing your music files"
-        
+
         openPanel.beginSheetModal(for: NSApp.keyWindow!) { [weak self] response in
             guard let self = self, response == .OK else { return }
-            
+
             var urlsToAdd: [URL] = []
             var bookmarkDataMap: [URL: Data] = [:]
-            
+
             for url in openPanel.urls {
                 // Create security bookmark
                 do {
@@ -29,13 +29,13 @@ extension LibraryManager {
                     print("LibraryManager: Failed to create security bookmark for \(url.path): \(error)")
                 }
             }
-            
+
             // Add folders to database with their bookmarks
             if !urlsToAdd.isEmpty {
                 // Show scanning immediately
                 self.isScanning = true
                 self.scanStatusMessage = "Preparing to scan folders..."
-                
+
                 // Small delay to ensure UI updates
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     self.databaseManager.addFolders(urlsToAdd, bookmarkDataMap: bookmarkDataMap) { result in
@@ -51,7 +51,7 @@ extension LibraryManager {
             }
         }
     }
-    
+
     func removeFolder(_ folder: Folder) {
         // Remove from database
         databaseManager.removeFolder(folder) { [weak self] result in
@@ -64,22 +64,22 @@ extension LibraryManager {
             }
         }
     }
-    
+
     func refreshFolder(_ folder: Folder) {
         // Set background scanning flag
         isBackgroundScanning = true
-        
+
         // First, ensure we have a valid bookmark
         Task {
             // Refresh bookmark if needed
             if folder.bookmarkData == nil || !folder.url.startAccessingSecurityScopedResource() {
                 await refreshBookmarkForFolder(folder)
             }
-            
+
             // Then proceed with scanning
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
-                
+
                 // Delegate to database manager for refresh
                 self.databaseManager.refreshFolder(folder) { result in
                     switch result {
@@ -96,24 +96,24 @@ extension LibraryManager {
             }
         }
     }
-    
+
     func cleanupMissingFolders() {
         // Check each folder to see if it still exists
         var foldersToRemove: [Folder] = []
-        
+
         for folder in folders {
             if !fileManager.fileExists(atPath: folder.url.path) {
                 foldersToRemove.append(folder)
             }
         }
-        
+
         if !foldersToRemove.isEmpty {
             print("LibraryManager: Cleaning up \(foldersToRemove.count) missing folders")
-            
+
             for folder in foldersToRemove {
                 databaseManager.removeFolder(folder) { _ in }
             }
-            
+
             // Reload after cleanup
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 self.loadMusicLibrary()
@@ -121,14 +121,13 @@ extension LibraryManager {
         }
     }
 
-    
     func refreshBookmarkForFolder(_ folder: Folder) async {
         // Only refresh if we can access the folder
         guard FileManager.default.fileExists(atPath: folder.url.path) else {
             print("LibraryManager: Folder no longer exists at \(folder.url.path)")
             return
         }
-        
+
         do {
             // Create a fresh bookmark
             let newBookmarkData = try folder.url.bookmarkData(
@@ -136,14 +135,14 @@ extension LibraryManager {
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
-            
+
             // Update the folder with new bookmark
             var updatedFolder = folder
             updatedFolder.bookmarkData = newBookmarkData
-            
+
             // Save to database
             try await databaseManager.updateFolderBookmark(folder.id!, bookmarkData: newBookmarkData)
-            
+
             print("LibraryManager: Successfully refreshed bookmark for \(folder.name)")
         } catch {
             print("LibraryManager: Failed to refresh bookmark for \(folder.name): \(error)")

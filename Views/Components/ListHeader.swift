@@ -5,12 +5,12 @@ import SwiftUI
 struct ListHeaderStyle: ViewModifier {
     let height: CGFloat
     let padding: EdgeInsets
-    
+
     init(height: CGFloat = 36, padding: EdgeInsets? = nil) {
         self.height = height
         self.padding = padding ?? EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
     }
-    
+
     func body(content: Content) -> some View {
         content
             .padding(padding)
@@ -35,12 +35,12 @@ struct ListHeader<Content: View>: View {
         case simple    // Default 36px height
         case expanded  // Custom height for complex content
     }
-    
+
     let type: HeaderType
     let height: CGFloat?
     let padding: EdgeInsets?
     let content: () -> Content
-    
+
     init(
         type: HeaderType = .simple,
         height: CGFloat? = nil,
@@ -52,7 +52,7 @@ struct ListHeader<Content: View>: View {
         self.padding = padding
         self.content = content
     }
-    
+
     var body: some View {
         HStack {
             content()
@@ -69,11 +69,11 @@ struct ListHeader<Content: View>: View {
 // For complex playlist headers with artwork
 struct PlaylistHeader<Content: View>: View {
     let content: () -> Content
-    
+
     init(@ViewBuilder content: @escaping () -> Content) {
         self.content = content
     }
-    
+
     var body: some View {
         content()
             .padding(.horizontal, 20)
@@ -89,7 +89,7 @@ struct TrackListHeader<Trailing: View>: View {
     let subtitle: String?
     let trackCount: Int
     let trailing: (() -> Trailing)?
-    
+
     init(
         title: String,
         subtitle: String? = nil,
@@ -101,7 +101,7 @@ struct TrackListHeader<Trailing: View>: View {
         self.trackCount = trackCount
         self.trailing = trailing
     }
-    
+
     init(
         title: String,
         subtitle: String? = nil,
@@ -112,21 +112,21 @@ struct TrackListHeader<Trailing: View>: View {
         self.trackCount = trackCount
         self.trailing = nil
     }
-    
+
     var body: some View {
         ListHeader {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .headerTitleStyle()
-                
+
                 if let subtitle = subtitle {
                     Text(subtitle)
                         .headerSubtitleStyle()
                 }
             }
-            
+
             Spacer()
-            
+
             if let trailing = trailing {
                 trailing()
             } else {
@@ -158,7 +158,7 @@ extension View {
     func headerTitleStyle() -> some View {
         modifier(HeaderTitleStyle())
     }
-    
+
     func headerSubtitleStyle() -> some View {
         modifier(HeaderSubtitleStyle())
     }

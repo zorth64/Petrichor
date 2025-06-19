@@ -5,9 +5,9 @@ enum MainTab: String, CaseIterable, Identifiable {
     case library
     case playlists
     case folders
-    
+
     var id: String { rawValue }
-    
+
     var label: String {
         switch self {
         case .home: return "Home"
@@ -16,7 +16,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .folders: return "Folders"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .home: return "music.note.house"
@@ -25,7 +25,7 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .folders: return "folder"
         }
     }
-    
+
     var selectedIcon: String {
         switch self {
         case .home: return "music.note.house.fill"

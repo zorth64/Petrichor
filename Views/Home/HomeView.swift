@@ -8,7 +8,7 @@ struct HomeView: View {
     @State private var selectedTrackID: UUID?
     @AppStorage("globalViewType") private var viewType: LibraryViewType = .table
     @Binding var isShowingEntities: Bool
-    
+
     var body: some View {
         if libraryManager.folders.isEmpty || libraryManager.tracks.isEmpty {
             NoMusicEmptyStateView(context: .mainWindow)
@@ -45,9 +45,9 @@ struct HomeView: View {
             )
         }
     }
-    
+
     // MARK: - Tracks View
-    
+
     private var tracksView: some View {
         VStack(spacing: 0) {
             // Header
@@ -55,9 +55,9 @@ struct HomeView: View {
                 title: "All Tracks",
                 trackCount: libraryManager.tracks.count
             )
-            
+
             Divider()
-            
+
             // Track list
             if libraryManager.tracks.isEmpty {
                 NoMusicEmptyStateView(context: .mainWindow)
@@ -82,7 +82,7 @@ struct HomeView: View {
             }
         }
     }
-    
+
     // MARK: - Artists View
 
     private var artistsView: some View {
@@ -92,9 +92,9 @@ struct HomeView: View {
                 title: "All Artists",
                 trackCount: libraryManager.artistEntities.count
             )
-            
+
             Divider()
-            
+
             // Artists list
             if libraryManager.artistEntities.isEmpty {
                 NoMusicEmptyStateView(context: .mainWindow)
@@ -118,9 +118,9 @@ struct HomeView: View {
     // MARK: - Context Menu
 
     private func createArtistContextMenuItems(for artist: ArtistEntity) -> [ContextMenuItem] {
-        return []
+        []
     }
-    
+
     // MARK: - Albums View
 
     private var albumsView: some View {
@@ -130,9 +130,9 @@ struct HomeView: View {
                 title: "All Albums",
                 trackCount: libraryManager.albumEntities.count
             )
-            
+
             Divider()
-            
+
             // Albums list
             if libraryManager.albumEntities.isEmpty {
                 NoMusicEmptyStateView(context: .mainWindow)
@@ -157,17 +157,17 @@ struct HomeView: View {
 
     private func createAlbumContextMenuItems(for album: AlbumEntity) -> [ContextMenuItem] {
         // TODO: Implement context menu items when we add album detail view
-        return []
+        []
     }
-    
+
     // MARK: - Empty Selection View
-    
+
     private var emptySelectionView: some View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.house")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text("Select an item from the sidebar")
                 .font(.headline)
                 .foregroundColor(.secondary)

@@ -3,8 +3,8 @@ import SwiftUI
 struct PlayingIndicator: View {
     @State private var animationPhases: [CGFloat] = [0, 0, 0]
     // Update 60 times per second for smooth animation
-    private let timer = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
-    
+    private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
     var body: some View {
         HStack(spacing: 2) {
             ForEach(0..<3) { index in
@@ -20,14 +20,14 @@ struct PlayingIndicator: View {
             updateAnimation()
         }
     }
-    
+
     private func barHeight(for index: Int) -> CGFloat {
         let phase = animationPhases[index]
         // Smoother sine wave calculation
         let height = 6 + (6 * sin(phase))
         return max(2, height) // Ensure minimum height of 2
     }
-    
+
     private func updateAnimation() {
         // Slower, smoother animation with different speeds for each bar
         animationPhases[0] += 0.08

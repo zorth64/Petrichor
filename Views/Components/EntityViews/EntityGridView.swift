@@ -4,33 +4,32 @@ struct EntityGridView<T: Entity>: View {
     let entities: [T]
     let onSelectEntity: (T) -> Void
     let contextMenuItems: (T) -> [ContextMenuItem]
-    
+
     @State private var gridWidth: CGFloat = 0
-    
+
     private let itemWidth: CGFloat = 180
     private let itemHeight: CGFloat = 240
     private let spacing: CGFloat = 16
-    
+
     private var columns: Int {
         max(1, Int((gridWidth + spacing) / (itemWidth + spacing)))
     }
-    
+
     private var gridColumns: [GridItem] {
         Array(repeating: GridItem(.fixed(itemWidth), spacing: spacing), count: columns)
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
                 LazyVGrid(columns: gridColumns, spacing: spacing) {
-                    ForEach(Array(entities.enumerated()), id: \.element.id) { index, entity in
+                    ForEach(Array(entities.enumerated()), id: \.element.id) { _, entity in
                         EntityGridItem(
                             entity: entity,
-                            itemWidth: itemWidth,
-                            onSelect: {
+                            itemWidth: itemWidth
+                        ) {
                                 onSelectEntity(entity)
-                            }
-                        )
+                        }
                         .frame(width: itemWidth, height: itemHeight)
                         .contextMenu {
                             ForEach(contextMenuItems(entity), id: \.id) { item in
@@ -52,7 +51,7 @@ struct EntityGridView<T: Entity>: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private func contextMenuItem(_ item: ContextMenuItem) -> some View {
         switch item {
@@ -77,11 +76,11 @@ private struct EntityGridItem<T: Entity>: View {
     let entity: T
     let itemWidth: CGFloat
     let onSelect: () -> Void
-    
+
     @State private var isHovered = false
     @State private var artworkImage: NSImage?
     @State private var artworkLoadTask: Task<Void, Never>?
-    
+
     var body: some View {
         VStack(spacing: 8) {
             // Artwork
@@ -89,7 +88,7 @@ private struct EntityGridItem<T: Entity>: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.gray.opacity(0.2))
                     .aspectRatio(1, contentMode: .fit)
-                
+
                 if let image = artworkImage {
                     Image(nsImage: image)
                         .resizable()
@@ -102,7 +101,7 @@ private struct EntityGridItem<T: Entity>: View {
                         Image(systemName: iconForEntity)
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
-                        
+
                         Text(entity.name)
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.gray)
@@ -113,14 +112,14 @@ private struct EntityGridItem<T: Entity>: View {
                 }
             }
             .frame(width: 160, height: 160)
-            
+
             // Text content
             VStack(spacing: 2) {
                 Text(entity.name)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(.primary)
-                
+
                 if let subtitle = entity.subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
@@ -152,7 +151,7 @@ private struct EntityGridItem<T: Entity>: View {
             artworkImage = nil
         }
     }
-    
+
     private var iconForEntity: String {
         if entity is ArtistEntity {
             return "person.fill"
@@ -161,22 +160,22 @@ private struct EntityGridItem<T: Entity>: View {
         }
         return "music.note"
     }
-    
+
     private func loadArtworkAsync() {
         artworkLoadTask?.cancel()
-        
+
         artworkLoadTask = Task {
             // Small delay to prioritize scrolling
             try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-            
+
             guard !Task.isCancelled else { return }
-            
+
             if let data = entity.artworkData,
                let image = NSImage(data: data) {
                 // Resize image to appropriate size for grid
                 let targetSize = NSSize(width: itemWidth * 2, height: itemWidth * 2) // 2x for retina
                 let thumbnailImage = image.resized(to: targetSize)
-                
+
                 await MainActor.run {
                     guard !Task.isCancelled else { return }
                     self.artworkImage = thumbnailImage
@@ -195,7 +194,7 @@ private struct EntityGridItem<T: Entity>: View {
         ArtistEntity(name: "Led Zeppelin", trackCount: 22),
         ArtistEntity(name: "Queen", trackCount: 30)
     ]
-    
+
     EntityGridView(
         entities: artists,
         onSelectEntity: { artist in
@@ -213,7 +212,7 @@ private struct EntityGridItem<T: Entity>: View {
         AlbumEntity(name: "Led Zeppelin IV", artist: "Led Zeppelin", trackCount: 8),
         AlbumEntity(name: "A Night at the Opera", artist: "Queen", trackCount: 12)
     ]
-    
+
     EntityGridView(
         entities: albums,
         onSelectEntity: { album in

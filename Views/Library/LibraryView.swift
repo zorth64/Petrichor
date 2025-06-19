@@ -13,14 +13,14 @@ struct LibraryView: View {
     @State private var cachedFilteredTracks: [Track] = []
     @State private var pendingSearchText: String?
     @State private var isViewReady = false
-    
+
     @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
     @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
-    
+
     @Binding var pendingFilter: LibraryFilterRequest?
-    
+
     let viewType: LibraryViewType
-    
+
     var body: some View {
         VStack {
             if libraryManager.tracks.isEmpty {
@@ -45,10 +45,10 @@ struct LibraryView: View {
                         selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
                     }
                     updateFilteredTracks()
-                    
+
                     // Mark view as ready
                     isViewReady = true
-                    
+
                     // Check if there's a pending filter to apply
                     if let request = pendingFilter {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -104,21 +104,21 @@ struct LibraryView: View {
             }
         }
     }
-    
+
     init(viewType: LibraryViewType, pendingFilter: Binding<LibraryFilterRequest?> = .constant(nil)) {
         self.viewType = viewType
         self._pendingFilter = pendingFilter
     }
-    
+
     // MARK: - Tracks List View
-    
+
     private var tracksListView: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             tracksListHeader
-            
+
             Divider()
-            
+
             // Tracks list content
             if cachedFilteredTracks.isEmpty {
                 emptyFilterView
@@ -144,36 +144,34 @@ struct LibraryView: View {
             }
         }
     }
-    
+
     // MARK: - Tracks List Header
-    
+
     private var tracksListHeader: some View {
         Group {
             if viewType == .table {
                 TrackListHeader(
                     title: headerTitle,
-                    trackCount: cachedFilteredTracks.count,
-                    trailing: {
+                    trackCount: cachedFilteredTracks.count
+                ) {
                         TrackTableColumnMenu()
-                    }
-                )
+                }
             } else {
                 TrackListHeader(
                     title: headerTitle,
-                    trackCount: cachedFilteredTracks.count,
-                    trailing: {
+                    trackCount: cachedFilteredTracks.count
+                ) {
                         Button(action: { trackListSortAscending.toggle() }) {
                             Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
                                 .font(.system(size: 11, weight: .medium))
                         }
                         .buttonStyle(.borderless)
                         .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
-                    }
-                )
+                }
             }
         }
     }
-    
+
     private var headerTitle: String {
         if !libraryManager.globalSearchText.isEmpty {
             return "Search Results"
@@ -187,24 +185,24 @@ struct LibraryView: View {
             return "All Tracks"
         }
     }
-    
+
     // MARK: - Empty Filter View
-    
+
     private var emptyFilterView: some View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text(libraryManager.globalSearchText.isEmpty ? "No Tracks Found" : "No Search Results")
                 .font(.headline)
-            
+
             if !libraryManager.globalSearchText.isEmpty {
                 Text("No tracks found matching \"\(libraryManager.globalSearchText)\"")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-                
+
                 Button("Clear Search") {
                     // We need to clear the search from here
                     // This will require making globalSearchText a binding
@@ -226,20 +224,20 @@ struct LibraryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
-    
+
     // MARK: - Filtering Tracks Helper
-    
+
     private func updateFilteredTracks() {
         // Start with all tracks
         var tracks = libraryManager.searchResults
-        
+
         // Then apply sidebar filter if present
         if let filterItem = selectedFilterItem, !filterItem.name.hasPrefix("All") {
             tracks = tracks.filter { track in
                 selectedFilterType.trackMatches(track, filterValue: filterItem.name)
             }
         }
-        
+
         cachedFilteredTracks = sortTracks(tracks)
     }
 
@@ -251,35 +249,35 @@ struct LibraryView: View {
                 comparison == .orderedDescending
         }
     }
-    
+
     // MARK: - Context Menu Helper
-    
+
     private func createLibraryContextMenu(for track: Track) -> [ContextMenuItem] {
-        return TrackContextMenu.createMenuItems(
+        TrackContextMenu.createMenuItems(
             for: track,
             audioPlayerManager: audioPlayerManager,
             playlistManager: playlistManager,
             currentContext: .library
         )
     }
-    
+
     // MARK: - Create Playlist Sheet
-    
+
     private var createPlaylistSheet: some View {
         VStack(spacing: 20) {
             Text("New Playlist")
                 .font(.headline)
-            
+
             TextField("Playlist Name", text: $newPlaylistName)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 250)
-            
+
             if let track = trackToAddToNewPlaylist {
                 Text("Will add: \(track.title)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             HStack(spacing: 12) {
                 Button("Cancel") {
                     newPlaylistName = ""
@@ -287,7 +285,7 @@ struct LibraryView: View {
                     showingCreatePlaylistWithTrack = false
                 }
                 .keyboardShortcut(.escape)
-                
+
                 Button("Create") {
                     if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
                         let newPlaylist = playlistManager.createPlaylist(
