@@ -48,31 +48,35 @@ struct LibrarySidebarView: View {
         }
         .onChange(of: pendingSearchText) { newValue in
             if let searchValue = newValue {
-                // Apply the search
-                searchText = searchValue
-                localSearchText = searchValue
-                // Update filtered items immediately
-                updateFilteredItems()
-
-                // Clear the pending search
+                // Clear the pending search first
                 pendingSearchText = nil
-
-                // Wait for the filtered items to update, then select the first match
+                
+                // Wait for tab switch to complete if needed
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    // Check if we have any filtered items that match exactly
-                    if let exactMatch = filteredItems.first(where: { $0.name == searchValue }) {
-                        let sidebarItem = LibrarySidebarItem(filterItem: exactMatch)
-                        handleItemSelection(sidebarItem)
-                    } else if let firstMatch = filteredItems.first {
-                        // Select the first match if no exact match
-                        let sidebarItem = LibrarySidebarItem(filterItem: firstMatch)
-                        handleItemSelection(sidebarItem)
-                    } else {
-                        // Fallback to "All" if no matches
-                        let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
-                        let sidebarItem = LibrarySidebarItem(allItemFor: selectedFilterType, count: libraryManager.tracks.count)
-                        handleItemSelection(sidebarItem)
-                        selectedFilterItem = allItem
+                    // Apply the search text first
+                    searchText = searchValue
+                    localSearchText = searchValue
+                    
+                    // Wait a bit more for the filtered items to update
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        // Now find the item in the filtered list
+                        if let exactMatch = filteredItems.first(where: { $0.name == searchValue }) {
+                            // Create the sidebar item for selection
+                            let sidebarItem = LibrarySidebarItem(filterItem: exactMatch)
+                            
+                            // Use handleItemSelection to properly set both
+                            handleItemSelection(sidebarItem)
+                        } else {
+                            // If not in filtered items, try to get from all items
+                            let allItems = libraryManager.getLibraryFilterItems(for: selectedFilterType)
+                            if let exactMatch = allItems.first(where: { $0.name == searchValue }) {
+                                // Create the sidebar item for selection
+                                let sidebarItem = LibrarySidebarItem(filterItem: exactMatch)
+                                
+                                // Use handleItemSelection
+                                handleItemSelection(sidebarItem)
+                            }
+                        }
                     }
                 }
             }
