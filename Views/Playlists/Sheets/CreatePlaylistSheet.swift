@@ -2,15 +2,15 @@ import SwiftUI
 
 struct CreatePlaylistSheet: View {
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack {
             Text("Create Playlist")
                 .font(.title)
-            
+
             Text("Coming soon...")
                 .foregroundColor(.secondary)
-            
+
             Button("Close") {
                 dismiss()
             }

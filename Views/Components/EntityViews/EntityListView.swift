@@ -4,9 +4,9 @@ struct EntityListView<T: Entity>: View {
     let entities: [T]
     let onSelectEntity: (T) -> Void
     let contextMenuItems: (T) -> [ContextMenuItem]
-    
+
     @State private var hoveredEntityID: UUID?
-    
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0, pinnedViews: []) {
@@ -32,7 +32,7 @@ struct EntityListView<T: Entity>: View {
             .padding(5)
         }
     }
-    
+
     @ViewBuilder
     private func contextMenuItem(_ item: ContextMenuItem) -> some View {
         switch item {
@@ -58,10 +58,10 @@ private struct EntityListRow<T: Entity>: View {
     let isHovered: Bool
     let onSelect: () -> Void
     let onHover: (Bool) -> Void
-    
+
     @State private var artworkImage: NSImage?
     @State private var artworkLoadTask: Task<Void, Never>?
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // Artwork
@@ -69,7 +69,7 @@ private struct EntityListRow<T: Entity>: View {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 48, height: 48)
-                
+
                 if let image = artworkImage {
                     Image(nsImage: image)
                         .resizable()
@@ -83,14 +83,14 @@ private struct EntityListRow<T: Entity>: View {
                         .foregroundColor(.gray)
                 }
             }
-            
+
             // Content
             VStack(alignment: .leading, spacing: 2) {
                 Text(entity.name)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(.primary)
-                
+
                 if let subtitle = entity.subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
@@ -98,9 +98,9 @@ private struct EntityListRow<T: Entity>: View {
                         .lineLimit(1)
                 }
             }
-            
+
             Spacer()
-            
+
             // Chevron on hover
             if isHovered {
                 Image(systemName: "chevron.right")
@@ -127,13 +127,13 @@ private struct EntityListRow<T: Entity>: View {
             artworkImage = nil
         }
     }
-    
+
     private var backgroundView: some View {
         RoundedRectangle(cornerRadius: 6)
             .fill(isHovered ? Color(NSColor.selectedContentBackgroundColor).opacity(0.15) : Color.clear)
             .animation(.easeInOut(duration: 0.15), value: isHovered)
     }
-    
+
     private var iconForEntity: String {
         if entity is ArtistEntity {
             return "person.fill"
@@ -142,21 +142,21 @@ private struct EntityListRow<T: Entity>: View {
         }
         return "music.note"
     }
-    
+
     private func loadArtworkAsync() {
         artworkLoadTask?.cancel()
-        
+
         artworkLoadTask = Task {
             // Small delay to prioritize scrolling
             try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-            
+
             guard !Task.isCancelled else { return }
-            
+
             if let data = entity.artworkData,
                let image = NSImage(data: data) {
                 // Resize image to thumbnail size to save memory
                 let thumbnailImage = image.resized(to: NSSize(width: 96, height: 96))
-                
+
                 await MainActor.run {
                     guard !Task.isCancelled else { return }
                     self.artworkImage = thumbnailImage
@@ -174,7 +174,7 @@ private struct EntityListRow<T: Entity>: View {
         ArtistEntity(name: "Arcade Fire", trackCount: 12),
         ArtistEntity(name: "The National", trackCount: 20)
     ]
-    
+
     EntityListView(
         entities: artists,
         onSelectEntity: { artist in
@@ -192,7 +192,7 @@ private struct EntityListRow<T: Entity>: View {
         AlbumEntity(name: "Sleep Well Beast", artist: "The National", trackCount: 12),
         AlbumEntity(name: "In Rainbows", artist: "Radiohead", trackCount: 10)
     ]
-    
+
     EntityListView(
         entities: albums,
         onSelectEntity: { album in

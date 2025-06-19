@@ -6,7 +6,7 @@ struct EntityView<T: Entity>: View {
     let viewType: LibraryViewType
     let onSelectEntity: (T) -> Void
     let contextMenuItems: (T) -> [ContextMenuItem]
-    
+
     var body: some View {
         switch viewType {
         case .list:
@@ -48,13 +48,13 @@ extension NSImage {
             bytesPerRow: 0,
             bitsPerPixel: 0
         ) else { return nil }
-        
+
         bitmapRep.size = size
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
         draw(in: NSRect(origin: .zero, size: size), from: .zero, operation: .copy, fraction: 1.0)
         NSGraphicsContext.restoreGraphicsState()
-        
+
         let resizedImage = NSImage(size: size)
         resizedImage.addRepresentation(bitmapRep)
         return resizedImage
@@ -69,7 +69,7 @@ extension NSImage {
         ArtistEntity(name: "Artist 1", trackCount: 7),
         ArtistEntity(name: "Artist 2", trackCount: 3)
     ]
-    
+
     EntityView(
         entities: artists,
         viewType: .list,
@@ -88,7 +88,7 @@ extension NSImage {
         AlbumEntity(name: "Album 2", artist: "Artist 2", trackCount: 9),
         AlbumEntity(name: "Album 3", artist: "Artist 0", trackCount: 12)
     ]
-    
+
     EntityView(
         entities: albums,
         viewType: .grid,

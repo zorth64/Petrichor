@@ -3,14 +3,14 @@ import SwiftUI
 struct BackgroundScanningIndicator: View {
     @State private var isAnimating = false
     @EnvironmentObject var libraryManager: LibraryManager
-    
+
     var body: some View {
         ZStack {
             // Background circle
             Circle()
                 .fill(Color.secondary.opacity(0.1))
                 .frame(width: 24, height: 24)
-            
+
             // Progress ring
             Circle()
                 .trim(from: 0, to: 0.7)
@@ -36,7 +36,7 @@ struct BackgroundScanningIndicator: View {
         }
         .help(scanningTooltip)
     }
-    
+
     private var scanningTooltip: String {
         if !libraryManager.scanStatusMessage.isEmpty {
             return libraryManager.scanStatusMessage

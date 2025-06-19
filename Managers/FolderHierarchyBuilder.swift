@@ -3,25 +3,25 @@ import Foundation
 class FolderHierarchyBuilder {
     private let fileManager = FileManager.default
     private let supportedExtensions = ["mp3", "m4a", "wav", "aac", "aiff", "flac"]
-    
+
     // Build hierarchy for all watched folders
     func buildHierarchy(for folders: [Folder], tracks: [Track]) async -> [FolderNode] {
         var rootNodes: [FolderNode] = []
-        
+
         for folder in folders {
             // Create root node for each watched folder
             let rootNode = FolderNode(url: folder.url, name: folder.name, isWatchFolder: true)
             rootNode.databaseFolder = folder
-            
+
             // Build the hierarchy for this root folder
             await buildSubtree(for: rootNode, allTracks: tracks)
-            
+
             rootNodes.append(rootNode)
         }
-        
+
         return rootNodes
     }
-    
+
     // Recursively build subtree for a node
     private func buildSubtree(for node: FolderNode, allTracks: [Track]) async {
         do {
@@ -30,20 +30,20 @@ class FolderHierarchyBuilder {
                 includingPropertiesForKeys: [.isDirectoryKey],
                 options: [.skipsHiddenFiles]
             )
-            
+
             var subfolders: [FolderNode] = []
             var trackCount = 0
-            
+
             for itemURL in contents {
                 let resourceValues = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
-                
+
                 if resourceValues.isDirectory == true {
                     // It's a subfolder - create a node for it
                     let childNode = FolderNode(url: itemURL)
-                    
+
                     // Recursively build its subtree
                     await buildSubtree(for: childNode, allTracks: allTracks)
-                    
+
                     // Only add folders that contain tracks (directly or in subfolders)
                     if childNode.immediateTrackCount > 0 || !childNode.children.isEmpty {
                         subfolders.append(childNode)
@@ -56,28 +56,27 @@ class FolderHierarchyBuilder {
                     }
                 }
             }
-            
+
             // Update the node
             await MainActor.run {
                 node.children = subfolders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 node.immediateTrackCount = trackCount
             }
-            
         } catch {
             print("FolderHierarchyBuilder: Error scanning folder \(node.url.path): \(error)")
         }
     }
-    
+
     // Get all tracks for a specific folder node (immediate only, not recursive)
     func getTracksForNode(_ node: FolderNode, from allTracks: [Track]) -> [Track] {
-        return allTracks.filter { track in
+        allTracks.filter { track in
             track.url.deletingLastPathComponent() == node.url
         }
     }
-    
+
     // Check if a folder node contains a specific track
     func nodeContainsTrack(_ node: FolderNode, track: Track) -> Bool {
         // Check if track's parent directory matches this node's URL
-        return track.url.deletingLastPathComponent() == node.url
+        track.url.deletingLastPathComponent() == node.url
     }
 }

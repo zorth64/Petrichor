@@ -3,15 +3,15 @@ import SwiftUI
 struct PlaylistDetailSheet: View {
     let playlist: Playlist
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack {
             Text(playlist.name)
                 .font(.title)
-            
+
             Text("\(playlist.tracks.count) songs")
                 .foregroundColor(.secondary)
-            
+
             Button("Close") {
                 dismiss()
             }

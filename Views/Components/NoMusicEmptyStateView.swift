@@ -4,28 +4,28 @@ struct NoMusicEmptyStateView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var stableScanningState = false
     @State private var scanningStateTimer: Timer?
-    
+
     // Customization options
     let context: EmptyStateContext
-    
+
     enum EmptyStateContext {
         case mainWindow
         case settings
-        
+
         var iconSize: CGFloat {
             switch self {
             case .mainWindow: return 80
             case .settings: return 60
             }
         }
-        
+
         var spacing: CGFloat {
             switch self {
             case .mainWindow: return 24
             case .settings: return 20
         }
         }
-        
+
         var titleFont: Font {
             switch self {
             case .mainWindow: return .largeTitle
@@ -33,7 +33,7 @@ struct NoMusicEmptyStateView: View {
             }
         }
     }
-    
+
     var body: some View {
         VStack(spacing: context.spacing) {
             if stableScanningState && libraryManager.folders.isEmpty {
@@ -64,16 +64,16 @@ struct NoMusicEmptyStateView: View {
             updateStableScanningState(newValue)
         }
     }
-    
+
     private func setupScanningStateObserver() {
         // Initialize with current state
         stableScanningState = libraryManager.isScanning
     }
-    
+
     private func updateStableScanningState(_ isScanning: Bool) {
         // Cancel any pending timer
         scanningStateTimer?.invalidate()
-        
+
         if isScanning {
             // Turn on immediately
             stableScanningState = true
@@ -84,25 +84,25 @@ struct NoMusicEmptyStateView: View {
             }
         }
     }
-    
+
     // MARK: - Empty State Content
-    
+
     private var noContentView: some View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text("No music found")
                 .font(.headline)
                 .foregroundColor(.secondary)
-            
+
             Text("Your folders are being scanned for music files")
                 .font(.subheadline)
                 .foregroundColor(.secondary.opacity(0.8))
         }
     }
-    
+
     private var emptyStateContent: some View {
         VStack(spacing: context.spacing) {
             // Icon with subtle animation
@@ -110,30 +110,30 @@ struct NoMusicEmptyStateView: View {
                 Circle()
                     .fill(Color.accentColor.opacity(0.1))
                     .frame(width: context.iconSize * 1.8, height: context.iconSize * 1.8)
-                
+
                 Image(systemName: "folder.badge.plus")
                     .font(.system(size: context.iconSize, weight: .light))
                     .foregroundColor(.accentColor)
                     .symbolEffect(.pulse.byLayer, options: .repeating.speed(0.5))
             }
-            
+
             VStack(spacing: 12) {
                 Text("No Music Added Yet")
                     .font(context.titleFont)
                     .fontWeight(.semibold)
-                
+
                 VStack(spacing: 8) {
                     Text("Add folders containing your music to get started")
                         .font(.title3)
                         .foregroundColor(.secondary)
-                    
+
                     Text("You can select multiple folders at once")
                         .font(.subheadline)
                         .foregroundColor(.secondary.opacity(0.7))
                 }
                 .multilineTextAlignment(.center)
             }
-            
+
             // Add button
             Button(action: { libraryManager.addFolder() }) {
                 HStack(spacing: 6) {
@@ -152,14 +152,14 @@ struct NoMusicEmptyStateView: View {
                 )
             }
             .buttonStyle(PlainButtonStyle())
-            
+
             // Supported formats
             VStack(spacing: 4) {
                 Text("Supported formats")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
-                
+
                 Text("MP3, M4A, WAV, AAC, AIFF, FLAC")
                     .font(.caption)
                     .foregroundColor(.secondary.opacity(0.7))
@@ -169,19 +169,19 @@ struct NoMusicEmptyStateView: View {
         }
         .transition(.opacity)
     }
-    
+
     // MARK: - Scanning Progress Content
 
     private var scanningProgressContent: some View {
         VStack(spacing: 20) {
             // Use our new scanning animation
             ScanningAnimation()
-            
+
             VStack(spacing: 8) {
                 Text("Scanning Music Library")
                     .font(.title2)
                     .fontWeight(.semibold)
-                
+
                 Text(libraryManager.scanStatusMessage.isEmpty ? "Discovering your music..." : libraryManager.scanStatusMessage)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -189,14 +189,14 @@ struct NoMusicEmptyStateView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 350, minHeight: 40)
             }
-            
+
             // Track count
-            if libraryManager.tracks.count > 0 {
+            if !libraryManager.tracks.isEmpty {
                 Text("\(libraryManager.tracks.count) tracks found")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Text("This may take a few minutes for large libraries")
                 .font(.caption)
                 .foregroundColor(.secondary.opacity(0.7))

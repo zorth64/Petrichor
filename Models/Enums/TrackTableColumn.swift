@@ -3,7 +3,7 @@ import Foundation
 enum SpecialTableColumn: String, Codable {
     case title = "title"
     case duration = "duration"
-    
+
     var displayName: String {
         switch self {
         case .title: return "Title"
@@ -15,20 +15,20 @@ enum SpecialTableColumn: String, Codable {
 enum TrackTableColumn: Codable, Hashable {
     case special(SpecialTableColumn)
     case libraryFilter(LibraryFilterType)
-    
+
     // All available columns in order
     static var allColumns: [TrackTableColumn] {
         var columns: [TrackTableColumn] = [.special(.title)]
-        
+
         // Add all LibraryFilterType columns
         for filterType in LibraryFilterType.allCases {
             columns.append(.libraryFilter(filterType))
         }
-        
+
         columns.append(.special(.duration))
         return columns
     }
-    
+
     var displayName: String {
         switch self {
         case .special(let specialColumn):
@@ -37,7 +37,7 @@ enum TrackTableColumn: Codable, Hashable {
             return filterType.singularDisplayName
         }
     }
-    
+
     var identifier: String {
         switch self {
         case .special(let specialColumn):
@@ -46,7 +46,7 @@ enum TrackTableColumn: Codable, Hashable {
             return filterType.rawValue
         }
     }
-    
+
     var isRequired: Bool {
         switch self {
         case .special(.title):
@@ -55,7 +55,7 @@ enum TrackTableColumn: Codable, Hashable {
             return false
         }
     }
-    
+
     var defaultVisibility: Bool {
         switch self {
         case .special(.title), .special(.duration):
@@ -69,13 +69,13 @@ enum TrackTableColumn: Codable, Hashable {
             }
         }
     }
-    
+
     // Codable implementation
     enum CodingKeys: String, CodingKey {
         case type
         case value
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
@@ -87,11 +87,11 @@ enum TrackTableColumn: Codable, Hashable {
             try container.encode(filterType.rawValue, forKey: .value)
         }
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(String.self, forKey: .type)
-        
+
         switch type {
         case "special":
             let value = try container.decode(String.self, forKey: .value)
@@ -113,10 +113,10 @@ enum TrackTableColumn: Codable, Hashable {
 
 struct TrackTableColumnVisibility: Codable {
     private var hiddenColumns: Set<String> // Store identifiers of hidden columns
-    
+
     init() {
         self.hiddenColumns = []
-        
+
         // Hide non-default columns
         for column in TrackTableColumn.allColumns {
             if !column.defaultVisibility && !column.isRequired {
@@ -124,21 +124,21 @@ struct TrackTableColumnVisibility: Codable {
             }
         }
     }
-    
+
     func isVisible(_ column: TrackTableColumn) -> Bool {
         column.isRequired || !hiddenColumns.contains(column.identifier)
     }
-    
+
     mutating func setVisibility(_ column: TrackTableColumn, isVisible: Bool) {
         guard !column.isRequired else { return }
-        
+
         if isVisible {
             hiddenColumns.remove(column.identifier)
         } else {
             hiddenColumns.insert(column.identifier)
         }
     }
-    
+
     mutating func toggleVisibility(_ column: TrackTableColumn) {
         setVisibility(column, isVisible: !isVisible(column))
     }

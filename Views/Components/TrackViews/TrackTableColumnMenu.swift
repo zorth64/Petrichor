@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TrackTableColumnMenu: View {
     @StateObject private var columnManager = ColumnVisibilityManager.shared
-    
+
     var body: some View {
         Menu {
             ForEach(TrackTableColumn.allColumns, id: \.self) { column in

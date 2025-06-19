@@ -5,16 +5,16 @@ struct FoldersSidebarView: View {
     @Binding var selectedNode: FolderNode?
     @State private var folderNodes: [FolderNode] = []
     @State private var isLoadingHierarchy = false
-    
+
     private let hierarchyBuilder = FolderHierarchyBuilder()
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             sidebarHeader
-            
+
             Divider()
-            
+
             // Folder tree
             if isLoadingHierarchy {
                 loadingView
@@ -30,7 +30,7 @@ struct FoldersSidebarView: View {
                                 level: 0
                             )
                         }
-                        
+
                         Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -47,16 +47,16 @@ struct FoldersSidebarView: View {
             }
         }
     }
-    
+
     // MARK: - Header
-    
+
     private var sidebarHeader: some View {
         ListHeader {
             Text("Folders")
                 .headerTitleStyle()
-            
+
             Spacer()
-            
+
             if isLoadingHierarchy {
                 ProgressView()
                     .scaleEffect(0.7)
@@ -64,9 +64,9 @@ struct FoldersSidebarView: View {
             }
         }
     }
-    
+
     // MARK: - Empty/Loading Views
-    
+
     private var loadingView: some View {
         VStack {
             ProgressView("Building folder structure...")
@@ -76,13 +76,13 @@ struct FoldersSidebarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
     }
-    
+
     private var emptyView: some View {
         VStack(spacing: 16) {
             Image(systemName: "folder")
                 .font(.system(size: 32))
                 .foregroundColor(.gray)
-            
+
             Text("No Folders")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -91,23 +91,23 @@ struct FoldersSidebarView: View {
         .frame(height: 200)
         .padding()
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func loadFolderHierarchy() async {
         await MainActor.run {
             isLoadingHierarchy = true
         }
-        
+
         let nodes = await hierarchyBuilder.buildHierarchy(
             for: libraryManager.folders,
             tracks: libraryManager.tracks
         )
-        
+
         await MainActor.run {
             self.folderNodes = nodes
             isLoadingHierarchy = false
-            
+
             // Select first node if none selected
             if selectedNode == nil, let firstNode = nodes.first {
                 selectedNode = firstNode
@@ -122,14 +122,14 @@ private struct FolderNodeRow: View {
     @ObservedObject var node: FolderNode
     @Binding var selectedNode: FolderNode?
     let level: Int
-    
+
     @State private var isHovered = false
     @State private var isTruncated = false
-    
+
     private var isSelected: Bool {
         selectedNode?.id == node.id
     }
-    
+
     var body: some View {
         VStack(spacing: 1) {
             // Main row
@@ -145,7 +145,7 @@ private struct FolderNodeRow: View {
                         Color.clear
                             .frame(width: CGFloat(level * 20))
                     }
-                    
+
                     // Expand/collapse button
                     if !node.children.isEmpty {
                         Image(systemName: node.isExpanded ? "chevron.down" : "chevron.right")
@@ -158,16 +158,16 @@ private struct FolderNodeRow: View {
                         Color.clear
                             .frame(width: 16, height: 16)
                     }
-                    
+
                     // Create sidebar item for the row content
                     let sidebarItem = FolderNodeSidebarItem(folderNode: node)
-                    
+
                     // Icon
                     Image(systemName: sidebarItem.icon ?? "folder.fill")
                         .foregroundColor(isSelected ? .white : .secondary)
                         .font(.system(size: 16))
                         .frame(width: 16, height: 16)
-                    
+
                     // Title and subtitle
                     VStack(alignment: .leading, spacing: 1) {
                         Text(sidebarItem.title)
@@ -190,7 +190,7 @@ private struct FolderNodeRow: View {
                                         }
                                 }
                             )
-                        
+
                         if let subtitle = sidebarItem.subtitle {
                             Text(subtitle)
                                 .font(.system(size: 11))
@@ -198,7 +198,7 @@ private struct FolderNodeRow: View {
                                 .lineLimit(1)
                         }
                     }
-                    
+
                     Spacer()
                 }
                 .padding(.horizontal, 10)
@@ -215,7 +215,7 @@ private struct FolderNodeRow: View {
             .onHover { hovering in
                 isHovered = hovering
             }
-            
+
             // Child nodes (if expanded)
             if node.isExpanded {
                 ForEach(node.children) { childNode in
@@ -229,7 +229,7 @@ private struct FolderNodeRow: View {
         }
         .padding(.horizontal, level > 0 ? 0 : 4)
     }
-    
+
     private var backgroundColor: Color {
         if isSelected {
             return Color.accentColor
@@ -239,13 +239,13 @@ private struct FolderNodeRow: View {
             return Color.clear
         }
     }
-    
+
     private func toggleExpansion() {
         withAnimation(.easeInOut(duration: 0.15)) {
             node.isExpanded.toggle()
         }
     }
-    
+
     private func checkIfTruncated(text: String, width: CGFloat) {
         let font = NSFont.systemFont(ofSize: 13, weight: isSelected ? .medium : .regular)
         let attributes = [NSAttributedString.Key.font: font]
@@ -255,8 +255,8 @@ private struct FolderNodeRow: View {
 }
 
 #Preview {
-    @State var selectedNode: FolderNode? = nil
-    
+    @State var selectedNode: FolderNode?
+
     return FoldersSidebarView(selectedNode: $selectedNode)
         .environmentObject(LibraryManager())
         .frame(width: 250, height: 500)

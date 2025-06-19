@@ -16,11 +16,11 @@ struct ArtistEntity: Entity {
     let tracks: [Track]
     let trackCount: Int
     let artworkData: Data?  // This should be a stored property, not computed
-    
+
     var subtitle: String? {
         "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
     }
-    
+
     // Original initializer
     init(name: String, tracks: [Track]) {
         let namespace = UUID(uuidString: "6BA7B810-9DAD-11D1-80B4-00C04FD430C8")!
@@ -28,9 +28,9 @@ struct ArtistEntity: Entity {
         self.name = name
         self.tracks = tracks
         self.trackCount = tracks.count
-        self.artworkData = tracks.first(where: { $0.artworkData != nil })?.artworkData
+        self.artworkData = tracks.first { $0.artworkData != nil }?.artworkData
     }
-    
+
     // New lightweight initializer
     init(name: String, trackCount: Int, artworkData: Data? = nil) {
         let namespace = UUID(uuidString: "6BA7B810-9DAD-11D1-80B4-00C04FD430C8")!
@@ -50,14 +50,14 @@ struct AlbumEntity: Entity {
     let tracks: [Track]
     let trackCount: Int
     let artworkData: Data?
-    
+
     var subtitle: String? {
         if let artist = artist {
             return "\(artist) • \(trackCount) \(trackCount == 1 ? "song" : "songs")"
         }
         return "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
     }
-    
+
     // Original initializer
     init(name: String, artist: String?, tracks: [Track]) {
         let namespace = UUID(uuidString: "6BA7B811-9DAD-11D1-80B4-00C04FD430C8")!
@@ -67,9 +67,9 @@ struct AlbumEntity: Entity {
         self.artist = artist
         self.tracks = tracks
         self.trackCount = tracks.count
-        self.artworkData = tracks.first(where: { $0.artworkData != nil })?.artworkData
+        self.artworkData = tracks.first { $0.artworkData != nil }?.artworkData
     }
-    
+
     // New lightweight initializer with optional albumId for uniqueness
     init(name: String, artist: String?, trackCount: Int, artworkData: Data? = nil, albumId: Int64? = nil) {
         // If we have an albumId, use it for a truly unique ID
@@ -83,7 +83,7 @@ struct AlbumEntity: Entity {
             let combinedName = "\(name.lowercased())-\(artist?.lowercased() ?? "")"
             self.id = UUID(name: combinedName, namespace: namespace)
         }
-        
+
         self.name = name
         self.artist = artist
         self.tracks = []

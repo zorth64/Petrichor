@@ -8,7 +8,7 @@ struct PlaylistsView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var selectedPlaylist: Playlist?
     @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
-    
+
     var body: some View {
         if libraryManager.tracks.isEmpty {
             // Show unified empty state when no music exists
@@ -43,18 +43,18 @@ struct PlaylistsView: View {
             }
         }
     }
-    
+
     // MARK: - Empty Selection View
-    
+
     private var emptySelectionView: some View {
         VStack(spacing: 20) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
-            
+
             Text("Select a Playlist")
                 .font(.headline)
-            
+
             Text("Choose a playlist from the sidebar to view its contents")
                 .font(.subheadline)
                 .foregroundColor(.secondary)

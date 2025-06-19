@@ -4,9 +4,9 @@ import Combine
 
 class ContextMenuTableView: NSTableView {
     var contextMenuHandler: ((NSEvent) -> NSMenu?)?
-    
+
     override func menu(for event: NSEvent) -> NSMenu? {
-        return contextMenuHandler?(event)
+        contextMenuHandler?(event)
     }
 }
 
@@ -14,22 +14,22 @@ struct TrackTableView: NSViewRepresentable {
     let tracks: [Track]
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
-    
+
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @StateObject private var columnManager = ColumnVisibilityManager.shared
-    
+
     @State private var sortOrder: [NSSortDescriptor] = []
-    @AppStorage("trackTableSortOrder") private var sortOrderData: Data = Data()
-    
+    @AppStorage("trackTableSortOrder") private var sortOrderData = Data()
+
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         let tableView = ContextMenuTableView()
         let headerView = NSTableHeaderView()
-        
+
         tableView.contextMenuHandler = { event in
             context.coordinator.handleContextMenu(for: event, in: tableView)
         }
-        
+
         tableView.delegate = context.coordinator
         tableView.dataSource = context.coordinator
         tableView.allowsMultipleSelection = false
@@ -40,30 +40,30 @@ struct TrackTableView: NSViewRepresentable {
         tableView.rowHeight = 44
         tableView.intercellSpacing = NSSize(width: 0, height: 0)
         tableView.gridStyleMask = []
-        
+
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.style = .fullWidth
         tableView.selectionHighlightStyle = .none
         tableView.backgroundColor = NSColor.clear
-        
+
         // Add these settings for better column behavior
         tableView.allowsColumnReordering = true
         tableView.allowsColumnSelection = false
         tableView.allowsColumnResizing = true
         tableView.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
-        
+
         headerView.tableView = tableView
         tableView.headerView = headerView
-        
+
         // Set up columns
         setupColumns(tableView: tableView)
-        
+
         if let savedSort = UserDefaults.standard.dictionary(forKey: "trackTableSortOrder"),
            let key = savedSort["key"] as? String,
            let ascending = savedSort["ascending"] as? Bool {
             tableView.sortDescriptors = [NSSortDescriptor(key: key, ascending: ascending)]
         }
-        
+
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
         scrollView.backgroundColor = NSColor.clear
@@ -71,24 +71,24 @@ struct TrackTableView: NSViewRepresentable {
         DispatchQueue.main.async {
             self.redistributeColumnWidths(tableView: tableView)
         }
-        
+
         return scrollView
     }
-    
+
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let tableView = nsView.documentView as? NSTableView else { return }
-        
+
         // Store the current playing track info before updates
         let previousPlayingPath = context.coordinator.currentlyPlayingTrackPath
-        
+
         // Only update if tracks actually changed (by count or IDs)
         let tracksChanged = context.coordinator.tracks.count != tracks.count ||
                            !zip(context.coordinator.tracks, tracks).allSatisfy { $0.id == $1.id }
-        
+
         if tracksChanged {
             context.coordinator.tracks = tracks
             context.coordinator.sortedTracks = tracks
-            
+
             // Apply any existing sort descriptors to the new tracks
             if !tableView.sortDescriptors.isEmpty {
                 context.coordinator.tableView(tableView, sortDescriptorsDidChange: [])
@@ -96,14 +96,14 @@ struct TrackTableView: NSViewRepresentable {
                 tableView.reloadData()
             }
         }
-        
+
         // Always update these properties
         context.coordinator.columnVisibility = columnManager.columnVisibility
         context.coordinator.audioPlayerManager = audioPlayerManager
-        
+
         // Update column visibility
         updateColumnVisibility(tableView: tableView)
-        
+
         // Update playing indicator and hover state changes
         let currentPlayingPath = audioPlayerManager.currentTrack?.url.path
         let isCurrentlyPlaying = audioPlayerManager.isPlaying
@@ -117,7 +117,7 @@ struct TrackTableView: NSViewRepresentable {
         if playingTrackChanged || playbackStateChanged || hoveredRowChanged || !tracksChanged {
             // Update hover state tracking
             context.coordinator.lastHoveredRow = context.coordinator.hoveredRow
-            
+
             // If the playing track changed, update both old and new tracks
             if playingTrackChanged {
                 // Update the previous playing track row (to remove indicator)
@@ -125,13 +125,13 @@ struct TrackTableView: NSViewRepresentable {
                    let oldIndex = context.coordinator.sortedTracks.firstIndex(where: { $0.url.path == oldPath }) {
                     updateRowView(at: oldIndex, in: tableView)
                 }
-                
+
                 // Update the new playing track row (to show indicator)
                 if let newPath = currentPlayingPath,
                    let newIndex = context.coordinator.sortedTracks.firstIndex(where: { $0.url.path == newPath }) {
                     updateRowView(at: newIndex, in: tableView)
                 }
-                
+
                 // Store the new playing track path
                 context.coordinator.currentlyPlayingTrackPath = currentPlayingPath
             } else if playbackStateChanged {
@@ -141,7 +141,7 @@ struct TrackTableView: NSViewRepresentable {
                     updateRowView(at: currentIndex, in: tableView)
                 }
             }
-            
+
             // Update hovered row if it changed
             if hoveredRowChanged {
                 if let oldHoveredRow = context.coordinator.lastHoveredRow {
@@ -152,7 +152,7 @@ struct TrackTableView: NSViewRepresentable {
                 }
             }
         }
-        
+
         // Store the current playing state
         context.coordinator.isPlaying = isCurrentlyPlaying
     }
@@ -160,16 +160,16 @@ struct TrackTableView: NSViewRepresentable {
     private func updateRowView(at row: Int, in tableView: NSTableView) {
         // Update both play/pause column and title column
         let columnsToUpdate = ["playPause", "title"]
-        
+
         for columnID in columnsToUpdate {
             let columnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier(columnID))
             guard columnIndex >= 0 else { continue }
-            
+
             tableView.reloadData(forRowIndexes: IndexSet(integer: row),
                                columnIndexes: IndexSet(integer: columnIndex))
         }
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(
             tracks: tracks,
@@ -179,13 +179,13 @@ struct TrackTableView: NSViewRepresentable {
             columnVisibility: columnManager.columnVisibility
         )
     }
-    
+
     private func setupColumns(tableView: NSTableView) {
         // Remove any existing columns first
-        while tableView.tableColumns.count > 0 {
+        while !tableView.tableColumns.isEmpty {
             tableView.removeTableColumn(tableView.tableColumns[0])
         }
-        
+
         // Add play/pause column first
         let playColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("playPause"))
         playColumn.title = "" // Empty header
@@ -194,30 +194,30 @@ struct TrackTableView: NSViewRepresentable {
         playColumn.maxWidth = 32
         playColumn.resizingMask = [] // Fixed width, no resizing
         tableView.addTableColumn(playColumn)
-        
+
         for column in TrackTableColumn.allColumns {
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.identifier))
             tableColumn.title = column.displayName
-            
+
             // Set resizing mask to allow user resizing
             tableColumn.resizingMask = .userResizingMask
-            
+
             // Add sort descriptor
             switch column {
             case .special(.title):
                 tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: "title", ascending: true)
                 tableColumn.width = 300
                 tableColumn.minWidth = 150
-                
+
             case .special(.duration):
                 tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: "duration", ascending: true)
                 tableColumn.width = 70
                 tableColumn.minWidth = 50
-                
+
             case .libraryFilter(let filterType):
                 let sortKey = filterType.databaseColumn
                 tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: sortKey, ascending: true)
-                
+
                 switch filterType {
                 case .artists, .albums:
                     tableColumn.width = 200
@@ -233,64 +233,64 @@ struct TrackTableView: NSViewRepresentable {
                     tableColumn.minWidth = 50
                 }
             }
-            
+
             tableColumn.isHidden = !columnManager.columnVisibility.isVisible(column)
             tableView.addTableColumn(tableColumn)
         }
     }
-    
+
     private func updateColumnVisibility(tableView: NSTableView) {
         for column in TrackTableColumn.allColumns {
             if let tableColumn = tableView.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(column.identifier)) {
                 tableColumn.isHidden = !columnManager.columnVisibility.isVisible(column)
             }
         }
-        
+
         DispatchQueue.main.async {
             self.redistributeColumnWidths(tableView: tableView)
         }
     }
-    
+
     private func redistributeColumnWidths(tableView: NSTableView) {
         let visibleColumns = tableView.tableColumns.filter { !$0.isHidden }
         guard !visibleColumns.isEmpty else { return }
-        
+
         // Get the table view's visible width
         let scrollView = tableView.enclosingScrollView
         let availableWidth = scrollView?.documentVisibleRect.width ?? tableView.bounds.width
-        
+
         // Calculate current total width of visible columns
         let currentTotalWidth = visibleColumns.reduce(0) { $0 + $1.width }
-        
+
         // If columns don't fill the space, distribute the difference
         if currentTotalWidth < availableWidth - 20 { // 20px margin for scrollbar
             let difference = availableWidth - currentTotalWidth - 20
             let additionalWidthPerColumn = difference / CGFloat(visibleColumns.count)
-            
+
             for column in visibleColumns {
                 column.width = column.width + additionalWidthPerColumn
             }
         }
     }
-    
+
     class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource {
         var tracks: [Track]
         var sortedTracks: [Track] = []
-        var hoveredRow: Int? = nil
+        var hoveredRow: Int?
         var isPlaying: Bool = false
         let onPlayTrack: (Track) -> Void
         var audioPlayerManager: AudioPlayerManager
         let contextMenuItems: (Track) -> [ContextMenuItem]
         var columnVisibility: TrackTableColumnVisibility
-        var currentlyPlayingTrackPath: String? = nil
-        var lastHoveredRow: Int? = nil
+        var currentlyPlayingTrackPath: String?
+        var lastHoveredRow: Int?
         var lastMouseLocation: NSPoint = .zero
 
         private var reloadTimer: Timer?
         private var pendingReload = false
         private var cancellables = Set<AnyCancellable>()
         private weak var hostTableView: NSTableView?
-        
+
         init(tracks: [Track],
              onPlayTrack: @escaping (Track) -> Void,
              audioPlayerManager: AudioPlayerManager,
@@ -302,37 +302,37 @@ struct TrackTableView: NSViewRepresentable {
             self.audioPlayerManager = audioPlayerManager
             self.contextMenuItems = contextMenuItems
             self.columnVisibility = columnVisibility
-            
+
             super.init()
-            
+
             // Observe playback state changes
             audioPlayerManager.$isPlaying
                 .sink { [weak self] _ in
                     self?.updatePlayingIndicator()
                 }
                 .store(in: &cancellables)
-            
+
             audioPlayerManager.$currentTrack
                 .sink { [weak self] _ in
                     self?.updatePlayingIndicator()
                 }
                 .store(in: &cancellables)
         }
-        
+
         deinit {
             cancellables.removeAll()
             NotificationCenter.default.removeObserver(self)
         }
 
         // MARK: - NSTableViewDataSource
-        
+
         func numberOfRows(in tableView: NSTableView) -> Int {
             sortedTracks.count
         }
-        
+
         func setTableView(_ tableView: NSTableView) {
             self.hostTableView = tableView
-            
+
             if let scrollView = tableView.enclosingScrollView {
                 NotificationCenter.default.addObserver(
                     self,
@@ -342,49 +342,47 @@ struct TrackTableView: NSViewRepresentable {
                 )
             }
         }
-        
+
         // MARK: - NSTableViewDelegate
-        
+
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard row < sortedTracks.count else { return nil }
             let track = sortedTracks[row]
-            
+
             guard let columnID = tableColumn?.identifier.rawValue else { return nil }
-                
+
             // Handle play/pause column
             // Handle play/pause column
             if columnID == "playPause" {
                 let identifier = NSUserInterfaceItemIdentifier("PlayPauseCell")
-                
+
                 if let hostingView = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSHostingView<PlayPauseCell> {
                     hostingView.rootView = PlayPauseCell(
                         track: track,
                         isHovered: hoveredRow == row,
-                        audioPlayerManager: audioPlayerManager,
-                        onPlay: { [unowned self] in
+                        audioPlayerManager: audioPlayerManager
+                    ) { [unowned self] in
                             self.onPlayTrack(track)
-                        }
-                    )
+                    }
                     return hostingView
                 } else {
                     let hostingView = NSHostingView(rootView: PlayPauseCell(
                         track: track,
                         isHovered: hoveredRow == row,
-                        audioPlayerManager: audioPlayerManager,
-                        onPlay: { [unowned self] in
+                        audioPlayerManager: audioPlayerManager
+                    ) { [unowned self] in
                             self.onPlayTrack(track)
-                        }
-                    ))
+                    })
                     hostingView.identifier = identifier
                     return hostingView
                 }
             }
-            
+
             // Continue with existing column handling...
             guard let column = TrackTableColumn.allColumns.first(where: { $0.identifier == columnID }) else {
                 return nil
             }
-            
+
             switch column {
             case .special(.title):
                 // Keep NSHostingView for title since it's complex
@@ -405,7 +403,7 @@ struct TrackTableView: NSViewRepresentable {
                     hostingView.identifier = identifier
                     return hostingView
                 }
-                
+
             case .special(.duration):
                 let text = formatDuration(track.duration)
                 return makeOrReuseTextCell(
@@ -417,7 +415,7 @@ struct TrackTableView: NSViewRepresentable {
                     color: NSColor.secondaryLabelColor,
                     alignment: .right
                 )
-                
+
             case .libraryFilter(let filterType):
                 let value = filterType.getValue(from: track)
                 return makeOrReuseTextCell(
@@ -430,7 +428,7 @@ struct TrackTableView: NSViewRepresentable {
                 )
             }
         }
-        
+
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
             guard let descriptor = tableView.sortDescriptors.first,
                   let key = descriptor.key else {
@@ -438,21 +436,21 @@ struct TrackTableView: NSViewRepresentable {
                 tableView.reloadData()
                 return
             }
-            
+
             // Only sort if the descriptors actually changed
             if oldDescriptors.first?.key == key &&
                oldDescriptors.first?.ascending == descriptor.ascending {
                 return
             }
-            
+
             // Use a more efficient sorting approach for large datasets
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self = self else { return }
-                
+
                 let sorted = self.tracks.sorted { track1, track2 in
                     let ascending = descriptor.ascending
                     var result: ComparisonResult = .orderedSame
-                    
+
                     switch key {
                     case "title":
                         result = track1.title.localizedCaseInsensitiveCompare(track2.title)
@@ -476,10 +474,10 @@ struct TrackTableView: NSViewRepresentable {
                     default:
                         result = .orderedSame
                     }
-                    
+
                     return ascending ? result == .orderedAscending : result == .orderedDescending
                 }
-                
+
                 DispatchQueue.main.async {
                     self.sortedTracks = sorted
                     tableView.reloadData()
@@ -487,69 +485,69 @@ struct TrackTableView: NSViewRepresentable {
                 }
             }
         }
-        
+
         func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
             let rowView = HoverableTableRowView()
             rowView.coordinator = self
             rowView.row = row
             return rowView
         }
-        
+
         func tableView(_ tableView: NSTableView, menuFor event: NSEvent) -> NSMenu? {
             print("Context menu requested") // Debug
-            
+
             let point = tableView.convert(event.locationInWindow, from: nil)
             let row = tableView.row(at: point)
-            
+
             print("Row clicked: \(row)") // Debug
-            
+
             guard row >= 0, row < sortedTracks.count else { return nil }
-            
+
             let track = sortedTracks[row]
             let menuItems = contextMenuItems(track)
-            
+
             print("Menu items count: \(menuItems.count)") // Debug
-            
+
             // If the clicked row isn't selected, select it
             if !tableView.selectedRowIndexes.contains(row) {
                 tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             }
-            
+
             // Create NSMenu from ContextMenuItem array
             return createNSMenu(from: menuItems, track: track)
         }
-        
+
         func handleContextMenu(for event: NSEvent, in tableView: NSTableView) -> NSMenu? {
             let point = tableView.convert(event.locationInWindow, from: nil)
             let row = tableView.row(at: point)
-            
+
             guard row >= 0, row < sortedTracks.count else { return nil }
-            
+
             let track = sortedTracks[row]
             let menuItems = contextMenuItems(track)
-            
+
             // If the clicked row isn't selected, select it
             if !tableView.selectedRowIndexes.contains(row) {
                 tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             }
-            
+
             // Create NSMenu from ContextMenuItem array
             return createNSMenu(from: menuItems, track: track)
         }
-        
+
         @objc private func scrollViewDidScroll(_ notification: Notification) {
             // Clear hover state immediately when scrolling starts
             if let previousHoveredRow = hoveredRow {
                 hoveredRow = nil
                 lastHoveredRow = nil
-                
+
                 // Update the row to remove hover effects and play button
                 if let tableView = hostTableView {
                     // Update the entire row to clear hover background
                     if let rowView = tableView.rowView(atRow: previousHoveredRow, makeIfNecessary: false) as? HoverableTableRowView {
                         rowView.updateBackgroundColor(animated: false)
                     }
-                    
+
                     // Update the play/pause cell
                     let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
                     if playPauseColumnIndex >= 0 {
@@ -559,25 +557,25 @@ struct TrackTableView: NSViewRepresentable {
                 }
             }
         }
-        
+
         @objc func doubleClick(_ sender: NSTableView) {
             let clickedRow = sender.clickedRow
             guard clickedRow >= 0, clickedRow < tracks.count else { return }
-            
+
             let track = sortedTracks[clickedRow]
             onPlayTrack(track)
         }
 
         private func createNSMenu(from items: [ContextMenuItem], track: Track) -> NSMenu {
             let menu = NSMenu()
-            
+
             for item in items {
                 switch item {
                 case .button(let title, let role, let action):
                     let menuItem = NSMenuItem(title: title, action: #selector(contextMenuAction(_:)), keyEquivalent: "")
                     menuItem.target = self
                     menuItem.representedObject = ContextMenuAction(action: action, track: track)
-                    
+
                     // Set attributes for destructive role
                     if role == .destructive {
                         menuItem.attributedTitle = NSAttributedString(
@@ -585,21 +583,21 @@ struct TrackTableView: NSViewRepresentable {
                             attributes: [.foregroundColor: NSColor.systemRed]
                         )
                     }
-                    
+
                     menu.addItem(menuItem)
-                    
+
                 case .menu(let title, let subItems):
                     let submenuItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
                     let submenu = createNSMenu(from: subItems, track: track)
                     submenu.title = title
                     submenuItem.submenu = submenu
                     menu.addItem(submenuItem)
-                    
+
                 case .divider:
                     menu.addItem(NSMenuItem.separator())
                 }
             }
-            
+
             return menu
         }
 
@@ -607,40 +605,39 @@ struct TrackTableView: NSViewRepresentable {
         private class ContextMenuAction {
             let action: () -> Void
             let track: Track
-            
+
             init(action: @escaping () -> Void, track: Track) {
                 self.action = action
                 self.track = track
             }
         }
-        
+
         private func saveSortOrder(key: String, ascending: Bool) {
-            let storage = ["key": key, "ascending": ascending] as [String : Any]
+            let storage = ["key": key, "ascending": ascending] as [String: Any]
             UserDefaults.standard.set(storage, forKey: "trackTableSortOrder")
         }
-        
+
         private func formatDuration(_ seconds: Double) -> String {
             let totalSeconds = Int(max(0, seconds))
             let minutes = totalSeconds / 60
             let remainingSeconds = totalSeconds % 60
             return String(format: "%d:%02d", minutes, remainingSeconds)
         }
-        
+
         @objc private func contextMenuAction(_ sender: NSMenuItem) {
             guard let action = sender.representedObject as? ContextMenuAction else { return }
             action.action()
         }
-        
+
         private func updatePlayingIndicator() {
             guard let tableView = hostTableView else { return }
-            
+
             // Find and update the currently playing track row
             if let currentTrack = audioPlayerManager.currentTrack,
                let index = sortedTracks.firstIndex(where: { $0.url.path == currentTrack.url.path }) {
-                
                 // Update both the play/pause column and title column
                 let columnsToUpdate = ["playPause", "title"]
-                
+
                 for columnID in columnsToUpdate {
                     let columnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier(columnID))
                     if columnIndex >= 0 {
@@ -650,10 +647,10 @@ struct TrackTableView: NSViewRepresentable {
                 }
             }
         }
-        
+
         private func makeOrReuseTextCell(in tableView: NSTableView, column: NSTableColumn?, row: Int, text: String, font: NSFont, color: NSColor, alignment: NSTextAlignment = .left) -> NSTableCellView {
             let identifier = NSUserInterfaceItemIdentifier("TextCell")
-            
+
             let cellView: NSTableCellView
             if let reusedCell = tableView.makeView(withIdentifier: identifier, owner: nil) as? NSTableCellView {
                 cellView = reusedCell
@@ -673,26 +670,26 @@ struct TrackTableView: NSViewRepresentable {
                 textField.alignment = alignment
                 textField.lineBreakMode = .byTruncatingTail
                 textField.translatesAutoresizingMaskIntoConstraints = false
-                
+
                 cellView.addSubview(textField)
                 cellView.textField = textField
-                
+
                 NSLayoutConstraint.activate([
                     textField.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 8),
                     textField.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -8),
                     textField.centerYAnchor.constraint(equalTo: cellView.centerYAnchor)
                 ])
             }
-            
+
             return cellView
         }
-        
+
         private func scheduleReload(for tableView: NSTableView) {
             pendingReload = true
-            
+
             // Cancel existing timer
             reloadTimer?.invalidate()
-            
+
             // Schedule new reload after a short delay
             reloadTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
                 guard let self = self, self.pendingReload else { return }
@@ -701,26 +698,26 @@ struct TrackTableView: NSViewRepresentable {
             }
         }
     }
-    
+
     class HoverableTableRowView: NSTableRowView {
         weak var coordinator: TrackTableView.Coordinator?
         var row: Int = -1
         private var trackingArea: NSTrackingArea?
         private var backgroundLayer: CALayer?
-        
+
         override init(frame frameRect: NSRect) {
             super.init(frame: frameRect)
             setupBackgroundLayer()
         }
-        
+
         required init?(coder: NSCoder) {
             super.init(coder: coder)
             setupBackgroundLayer()
         }
-        
+
         private func setupBackgroundLayer() {
             wantsLayer = true
-            
+
             // Create a background layer for smooth animations
             backgroundLayer = CALayer()
             backgroundLayer?.frame = bounds
@@ -732,15 +729,15 @@ struct TrackTableView: NSViewRepresentable {
             super.layout()
             backgroundLayer?.frame = bounds
         }
-        
+
         override func drawBackground(in dirtyRect: NSRect) {
             // Don't draw anything here - we'll use the layer instead
         }
-        
+
         override func drawSelection(in dirtyRect: NSRect) {
             // Don't draw selection - leave empty
         }
-        
+
         func updateBackgroundColor(animated: Bool = true) {
             let color: NSColor
 
@@ -749,7 +746,7 @@ struct TrackTableView: NSViewRepresentable {
             } else {
                 color = NSColor.clear
             }
-            
+
             if animated {
                 CATransaction.begin()
                 CATransaction.setAnimationDuration(coordinator?.hoveredRow == row ? 0.1 : 0.15)
@@ -760,38 +757,38 @@ struct TrackTableView: NSViewRepresentable {
                 backgroundLayer?.backgroundColor = color.cgColor
             }
         }
-        
+
         override var isSelected: Bool {
             didSet {
                 updateBackgroundColor(animated: true)
             }
         }
-        
+
         override func updateTrackingAreas() {
             super.updateTrackingAreas()
-            
+
             if let trackingArea = trackingArea {
                 removeTrackingArea(trackingArea)
             }
-            
+
             let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeInKeyWindow]
             trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
             addTrackingArea(trackingArea!)
         }
-        
+
         override func mouseEntered(with event: NSEvent) {
             // Get current mouse location
             let currentMouseLocation = NSEvent.mouseLocation
-            
+
             // Check if mouse actually moved (not just content scrolling under cursor)
             let mouseActuallyMoved = abs(currentMouseLocation.x - (coordinator?.lastMouseLocation.x ?? 0)) > 1 ||
                                     abs(currentMouseLocation.y - (coordinator?.lastMouseLocation.y ?? 0)) > 1
-            
+
             guard mouseActuallyMoved else { return }
-            
+
             // Update last mouse location
             coordinator?.lastMouseLocation = currentMouseLocation
-            
+
             coordinator?.hoveredRow = row
             updateBackgroundColor(animated: true)
 
@@ -802,7 +799,7 @@ struct TrackTableView: NSViewRepresentable {
                     tableView.reloadData(forRowIndexes: IndexSet(integer: row),
                                         columnIndexes: IndexSet(integer: playPauseColumnIndex))
                 }
-                
+
                 // Update other rows as before
                 tableView.enumerateAvailableRowViews { rowView, _ in
                     if let hoverableRow = rowView as? HoverableTableRowView, hoverableRow != self {
@@ -817,7 +814,7 @@ struct TrackTableView: NSViewRepresentable {
                 coordinator?.hoveredRow = nil
             }
             updateBackgroundColor(animated: true)
-            
+
             if let tableView = superview as? NSTableView {
                 // Force update of the play/pause cell when hover exits
                 let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
@@ -834,7 +831,7 @@ struct TrackTableView: NSViewRepresentable {
 struct TrackTableTitleCell: View {
     let track: Track
     let audioPlayerManager: AudioPlayerManager
-    
+
     // Use the track's existing artwork data directly
     private var artworkImage: NSImage? {
         if let data = track.artworkData {
@@ -842,16 +839,16 @@ struct TrackTableTitleCell: View {
         }
         return nil
     }
-    
+
     private var isCurrentTrack: Bool {
         guard let currentTrack = audioPlayerManager.currentTrack else { return false }
         return currentTrack.url.path == track.url.path
     }
-    
+
     private var isPlaying: Bool {
         isCurrentTrack && audioPlayerManager.isPlaying
     }
-    
+
     var body: some View {
         HStack(spacing: 8) {
             // Album artwork
@@ -871,18 +868,18 @@ struct TrackTableTitleCell: View {
                             .foregroundColor(.secondary)
                     )
             }
-            
+
             Text(track.title)
                 .font(.system(size: 13, weight: isCurrentTrack ? .medium : .regular))
                 .foregroundColor(textColor)
                 .lineLimit(1)
-            
+
             Spacer()
         }
         .padding(.horizontal, 8)
         .frame(height: 44)
     }
-    
+
     private var textColor: Color {
         if isCurrentTrack && isPlaying {
             // Accent color when playing but not selected
@@ -901,16 +898,16 @@ struct PlayPauseCell: View {
     let isHovered: Bool
     let audioPlayerManager: AudioPlayerManager
     let onPlay: () -> Void
-    
+
     private var isCurrentTrack: Bool {
         guard let currentTrack = audioPlayerManager.currentTrack else { return false }
         return currentTrack.url.path == track.url.path
     }
-    
+
     private var isPlaying: Bool {
         isCurrentTrack && audioPlayerManager.isPlaying
     }
-    
+
     var body: some View {
         ZStack {
             if isHovered || (isCurrentTrack && !audioPlayerManager.isPlaying) {

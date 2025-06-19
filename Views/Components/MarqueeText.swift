@@ -4,14 +4,14 @@ struct MarqueeText: View {
     let text: String
     let font: Font
     let color: Color
-    
+
     @State private var textSize: CGSize = .zero
     @State private var containerWidth: CGFloat = 0
-    
+
     private var shouldAnimate: Bool {
         textSize.width > containerWidth
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -30,7 +30,7 @@ struct MarqueeText: View {
                                 }
                         }
                     )
-                
+
                 // Visible content
                 if shouldAnimate {
                     MarqueeAnimatedText(
@@ -60,15 +60,15 @@ private struct MarqueeAnimatedText: View {
     let color: Color
     let textWidth: CGFloat
     let containerWidth: CGFloat
-    
+
     @State private var offset: CGFloat = 0
-    
+
     private var animationDuration: Double {
         let baseSpeed = 20.0
         let distance = textWidth + 20
         return distance / baseSpeed
     }
-    
+
     var body: some View {
         HStack(spacing: 20) {
             Text(text)
@@ -76,7 +76,7 @@ private struct MarqueeAnimatedText: View {
                 .foregroundColor(color)
                 .lineLimit(1)
                 .fixedSize()
-            
+
             Text(text)
                 .font(font)
                 .foregroundColor(color)
@@ -88,14 +88,14 @@ private struct MarqueeAnimatedText: View {
             startScrolling()
         }
     }
-    
+
     private func startScrolling() {
-        Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { timer in
+        Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
             withAnimation(.linear(duration: 0)) {
                 let totalDistance = textWidth + 20
                 let currentTime = Date().timeIntervalSinceReferenceDate
                 let phase = (currentTime.truncatingRemainder(dividingBy: animationDuration * 2)) / animationDuration
-                
+
                 if phase <= 1.0 {
                     // Forward direction
                     offset = -totalDistance * phase

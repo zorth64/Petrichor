@@ -4,7 +4,7 @@ struct ContentView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
-    
+
     @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .table
     @AppStorage("rightSidebarSplitPosition") private var splitPosition: Double = 200
     @State private var selectedTab: MainTab = .home
@@ -16,7 +16,7 @@ struct ContentView: View {
     @State private var windowDelegate = WindowDelegate()
     @State private var isSettingsHovered = false
     @State private var homeShowingEntities: Bool = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Persistent Contextual Toolbar - always present when we have music
@@ -30,7 +30,7 @@ struct ContentView: View {
 
             // Main Content Area with Queue
             mainContentArea
-            
+
             playerControls
                 .animation(.easeInOut(duration: 0.3), value: libraryManager.folders.isEmpty)
         }
@@ -53,9 +53,9 @@ struct ContentView: View {
                 .environmentObject(libraryManager)
         }
     }
-    
+
     // MARK: - View Components
-    
+
     private var mainContentArea: some View {
         PersistentSplitView(
             main: {
@@ -68,7 +68,7 @@ struct ContentView: View {
         )
         .frame(minHeight: 0, maxHeight: .infinity)
     }
-    
+
     private var mainTabContent: some View {
         VStack {
             ZStack {
@@ -84,12 +84,12 @@ struct ContentView: View {
                 .opacity(selectedTab == .library ? 1 : 0)
                 .allowsHitTesting(selectedTab == .library)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
+
                 PlaylistsView(viewType: globalViewType)
                     .opacity(selectedTab == .playlists ? 1 : 0)
                     .allowsHitTesting(selectedTab == .playlists)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
+
                 FoldersView(viewType: globalViewType)
                     .opacity(selectedTab == .folders ? 1 : 0)
                     .allowsHitTesting(selectedTab == .folders)
@@ -98,7 +98,7 @@ struct ContentView: View {
         }
         .frame(minWidth: 400, minHeight: 200)
     }
-    
+
     @ViewBuilder
     private var sidePanel: some View {
         if showingQueue {
@@ -115,7 +115,7 @@ struct ContentView: View {
                 ))
         }
     }
-    
+
     @ViewBuilder
     private var playerControls: some View {
         if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
@@ -137,9 +137,9 @@ struct ContentView: View {
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
-    
+
     // MARK: - Toolbar
-    
+
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
@@ -150,7 +150,7 @@ struct ContentView: View {
                 isDisabled: libraryManager.folders.isEmpty
             )
         }
-        
+
         ToolbarItem(placement: .primaryAction) {
             HStack(alignment: .center, spacing: 8) {
                 backgroundScanningIndicator
@@ -158,12 +158,12 @@ struct ContentView: View {
             }
         }
     }
-    
+
     private var backgroundScanningIndicator: some View {
         ZStack {
             Color.clear
                 .frame(width: 24, height: 24)
-            
+
             if libraryManager.isBackgroundScanning && !libraryManager.folders.isEmpty {
                 BackgroundScanningIndicator()
                     .transition(.scale.combined(with: .opacity))
@@ -171,7 +171,7 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: libraryManager.isBackgroundScanning)
     }
-    
+
     private var settingsButton: some View {
         Button(action: {
             showingSettings = true
@@ -192,15 +192,15 @@ struct ContentView: View {
         }
         .help("Settings")
     }
-    
+
     // MARK: - Event Handlers
-    
+
     private func handleOnAppear() {
         if let coordinator = AppCoordinator.shared {
             showingQueue = coordinator.isQueueVisible
         }
     }
-    
+
     private func handleLibraryFilter(_ notification: Notification) {
         if let filterType = notification.userInfo?["filterType"] as? LibraryFilterType,
            let filterValue = notification.userInfo?["filterValue"] as? String {
@@ -208,15 +208,15 @@ struct ContentView: View {
             pendingLibraryFilter = LibraryFilterRequest(filterType: filterType, value: filterValue)
         }
     }
-    
+
     private func handleShowTrackInfo(_ notification: Notification) {
         if let track = notification.userInfo?["track"] as? Track {
             showTrackDetail(for: track)
         }
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func showTrackDetail(for track: Track) {
         showingQueue = false
         detailTrack = track
@@ -233,7 +233,7 @@ struct ContentView: View {
 
 struct WindowAccessor: NSViewRepresentable {
     let windowDelegate: WindowDelegate
-    
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
@@ -246,7 +246,7 @@ struct WindowAccessor: NSViewRepresentable {
         }
         return view
     }
-    
+
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
@@ -255,7 +255,7 @@ struct WindowAccessor: NSViewRepresentable {
 class WindowManager {
     static let shared = WindowManager()
     weak var mainWindow: NSWindow?
-    
+
     private init() {}
 }
 

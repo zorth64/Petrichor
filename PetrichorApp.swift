@@ -4,7 +4,7 @@ import SwiftUI
 struct PetrichorApp: App {
     @StateObject private var appCoordinator = AppCoordinator()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -25,16 +25,16 @@ struct PetrichorApp: App {
                 }
                 .keyboardShortcut("o", modifiers: [.command])
             }
-            
+
             CommandGroup(after: .newItem) {
                 Divider()
-                
+
                 Button("Play/Pause") {
                     appCoordinator.audioPlayerManager.togglePlayPause()
                 }
                 .keyboardShortcut("p", modifiers: [.command])
             }
-            
+
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Petrichor") {
                     // Ensure database is saved before quitting
@@ -46,7 +46,7 @@ struct PetrichorApp: App {
                 .keyboardShortcut("q", modifiers: .command)
             }
         }
-        
+
 #if os(macOS)
         Settings {
             SettingsView()

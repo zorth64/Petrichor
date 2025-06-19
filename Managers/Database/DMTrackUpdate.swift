@@ -10,7 +10,7 @@ extension DatabaseManager {
                 .updateAll(db, Track.Columns.isFavorite.set(to: isFavorite))
         }
     }
-    
+
     // Updates a track's play count and last played date
     func updateTrackPlayInfo(trackId: Int64, playCount: Int, lastPlayedDate: Date) async throws {
         try await dbQueue.write { db in
@@ -22,18 +22,18 @@ extension DatabaseManager {
                 )
         }
     }
-    
+
     // Batch update for track properties (more efficient for multiple updates)
     func updateTrack(_ track: Track) async throws {
         guard let trackId = track.trackId else {
             throw DatabaseError.invalidTrackId
         }
-        
+
         try await dbQueue.write { db in
             try track.update(db)
         }
     }
-    
+
     // Gets tracks by favorite status
     func getFavoriteTracks() -> [Track] {
         do {
@@ -48,7 +48,7 @@ extension DatabaseManager {
             return []
         }
     }
-    
+
     // Gets most played tracks
     func getMostPlayedTracks(minPlayCount: Int = 3, limit: Int = 25) -> [Track] {
         do {
@@ -64,12 +64,12 @@ extension DatabaseManager {
             return []
         }
     }
-    
+
     // Gets recently played tracks
     func getRecentlyPlayedTracks(daysBack: Int = 7, limit: Int = 25) -> [Track] {
         do {
             let cutoffDate = Date().addingTimeInterval(-Double(daysBack * 24 * 60 * 60))
-            
+
             return try dbQueue.read { db in
                 try Track
                     .filter(Track.Columns.lastPlayedDate > cutoffDate)

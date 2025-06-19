@@ -49,12 +49,12 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     var extendedMetadata: ExtendedMetadata?
 
     var albumId: Int64?
-    
+
     // MARK: - Initialization
-    
+
     init(url: URL) {
         self.url = url
-        
+
         // Default values - these will be overridden by metadata
         self.title = url.deletingPathExtension().lastPathComponent
         self.artist = "Unknown Artist"
@@ -66,9 +66,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         self.format = url.pathExtension
         self.extendedMetadata = ExtendedMetadata()
     }
-    
+
     // MARK: - DB Configuration
-    
+
     static let databaseTableName = "tracks"
 
     static let columnMap: [String: Column] = [
@@ -79,7 +79,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         "genre": Columns.genre,
         "year": Columns.year
     ]
-    
+
     enum Columns {
         static let trackId = Column("id")
         static let folderId = Column("folder_id")
@@ -123,25 +123,25 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let extendedMetadata = Column("extended_metadata")
         static let albumId = Column("album_id")
     }
-    
+
     // MARK: - FetchableRecord
-    
+
     required init(row: Row) throws {
         trackId = row[Columns.trackId]
         folderId = row[Columns.folderId]
-        
+
         let path: String = row[Columns.path]
         url = URL(fileURLWithPath: path)
-        
+
         title = row[Columns.title] ?? url.deletingPathExtension().lastPathComponent
         artist = row[Columns.artist] ?? "Unknown Artist"
         album = row[Columns.album] ?? "Unknown Album"
         genre = row[Columns.genre] ?? "Unknown Genre"
-        
+
         // Normalize empty composer strings
         let composerValue = row[Columns.composer] ?? "Unknown Composer"
         composer = composerValue.isEmpty ? "Unknown Composer" : composerValue
-        
+
         year = row[Columns.year] ?? ""
         duration = row[Columns.duration] ?? 0
         format = row[Columns.format] ?? url.pathExtension
@@ -174,14 +174,14 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         sortAlbumArtist = row[Columns.sortAlbumArtist]
         isMetadataLoaded = true
         albumId = row[Columns.albumId]
-        
+
         // Load extended metadata
         let extendedMetadataJSON: String? = row[Columns.extendedMetadata]
         extendedMetadata = ExtendedMetadata.fromJSON(extendedMetadataJSON)
     }
-    
+
     // MARK: - PersistableRecord
-    
+
     func encode(to container: inout PersistenceContainer) throws {
         container[Columns.trackId] = trackId
         container[Columns.folderId] = folderId
@@ -227,42 +227,42 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         // Save extended metadata as JSON
         container[Columns.extendedMetadata] = extendedMetadata?.toJSON()
     }
-    
+
     // Update if exists based on path
     func didInsert(_ inserted: InsertionSuccess) {
         trackId = inserted.rowID
     }
-    
+
     // MARK: - Associations
-    
+
     static let folder = belongsTo(Folder.self)
     static let album = belongsTo(Album.self, using: ForeignKey(["album_id"]))
     static let trackArtists = hasMany(TrackArtist.self)
     static let artists = hasMany(Artist.self, through: trackArtists, using: TrackArtist.artist)
     static let genres = hasMany(Genre.self, through: hasMany(TrackGenre.self), using: TrackGenre.genre)
-    
+
     var folder: QueryInterfaceRequest<Folder> {
         request(for: Track.folder)
     }
-    
+
     var artists: QueryInterfaceRequest<Artist> {
         request(for: Track.artists)
     }
-    
+
     var genres: QueryInterfaceRequest<Genre> {
         request(for: Track.genres)
     }
-    
+
     // MARK: - Equatable
-    
+
     static func == (lhs: Track, rhs: Track) -> Bool {
-        return lhs.id == rhs.id
+        lhs.id == rhs.id
     }
-    
+
     // MARK: - Sorting support
-    
+
     var albumArtistForSorting: String {
-        return albumArtist ?? ""
+        albumArtist ?? ""
     }
 }
 

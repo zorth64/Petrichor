@@ -5,42 +5,42 @@ class FolderNode: Identifiable, ObservableObject {
     let url: URL
     let name: String
     let isWatchFolder: Bool // True if this is the root watch folder
-    
+
     @Published var children: [FolderNode] = []
     @Published var isExpanded: Bool = false
     @Published var isLoading: Bool = false
-    
+
     // Counts for immediate contents only
     var immediateTrackCount: Int = 0
     var immediateFolderCount: Int {
         children.count
     }
-    
+
     // Cached database folder reference if this corresponds to a watched folder
     var databaseFolder: Folder?
-    
+
     init(url: URL, name: String? = nil, isWatchFolder: Bool = false) {
         self.url = url
         self.name = name ?? url.lastPathComponent
         self.isWatchFolder = isWatchFolder
     }
-    
+
     // Helper to check if this folder contains any tracks (immediate or nested)
     func containsTracks(using libraryManager: LibraryManager) -> Bool {
         // Check immediate tracks
         if immediateTrackCount > 0 {
             return true
         }
-        
+
         // Check if any child folders contain tracks
         return children.contains { child in
             child.containsTracks(using: libraryManager)
         }
     }
-    
+
     // Helper to get all tracks in this folder (immediate only)
     func getImmediateTracks(using libraryManager: LibraryManager) -> [Track] {
-        return libraryManager.tracks.filter { track in
+        libraryManager.tracks.filter { track in
             track.url.deletingLastPathComponent() == self.url
         }
     }

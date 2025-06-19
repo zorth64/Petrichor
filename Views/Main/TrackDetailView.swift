@@ -3,28 +3,28 @@ import SwiftUI
 struct TrackDetailView: View {
     let track: Track
     let onClose: () -> Void
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with close button
             headerSection
-            
+
             Divider()
-            
+
             // Scrollable content
             ScrollView {
                 VStack(spacing: 24) {
                     // Album artwork
                     artworkSection
-                    
+
                     // Track info
                     trackInfoSection
-                    
+
                     // Combined Track Information section
                     if !trackInformationItems.isEmpty {
                         metadataSection(title: "Details", items: trackInformationItems)
                     }
-                    
+
                     // Collapsible File Details section
                     FileDetailsSection(track: track)
                 }
@@ -33,16 +33,16 @@ struct TrackDetailView: View {
         }
         .background(Color(NSColor.windowBackgroundColor))
     }
-    
+
     // MARK: - Header Section
-    
+
     private var headerSection: some View {
         ListHeader {
             Text("Track Info")
                 .headerTitleStyle()
-            
+
             Spacer()
-            
+
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 16))
@@ -51,9 +51,9 @@ struct TrackDetailView: View {
             .buttonStyle(.plain)
         }
     }
-    
+
     // MARK: - Artwork Section
-    
+
     private var artworkSection: some View {
         ZStack {
             if let artworkData = track.artworkData,
@@ -79,9 +79,9 @@ struct TrackDetailView: View {
         }
         .padding(.top, 10)
     }
-    
+
     // MARK: - Track Info Section
-    
+
     private var trackInfoSection: some View {
         VStack(spacing: 8) {
             Text(track.title)
@@ -89,12 +89,12 @@ struct TrackDetailView: View {
                 .fontWeight(.semibold)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
-            
+
             Text(track.artist)
                 .font(.title3)
                 .foregroundColor(.secondary)
                 .lineLimit(1)
-            
+
             if !track.album.isEmpty && track.album != "Unknown Album" {
                 Text(track.album)
                     .font(.subheadline)
@@ -103,15 +103,15 @@ struct TrackDetailView: View {
             }
         }
     }
-    
+
     // MARK: - Metadata Section Builder
-    
+
     private func metadataSection(title: String, items: [(label: String, value: String)]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.headline)
                 .foregroundColor(.primary)
-            
+
             VStack(spacing: 8) {
                 ForEach(items, id: \.label) { item in
                     HStack(alignment: .top, spacing: 12) {
@@ -119,7 +119,7 @@ struct TrackDetailView: View {
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                             .frame(width: 120, alignment: .trailing)
-                        
+
                         Text(item.value)
                             .font(.system(size: 13))
                             .foregroundColor(.primary)
@@ -135,25 +135,25 @@ struct TrackDetailView: View {
             )
         }
     }
-    
+
     // MARK: - Combined Metadata
-    
+
     private var trackInformationItems: [(label: String, value: String)] {
         var items: [(label: String, value: String)] = []
-        
+
         // Album (added as requested)
         if !track.album.isEmpty && track.album != "Unknown Album" {
             items.append(("Album", track.album))
         }
-        
+
         // Album Artist
         if let albumArtist = track.albumArtist, !albumArtist.isEmpty {
             items.append(("Album Artist", albumArtist))
         }
-        
+
         // Duration
         items.append(("Duration", formatDuration(track.duration)))
-        
+
         // Track Number
         if let trackNumber = track.trackNumber {
             var trackStr = "\(trackNumber)"
@@ -162,7 +162,7 @@ struct TrackDetailView: View {
             }
             items.append(("Track", trackStr))
         }
-        
+
         // Disc Number
         if let discNumber = track.discNumber {
             var discStr = "\(discNumber)"
@@ -171,96 +171,96 @@ struct TrackDetailView: View {
             }
             items.append(("Disc", discStr))
         }
-        
+
         // Genre
         if !track.genre.isEmpty && track.genre != "Unknown Genre" {
             items.append(("Genre", track.genre))
         }
-        
+
         // Year
         if !track.year.isEmpty && track.year != "Unknown Year" {
             items.append(("Year", track.year))
         }
-        
+
         // Composer
         if !track.composer.isEmpty && track.composer != "Unknown Composer" {
             items.append(("Composer", track.composer))
         }
-        
+
         // Release Dates
         if let releaseDate = track.releaseDate, !releaseDate.isEmpty {
             items.append(("Release Date", releaseDate))
         }
-        
+
         if let originalDate = track.originalReleaseDate, !originalDate.isEmpty {
             items.append(("Original Release", originalDate))
         }
-        
+
         // Additional metadata from extended
         if let ext = track.extendedMetadata {
             if let conductor = ext.conductor, !conductor.isEmpty {
                 items.append(("Conductor", conductor))
             }
-            
+
             if let producer = ext.producer, !producer.isEmpty {
                 items.append(("Producer", producer))
             }
-            
+
             if let label = ext.label, !label.isEmpty {
                 items.append(("Label", label))
             }
-            
+
             if let publisher = ext.publisher, !publisher.isEmpty {
                 items.append(("Publisher", publisher))
             }
-            
+
             if let isrc = ext.isrc, !isrc.isEmpty {
                 items.append(("ISRC", isrc))
             }
         }
-        
+
         // BPM
         if let bpm = track.bpm, bpm > 0 {
             items.append(("BPM", "\(bpm)"))
         }
-        
+
         // Rating
         if let rating = track.rating, rating > 0 {
             items.append(("Rating", String(repeating: "★", count: rating) + String(repeating: "☆", count: 5 - rating)))
         }
-        
+
         // Play Count
         if track.playCount > 0 {
             items.append(("Play Count", "\(track.playCount)"))
         }
-        
+
         // Last Played
         if let lastPlayed = track.lastPlayedDate {
             items.append(("Last Played", formatDate(lastPlayed)))
         }
-        
+
         // Favorite
         if track.isFavorite {
             items.append(("Favorite", "Yes"))
         }
-        
+
         // Compilation
         if track.compilation {
             items.append(("Compilation", "Yes"))
         }
-        
+
         return items
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func formatDuration(_ seconds: Double) -> String {
         let totalSeconds = Int(max(0, seconds))
         let minutes = totalSeconds / 60
         let remainingSeconds = totalSeconds % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -274,7 +274,7 @@ struct TrackDetailView: View {
 private struct FileDetailsSection: View {
     let track: Track
     @State private var isExpanded = false
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Collapsible header
@@ -287,16 +287,16 @@ private struct FileDetailsSection: View {
                     Image(systemName: "chevron.right")
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .font(.system(size: 12))
-                    
+
                     Text("File Details")
                         .font(.headline)
-                    
+
                     Spacer()
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            
+
             // Expandable content
             if isExpanded {
                 VStack(spacing: 8) {
@@ -306,7 +306,7 @@ private struct FileDetailsSection: View {
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                                 .frame(width: 120, alignment: .trailing)
-                            
+
                             Text(item.value)
                                 .font(.system(size: 13))
                                 .foregroundColor(.primary)
@@ -324,60 +324,60 @@ private struct FileDetailsSection: View {
             }
         }
     }
-    
+
     private var fileDetailsItems: [(label: String, value: String)] {
         var items: [(label: String, value: String)] = []
-        
+
         // File format
         items.append(("Format", track.format.uppercased()))
-        
+
         // Audio properties
         if let codec = track.codec, !codec.isEmpty {
             items.append(("Codec", codec))
         }
-        
+
         if let bitrate = track.bitrate, bitrate > 0 {
             items.append(("Bitrate", "\(bitrate) kbps"))
         }
-        
+
         if let sampleRate = track.sampleRate, sampleRate > 0 {
             let formatted = formatSampleRate(sampleRate)
             items.append(("Sample Rate", formatted))
         }
-        
+
         if let bitDepth = track.bitDepth, bitDepth > 0 {
             items.append(("Bit Depth", "\(bitDepth)-bit"))
         }
-        
+
         if let channels = track.channels, channels > 0 {
             items.append(("Channels", formatChannels(channels)))
         }
-        
+
         // File info
         if let fileSize = track.fileSize, fileSize > 0 {
             items.append(("File Size", formatFileSize(fileSize)))
         }
-        
+
         // File path
         items.append(("File Path", track.url.path))
-        
+
         // Dates
         if let dateAdded = track.dateAdded {
             items.append(("Date Added", formatDate(dateAdded)))
         }
-        
+
         if let dateModified = track.dateModified {
             items.append(("Date Modified", formatDate(dateModified)))
         }
-        
+
         // Media Type
         if let mediaType = track.mediaType, !mediaType.isEmpty {
             items.append(("Media Type", mediaType))
         }
-        
+
         return items
     }
-    
+
     private func formatSampleRate(_ sampleRate: Int) -> String {
         if sampleRate >= 1000 {
             let khz = Double(sampleRate) / 1000.0
@@ -424,7 +424,7 @@ private struct FileDetailsSection: View {
         track.totalTracks = 12
         return track
     }()
-    
-    TrackDetailView(track: sampleTrack, onClose: {})
+
+    TrackDetailView(track: sampleTrack) {}
         .frame(width: 350, height: 700)
 }

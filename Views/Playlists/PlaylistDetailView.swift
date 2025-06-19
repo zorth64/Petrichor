@@ -3,7 +3,7 @@ import SwiftUI
 struct PlaylistDetailView: View {
     let playlistID: UUID
     let viewType: LibraryViewType
-    
+
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @State private var selectedTrackID: UUID?
@@ -11,31 +11,31 @@ struct PlaylistDetailView: View {
     @State private var trackToAddToNewPlaylist: Track?
     @State private var newPlaylistName = ""
     @State private var showingAddSongs = false
-    
+
     // Convenience initializer for when you have a Playlist object
     init(playlist: Playlist, viewType: LibraryViewType) {
         self.playlistID = playlist.id
         self.viewType = viewType
     }
-    
+
     // Standard initializer with playlist ID
     init(playlistID: UUID, viewType: LibraryViewType) {
         self.playlistID = playlistID
         self.viewType = viewType
     }
-    
+
     // Get the current playlist from the manager
     private var playlist: Playlist? {
         playlistManager.playlists.first { $0.id == playlistID }
     }
-    
+
     var body: some View {
         if let playlist = playlist {
             VStack(spacing: 0) {
                 playlistHeader
-                
+
                 Divider()
-                
+
                 playlistContent
             }
             .sheet(isPresented: $showingAddSongs) {
@@ -57,21 +57,21 @@ struct PlaylistDetailView: View {
             playlistNotFoundView
         }
     }
-    
+
     // MARK: - Playlist Header
-    
+
     @ViewBuilder
     private var playlistHeader: some View {
         if let playlist = playlist {
             PlaylistHeader {
                 HStack(alignment: .top, spacing: 20) {
                     playlistArtwork
-                    
+
                     VStack(alignment: .leading, spacing: 12) {
                         playlistInfo
                         playlistControls
                     }
-                    
+
                     Spacer()
                 }
             }
@@ -83,7 +83,7 @@ struct PlaylistDetailView: View {
             }
         }
     }
-    
+
     private var playlistArtwork: some View {
         Group {
             if let artworkData = playlist?.effectiveCoverArtwork,
@@ -105,30 +105,30 @@ struct PlaylistDetailView: View {
             }
         }
     }
-    
+
     private var playlistInfo: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(playlistTypeText)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fontWeight(.medium)
-            
+
             Text(playlist?.name ?? "")
                 .font(.title)
                 .fontWeight(.bold)
                 .lineLimit(2)
-            
+
             if let playlist = playlist {
                 HStack {
                     Text("\(playlist.tracks.count) songs")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    
-                    if playlist.tracks.count > 0 {
+
+                    if !playlist.tracks.isEmpty {
                         Text("•")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        
+
                         Text(playlist.formattedTotalDuration)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -137,7 +137,7 @@ struct PlaylistDetailView: View {
             }
         }
     }
-    
+
     private var playlistControls: some View {
         let buttonWidth: CGFloat = 90
         let verticalPadding: CGFloat = 6
@@ -145,7 +145,7 @@ struct PlaylistDetailView: View {
         let textSize: CGFloat = 13
         let buttonSpacing: CGFloat = 10
         let iconTextSpacing: CGFloat = 4
-        
+
         return HStack(spacing: buttonSpacing) {
             Button(action: playPlaylist) {
                 HStack(spacing: iconTextSpacing) {
@@ -159,7 +159,7 @@ struct PlaylistDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(playlist?.tracks.isEmpty ?? true)
-            
+
             Button(action: shufflePlaylist) {
                 HStack(spacing: iconTextSpacing) {
                     Image(systemName: "shuffle")
@@ -172,7 +172,7 @@ struct PlaylistDetailView: View {
             }
             .buttonStyle(.bordered)
             .disabled(playlist?.tracks.isEmpty ?? true)
-            
+
             if playlist?.type == .regular {
                 Button(action: { showingAddSongs = true }) {
                     HStack(spacing: iconTextSpacing) {
@@ -188,9 +188,9 @@ struct PlaylistDetailView: View {
             }
         }
     }
-    
+
     // MARK: - Playlist Content
-    
+
     private var playlistContent: some View {
         Group {
             if playlist?.tracks.isEmpty ?? true {
@@ -224,9 +224,9 @@ struct PlaylistDetailView: View {
             }
         }
     }
-    
+
     // MARK: - Empty Playlist View
-    
+
     @ViewBuilder
     private var emptyPlaylistView: some View {
         if let playlist = playlist {
@@ -234,16 +234,16 @@ struct PlaylistDetailView: View {
                 Image(systemName: playlistIcon)
                     .font(.system(size: 60))
                     .foregroundColor(.gray)
-                
+
                 Text(emptyStateTitle)
                     .font(.headline)
-                
+
                 Text(emptyStateMessage)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 300)
-                
+
                 if playlist.type == .regular {
                     Button("Add Songs") {
                         showingAddSongs = true
@@ -257,15 +257,15 @@ struct PlaylistDetailView: View {
             .background(Color(NSColor.textBackgroundColor))
         }
     }
-    
+
     // MARK: - Playlist Not Found View
-    
+
     private var playlistNotFoundView: some View {
         VStack {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-            
+
             Text("Playlist not found")
                 .font(.headline)
                 .foregroundColor(.secondary)
@@ -273,24 +273,24 @@ struct PlaylistDetailView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.textBackgroundColor))
     }
-    
+
     // MARK: - Create Playlist Sheet
-    
+
     private var createPlaylistSheet: some View {
         VStack(spacing: 20) {
             Text("New Playlist")
                 .font(.headline)
-            
+
             TextField("Playlist Name", text: $newPlaylistName)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 250)
-            
+
             if let track = trackToAddToNewPlaylist {
                 Text("Will add: \(track.title)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             HStack(spacing: 12) {
                 Button("Cancel") {
                     newPlaylistName = ""
@@ -298,7 +298,7 @@ struct PlaylistDetailView: View {
                     showingCreatePlaylistWithTrack = false
                 }
                 .keyboardShortcut(.escape)
-                
+
                 Button("Create") {
                     if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
                         let newPlaylist = playlistManager.createPlaylist(
@@ -317,12 +317,12 @@ struct PlaylistDetailView: View {
         .padding(30)
         .frame(width: 350)
     }
-    
+
     // MARK: - Helper Properties
-    
+
     private var playlistIcon: String {
         guard let playlist = playlist else { return "music.note.list" }
-        
+
         switch playlist.smartType {
         case .favorites:
             return "star.fill"
@@ -334,10 +334,10 @@ struct PlaylistDetailView: View {
             return "music.note.list"
         }
     }
-    
+
     private var playlistTypeText: String {
         guard let playlist = playlist else { return "" }
-        
+
         switch playlist.type {
         case .smart:
             return "SMART PLAYLIST"
@@ -345,10 +345,10 @@ struct PlaylistDetailView: View {
             return "PLAYLIST"
         }
     }
-    
+
     private var emptyStateTitle: String {
         guard let playlist = playlist else { return "Empty Playlist" }
-        
+
         switch playlist.smartType {
         case .favorites:
             return "No Favorite Songs"
@@ -360,10 +360,10 @@ struct PlaylistDetailView: View {
             return "Empty Playlist"
         }
     }
-    
+
     private var emptyStateMessage: String {
         guard let playlist = playlist else { return "" }
-        
+
         switch playlist.smartType {
         case .favorites:
             return "Mark songs as favorites to see them here"
@@ -375,14 +375,14 @@ struct PlaylistDetailView: View {
             return "Add some tracks to this playlist to get started"
         }
     }
-    
+
     // MARK: - Action Methods
-    
+
     private func playPlaylist() {
         guard let playlist = playlist, !playlist.tracks.isEmpty else { return }
         playlistManager.playTrackFromPlaylist(playlist, at: 0)
     }
-    
+
     private func shufflePlaylist() {
         guard let playlist = playlist, !playlist.tracks.isEmpty else { return }
         playlistManager.toggleShuffle()
@@ -394,7 +394,7 @@ struct PlaylistDetailView: View {
 
 #Preview("Regular Playlist") {
     let samplePlaylist = Playlist(name: "My Favorite Songs", tracks: [])
-    
+
     return PlaylistDetailView(playlist: samplePlaylist, viewType: .list)
         .environmentObject({
             let manager = PlaylistManager()
@@ -415,7 +415,7 @@ struct PlaylistDetailView: View {
         criteria: SmartPlaylistCriteria.favoritesPlaylist(),
         isUserEditable: false
     )
-    
+
     return PlaylistDetailView(playlist: smartPlaylist, viewType: .grid)
         .environmentObject({
             let manager = PlaylistManager()

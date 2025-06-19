@@ -6,16 +6,16 @@ struct GeneralTabView: View {
     @AppStorage("showNotifications") private var showNotifications = true
     @AppStorage("autoScanInterval") private var autoScanInterval: AutoScanInterval = .every60Minutes
     @AppStorage("colorMode") private var colorMode: ColorMode = .auto
-    
+
     enum ColorMode: String, CaseIterable, TabbedItem {
         case light = "Light"
         case dark = "Dark"
         case auto = "Auto"
-        
+
         var displayName: String {
-            return self.rawValue
+            self.rawValue
         }
-        
+
         var icon: String {
             switch self {
             case .light:
@@ -26,10 +26,10 @@ struct GeneralTabView: View {
                 return "circle.lefthalf.filled"
             }
         }
-        
+
         var title: String { self.displayName }
     }
-    
+
     var body: some View {
         Form {
             Section("Behavior") {
@@ -37,7 +37,7 @@ struct GeneralTabView: View {
                 Toggle("Keep running in menubar on close", isOn: $closeToMenubar)
                 Toggle("Show notifications for new tracks", isOn: $showNotifications)
             }
-            
+
             Section("Appearance") {
                 HStack {
                     Text("Color mode")
@@ -50,7 +50,7 @@ struct GeneralTabView: View {
                     .frame(width: 200)
                 }
             }
-            
+
             Section("Library Scanning") {
                 HStack {
                     Picker("Auto-scan library every", selection: $autoScanInterval) {
@@ -76,7 +76,7 @@ struct GeneralTabView: View {
             updateAppearance(colorMode)
         }
     }
-    
+
     private func updateAppearance(_ mode: ColorMode) {
         switch mode {
         case .light:

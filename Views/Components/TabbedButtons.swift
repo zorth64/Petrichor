@@ -35,7 +35,7 @@ struct TabbedButtons<Item: TabbedItem>: View {
     let style: TabbedButtonStyle
     let animation: TabbedButtonAnimation
     let isDisabled: Bool
-    
+
     init(
         items: [Item],
         selection: Binding<Item>,
@@ -49,24 +49,23 @@ struct TabbedButtons<Item: TabbedItem>: View {
         self.animation = animation
         self.isDisabled = isDisabled
     }
-    
+
     var body: some View {
         HStack(spacing: 1) {
-            ForEach(Array(items.enumerated()), id: \.element) { index, item in
+            ForEach(Array(items.enumerated()), id: \.element) { _, item in
                 TabbedButton(
                     item: item,
                     isSelected: selection == item,
                     style: style,
                     animation: animation,
-                    isDisabled: isDisabled,
-                    action: {
+                    isDisabled: isDisabled
+                ) {
                         if !isDisabled {
                             withAnimation(.easeInOut(duration: AnimationConstants.transformDuration)) {
                                 selection = item
                             }
                         }
-                    }
-                )
+                }
             }
         }
         .padding(4)
@@ -79,7 +78,7 @@ struct TabbedButtons<Item: TabbedItem>: View {
                         RoundedRectangle(cornerRadius: 8)
                             .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                     )
-                
+
                 // Moving background for transform animation
                 if animation == .transform {
                     movingBackground
@@ -88,7 +87,7 @@ struct TabbedButtons<Item: TabbedItem>: View {
         )
         .opacity(isDisabled ? 0.5 : 1.0)
     }
-    
+
     @ViewBuilder
     private var movingBackground: some View {
         if let selectedIndex = items.firstIndex(of: selection) {
@@ -96,7 +95,7 @@ struct TabbedButtons<Item: TabbedItem>: View {
                 let totalWidth = geometry.size.width - 8 // Account for padding
                 let buttonWidth = totalWidth / CGFloat(items.count)
                 let xOffset = CGFloat(selectedIndex) * buttonWidth + 4 // Account for padding
-                
+
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.accentColor)
                     .frame(
@@ -122,7 +121,7 @@ private struct TabbedButton<Item: TabbedItem>: View {
     let isDisabled: Bool
     let action: () -> Void
     @State private var isHovered = false
-    
+
     var body: some View {
         Button(action: {
             if !isDisabled {
@@ -136,7 +135,7 @@ private struct TabbedButton<Item: TabbedItem>: View {
                         .foregroundStyle(foregroundStyle)
                         .animation(.easeInOut(duration: AnimationConstants.transformDuration).delay(animation == .transform && isSelected ? AnimationConstants.transformTextDelay : 0), value: isSelected)
                 }
-                
+
                 if style.showTitle {
                     Text(item.title)
                         .font(.system(size: style.textSize, weight: .medium))
@@ -165,7 +164,7 @@ private struct TabbedButton<Item: TabbedItem>: View {
             view.help(item.tooltip!)
         }
     }
-    
+
     @ViewBuilder
     private func iconImage(for iconName: String) -> some View {
         if iconName.hasPrefix("custom.") {
@@ -174,7 +173,7 @@ private struct TabbedButton<Item: TabbedItem>: View {
             Image(systemName: iconName)
         }
     }
-    
+
     private var foregroundStyle: AnyShapeStyle {
         if animation == .transform {
             // For transform animation, delay white text until background is in position
@@ -196,7 +195,7 @@ private struct TabbedButton<Item: TabbedItem>: View {
             }
         }
     }
-    
+
     private var foregroundColor: Color {
         if animation == .transform {
             // For transform animation, delay white text until background is in position
@@ -218,7 +217,7 @@ private struct TabbedButton<Item: TabbedItem>: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var backgroundView: some View {
         if animation == .fade {
@@ -252,11 +251,11 @@ struct TabbedButtonStyle {
     let buttonWidth: CGFloat?
     let verticalPadding: CGFloat
     let expandButtons: Bool
-    
+
     var buttonHeight: CGFloat? {
-        return (self.iconSize == 14 && !self.showTitle && self.verticalPadding == 0) ? 24 : nil
+        (self.iconSize == 14 && !self.showTitle && self.verticalPadding == 0) ? 24 : nil
     }
-    
+
     static let standard = TabbedButtonStyle(
         showIcon: true,
         showTitle: true,
@@ -267,7 +266,7 @@ struct TabbedButtonStyle {
         verticalPadding: 5,
         expandButtons: false
     )
-    
+
     static let compact = TabbedButtonStyle(
         showIcon: true,
         showTitle: true,
@@ -278,7 +277,7 @@ struct TabbedButtonStyle {
         verticalPadding: 5,
         expandButtons: false
     )
-    
+
     static let iconOnly = TabbedButtonStyle(
         showIcon: true,
         showTitle: false,
@@ -289,7 +288,7 @@ struct TabbedButtonStyle {
         verticalPadding: 5,
         expandButtons: false
     )
-    
+
     static let flexible = TabbedButtonStyle(
         showIcon: true,
         showTitle: true,
@@ -300,7 +299,7 @@ struct TabbedButtonStyle {
         verticalPadding: 4,
         expandButtons: true
     )
-    
+
     static let viewToggle = TabbedButtonStyle(
         showIcon: true,
         showTitle: false,
@@ -339,7 +338,7 @@ extension LibraryViewType: TabbedItem {
         case .table: return "tablecells"
         }
     }
-    
+
     var tooltip: String? {
         switch self {
         case .list: return "List View"

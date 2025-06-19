@@ -3,13 +3,13 @@ import GRDB
 
 extension PlaylistManager {
     // MARK: - Unified Playlist Management
-    
+
     /// Add or remove a track from any playlist (handles both regular and smart playlists)
     func updateTrackInPlaylist(track: Track, playlist: Playlist, add: Bool) {
         Task {
             do {
                 guard let dbManager = libraryManager?.databaseManager else { return }
-                
+
                 // Handle smart playlists differently
                 if playlist.type == .smart {
                     // For smart playlists, we update the track property that controls membership
@@ -32,7 +32,7 @@ extension PlaylistManager {
                         await removeTrackFromRegularPlaylist(track: track, playlistID: playlist.id)
                     }
                 }
-                
+
                 // Update smart playlists to reflect any changes
                 await MainActor.run {
                     self.updateSmartPlaylists()
@@ -40,7 +40,7 @@ extension PlaylistManager {
             }
         }
     }
-    
+
     /// Add multiple tracks to a playlist at once
     func addTracksToPlaylist(tracks: [Track], playlistID: UUID) {
         Task {
@@ -50,10 +50,10 @@ extension PlaylistManager {
                 print("PlaylistManager: Cannot add to this playlist")
                 return
             }
-            
+
             var playlist = playlists[index]
             var tracksAdded = 0
-            
+
             // Add all tracks that aren't already in the playlist
             for track in tracks {
                 if !playlist.tracks.contains(where: { $0.trackId == track.trackId }) {
@@ -61,13 +61,13 @@ extension PlaylistManager {
                     tracksAdded += 1
                 }
             }
-            
+
             if tracksAdded > 0 {
                 // Update in-memory
                 await MainActor.run {
                     self.playlists[index] = playlist
                 }
-                
+
                 // Save to database once
                 do {
                     if let dbManager = libraryManager?.databaseManager {
@@ -88,7 +88,7 @@ extension PlaylistManager {
                     }
                 }
             }
-            
+
             // Update smart playlists if needed
             await MainActor.run {
                 self.updateSmartPlaylists()
@@ -105,10 +105,10 @@ extension PlaylistManager {
                 print("PlaylistManager: Cannot remove from this playlist")
                 return
             }
-            
+
             var playlist = playlists[index]
             var tracksRemoved = 0
-            
+
             // Remove all specified tracks
             for track in tracks {
                 let beforeCount = playlist.tracks.count
@@ -117,13 +117,13 @@ extension PlaylistManager {
                     tracksRemoved += 1
                 }
             }
-            
+
             if tracksRemoved > 0 {
                 // Update in-memory
                 await MainActor.run {
                     self.playlists[index] = playlist
                 }
-                
+
                 // Save to database once
                 do {
                     if let dbManager = libraryManager?.databaseManager {
@@ -143,31 +143,31 @@ extension PlaylistManager {
                     }
                 }
             }
-            
+
             // Update smart playlists if needed
             await MainActor.run {
                 self.updateSmartPlaylists()
             }
         }
     }
-    
+
     /// Toggle a track's membership in a playlist
     func toggleTrackInPlaylist(track: Track, playlist: Playlist) {
         let isInPlaylist = playlist.tracks.contains { $0.trackId == track.trackId }
         updateTrackInPlaylist(track: track, playlist: playlist, add: !isInPlaylist)
     }
-    
+
     /// Check if a track is in a playlist
     func isTrackInPlaylist(track: Track, playlist: Playlist) -> Bool {
-        return playlist.tracks.contains { $0.trackId == track.trackId }
+        playlist.tracks.contains { $0.trackId == track.trackId }
     }
-    
+
     func incrementPlayCount(for track: Track) {
         track.playCount += 1
         track.lastPlayedDate = Date()
-        
+
         guard let trackId = track.trackId else { return }
-        
+
         Task {
             do {
                 if let dbManager = libraryManager?.databaseManager {
@@ -176,7 +176,7 @@ extension PlaylistManager {
                         playCount: track.playCount,
                         lastPlayedDate: track.lastPlayedDate!
                     )
-                    
+
                     // Update smart playlists after play info changes
                     await MainActor.run {
                         self.updateSmartPlaylists()
@@ -189,9 +189,9 @@ extension PlaylistManager {
             }
         }
     }
-    
+
     // MARK: - Private Helper Methods
-    
+
     internal func addTrackToRegularPlaylist(track: Track, playlistID: UUID) async {
         guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
               playlists[index].type == .regular,
@@ -199,22 +199,22 @@ extension PlaylistManager {
             print("PlaylistManager: Cannot add to this playlist")
             return
         }
-        
+
         var playlist = playlists[index]
-        
+
         // Check if track already exists
         if playlist.tracks.contains(where: { $0.trackId == track.trackId }) {
             print("PlaylistManager: Track already in playlist")
             return
         }
-        
+
         playlist.addTrack(track)
-        
+
         // Update in-memory
         await MainActor.run {
             self.playlists[index] = playlist
         }
-        
+
         // Save to database
         do {
             if let dbManager = libraryManager?.databaseManager {
@@ -229,7 +229,7 @@ extension PlaylistManager {
             }
         }
     }
-    
+
     internal func removeTrackFromRegularPlaylist(track: Track, playlistID: UUID) async {
         guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
               playlists[index].type == .regular,
@@ -237,15 +237,15 @@ extension PlaylistManager {
             print("PlaylistManager: Cannot remove from this playlist")
             return
         }
-        
+
         var playlist = playlists[index]
         playlist.removeTrack(track)
-        
+
         // Update in-memory
         await MainActor.run {
             self.playlists[index] = playlist
         }
-        
+
         // Save to database
         do {
             if let dbManager = libraryManager?.databaseManager {
@@ -260,29 +260,29 @@ extension PlaylistManager {
             }
         }
     }
-    
+
     internal func updateTrackFavoriteStatus(track: Track, isFavorite: Bool) async {
         guard let trackId = track.trackId else {
             print("PlaylistManager: Cannot update favorite - track has no database ID")
             return
         }
-        
+
         // Update track object
         await MainActor.run {
             track.isFavorite = isFavorite
         }
-        
+
         do {
             if let dbManager = libraryManager?.databaseManager {
                 try await dbManager.updateTrackFavoriteStatus(trackId: trackId, isFavorite: isFavorite)
-                
+
                 // Update library manager's track
                 await MainActor.run {
                     if let libraryTrack = self.libraryManager?.tracks.first(where: { $0.trackId == trackId }) {
                         libraryTrack.isFavorite = isFavorite
                     }
                 }
-                
+
                 print("PlaylistManager: Updated favorite status")
             }
         } catch {
@@ -293,5 +293,4 @@ extension PlaylistManager {
             }
         }
     }
-
 }

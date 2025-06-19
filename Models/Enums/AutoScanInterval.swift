@@ -5,7 +5,7 @@ enum AutoScanInterval: String, CaseIterable, Codable {
     case every30Minutes = "every30Minutes"
     case every60Minutes = "every60Minutes"
     case onlyOnLaunch = "onlyOnLaunch"
-    
+
     var displayName: String {
         switch self {
         case .every15Minutes:
@@ -18,7 +18,7 @@ enum AutoScanInterval: String, CaseIterable, Codable {
             return "Only on app launch"
         }
     }
-    
+
     var timeInterval: TimeInterval? {
         switch self {
         case .every15Minutes:

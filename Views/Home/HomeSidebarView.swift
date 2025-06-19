@@ -4,25 +4,25 @@ struct HomeSidebarView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @Binding var selectedItem: HomeSidebarItem?
-    
+
     private var sidebarItems: [HomeSidebarItem] {
         let artistCount = libraryManager.databaseManager.getArtistCount()
         let albumCount = libraryManager.databaseManager.getAlbumCount()
-        
+
         return [
             HomeSidebarItem(type: .tracks, trackCount: libraryManager.tracks.count),
             HomeSidebarItem(type: .artists, artistCount: artistCount),
             HomeSidebarItem(type: .albums, albumCount: albumCount)
         ]
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             sidebarHeader
-            
+
             Divider()
-            
+
             // Sidebar items
             itemsList
         }
@@ -34,9 +34,9 @@ struct HomeSidebarView: View {
             updateSelectedItem()
         }
     }
-    
+
     // MARK: - Update Selection Helper
-    
+
     private func updateSelectedItem() {
         // Select "Tracks" by default if nothing is selected
         if selectedItem == nil {
@@ -46,20 +46,20 @@ struct HomeSidebarView: View {
             selectedItem = sidebarItems.first { $0.type == currentType }
         }
     }
-    
+
     // MARK: - Sidebar Header
-    
+
     private var sidebarHeader: some View {
         ListHeader {
             Text("")
                 .headerTitleStyle()
-            
+
             Spacer()
         }
     }
-    
+
     // MARK: - Items List
-    
+
     private var itemsList: some View {
         SidebarView(
             items: sidebarItems,
@@ -76,7 +76,7 @@ struct HomeSidebarView: View {
 
 #Preview {
     @State var selectedItem: HomeSidebarItem?
-    
+
     HomeSidebarView(selectedItem: $selectedItem)
         .environmentObject(LibraryManager())
         .environmentObject(PlaylistManager())
