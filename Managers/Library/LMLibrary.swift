@@ -1,0 +1,180 @@
+import Foundation
+
+extension LibraryManager {
+    func loadMusicLibrary() {
+        print("LibraryManager: Loading music library from database...")
+        
+        // Clear caches
+        folderTrackCounts.removeAll()
+        
+        // Load folders and resolve their bookmarks
+        let dbFolders = databaseManager.getAllFolders()
+        var resolvedFolders: [Folder] = []
+        var foldersNeedingRefresh: [Folder] = []
+        
+        for folder in dbFolders {
+            var folderAccessible = false
+            
+            // Try to resolve bookmark if available
+            if let bookmarkData = folder.bookmarkData {
+                do {
+                    var isStale = false
+                    let resolvedURL = try URL(resolvingBookmarkData: bookmarkData,
+                                             options: [.withSecurityScope],
+                                             relativeTo: nil,
+                                             bookmarkDataIsStale: &isStale)
+                    
+                    // Start accessing the security scoped resource
+                    if resolvedURL.startAccessingSecurityScopedResource() {
+                        folderAccessible = true
+                        resolvedFolders.append(folder)
+                        print("LibraryManager: Successfully resolved bookmark for \(folder.name)")
+                        
+                        if isStale {
+                            print("LibraryManager: Bookmark for \(folder.name) is stale, queuing for refresh")
+                            foldersNeedingRefresh.append(folder)
+                        }
+                    } else {
+                        print("LibraryManager: Failed to start accessing security scoped resource for \(folder.name)")
+                    }
+                } catch {
+                    print("LibraryManager: Failed to resolve bookmark for \(folder.name): \(error)")
+                }
+            } else {
+                print("LibraryManager: No bookmark data for \(folder.name)")
+            }
+            
+            // If bookmark resolution failed but folder exists, try to create new bookmark
+            if !folderAccessible && FileManager.default.fileExists(atPath: folder.url.path) {
+                print("LibraryManager: Attempting to create new bookmark for accessible folder \(folder.name)")
+                
+                // Check if we already have permission to access this path
+                if folder.url.startAccessingSecurityScopedResource() {
+                    // We have access! Create a new bookmark
+                    do {
+                        let newBookmarkData = try folder.url.bookmarkData(
+                            options: [.withSecurityScope],
+                            includingResourceValuesForKeys: nil,
+                            relativeTo: nil
+                        )
+                        
+                        var updatedFolder = folder
+                        updatedFolder.bookmarkData = newBookmarkData
+                        resolvedFolders.append(updatedFolder)
+                        foldersNeedingRefresh.append(updatedFolder)
+                        
+                        print("LibraryManager: Created new bookmark for \(folder.name)")
+                    } catch {
+                        print("LibraryManager: Failed to create new bookmark for \(folder.name): \(error)")
+                        resolvedFolders.append(folder) // Add anyway
+                    }
+                } else {
+                    // No access - add to list anyway
+                    resolvedFolders.append(folder)
+                }
+            } else if !folderAccessible {
+                // Folder doesn't exist or isn't accessible
+                resolvedFolders.append(folder)
+            }
+        }
+        
+        folders = resolvedFolders
+        tracks = databaseManager.getAllTracks()
+        updateSearchResults()
+        
+        print("LibraryManager: Loaded \(folders.count) folders and \(tracks.count) tracks from database")
+        
+        // Refresh stale bookmarks in background
+        if !foldersNeedingRefresh.isEmpty {
+            Task {
+                for folder in foldersNeedingRefresh {
+                    await refreshBookmarkForFolder(folder)
+                }
+            }
+        }
+        
+        // Update last scan date
+        userDefaults.set(Date(), forKey: UserDefaultsKeys.lastScanDate)
+        
+        // Notify playlist manager to update smart playlists
+        if let coordinator = AppCoordinator.shared {
+            coordinator.playlistManager.updateSmartPlaylists()
+            coordinator.handleLibraryChanged()
+        }
+        
+        refreshEntities()
+        // Post notification that library is loaded
+        NotificationCenter.default.post(name: NSNotification.Name("LibraryDidLoad"), object: nil)
+    }
+        
+    func refreshEntities() {
+        entitiesLoaded = false
+        loadEntities()
+    }
+    
+    func refreshLibrary() {
+        print("LibraryManager: Refreshing library...")
+        
+        // Set background scanning flag instead of regular scanning
+        isBackgroundScanning = true
+        
+        // Track completion of all folder refreshes
+        let group = DispatchGroup()
+        var hasErrors = false
+        
+        // First, ensure all folders have valid bookmarks
+        Task {
+            for folder in folders {
+                // Check and refresh bookmark if needed
+                if folder.bookmarkData == nil || !folder.url.startAccessingSecurityScopedResource() {
+                    await refreshBookmarkForFolder(folder)
+                }
+            }
+            
+            // Now proceed with scanning
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                
+                // For each folder, trigger a refresh in the database
+                for folder in self.folders {
+                    group.enter()
+                    self.databaseManager.refreshFolder(folder) { result in
+                        switch result {
+                        case .success:
+                            print("LibraryManager: Successfully refreshed folder \(folder.name)")
+                        case .failure(let error):
+                            print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                            hasErrors = true
+                        }
+                        group.leave()
+                    }
+                }
+                
+                // When all folders are done refreshing
+                group.notify(queue: .main) { [weak self] in
+                    guard let self = self else { return }
+                    
+                    // Reload the library after all refreshes complete
+                    self.loadMusicLibrary()
+                    self.isBackgroundScanning = false
+                    
+                    self.updateSearchResults()
+                    
+                    if hasErrors {
+                        print("LibraryManager: Library refresh completed with some errors")
+                    } else {
+                        print("LibraryManager: Library refresh completed successfully")
+                    }
+                }
+            }
+        }
+    }
+
+    internal func loadEntities() {
+        guard !entitiesLoaded else { return }
+        entitiesLoaded = true
+        
+        cachedArtistEntities = databaseManager.getArtistEntities()
+        cachedAlbumEntities = databaseManager.getAlbumEntities()
+    }
+}

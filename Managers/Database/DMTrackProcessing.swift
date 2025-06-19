@@ -1,9 +1,7 @@
 import Foundation
 import GRDB
 
-// MARK: - Track Processing Extension
 extension DatabaseManager {
-    
     // MARK: - Batch Processing
     
     /// Process a batch of music files with normalized data support

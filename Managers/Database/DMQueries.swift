@@ -1,7 +1,6 @@
 import Foundation
 import GRDB
 
-// MARK: - Query Methods Extension
 extension DatabaseManager {
     
     // MARK: - Filter Type Queries (Used by LibraryManager)
@@ -579,6 +578,48 @@ extension DatabaseManager {
         } catch {
             print("Failed to get year filter items: \(error)")
             return []
+        }
+    }
+    
+    func getAllTracks() -> [Track] {
+        do {
+            return try dbQueue.read { db in
+                try Track
+                    .including(optional: Track.folder)
+                    .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
+                    .fetchAll(db)
+            }
+        } catch {
+            print("Failed to fetch tracks: \(error)")
+            return []
+        }
+    }
+
+    func getTracksForFolder(_ folderId: Int64) -> [Track] {
+        do {
+            return try dbQueue.read { db in
+                try Track
+                    .filter(Track.Columns.folderId == folderId)
+                    .order(Track.Columns.filename)
+                    .fetchAll(db)
+            }
+        } catch {
+            print("Failed to fetch tracks for folder: \(error)")
+            return []
+        }
+    }
+
+    func getArtworkForTrack(_ trackId: Int64) -> Data? {
+        do {
+            return try dbQueue.read { db in
+                try Track
+                    .select(Track.Columns.artworkData)
+                    .filter(Track.Columns.trackId == trackId)
+                    .fetchOne(db)
+            }
+        } catch {
+            print("Failed to fetch artwork: \(error)")
+            return nil
         }
     }
 }
