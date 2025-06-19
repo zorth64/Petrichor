@@ -327,7 +327,7 @@ extension View {
 }
 
 extension MainTab: TabbedItem {
-    var title: String { self.rawValue }
+    var title: String { self.label }
 }
 
 extension LibraryViewType: TabbedItem {
