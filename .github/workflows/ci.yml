@@ -9,7 +9,6 @@ on:
 
 env:
   XCODE_VERSION: '16.3'
-  MACOS_VERSION: 'macos-15'
   SCHEME: 'Petrichor'
   PROJECT: 'Petrichor.xcodeproj'
 
@@ -17,7 +16,7 @@ jobs:
   # Job 1: Code Quality & Linting
   lint:
     name: Swift Lint & Format Check
-    runs-on: ${{ env.MACOS_VERSION }}
+    runs-on: macos-15
     
     steps:
       - name: Checkout
@@ -82,7 +81,7 @@ jobs:
   # Job 2: Build and Analyze
   build-analyze:
     name: Build & Static Analysis
-    runs-on: ${{ env.MACOS_VERSION }}
+    runs-on: macos-15
     needs: lint
     strategy:
       matrix:
