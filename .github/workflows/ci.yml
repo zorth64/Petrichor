@@ -1,0 +1,209 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  XCODE_VERSION: '16.3'
+  MACOS_VERSION: 'macos-15'
+  SCHEME: 'Petrichor'
+  PROJECT: 'Petrichor.xcodeproj'
+
+jobs:
+  # Job 1: Code Quality & Linting
+  lint:
+    name: Swift Lint & Format Check
+    runs-on: ${{ env.MACOS_VERSION }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+        
+      - name: Cache SwiftLint
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew/swiftlint*
+          key: ${{ runner.os }}-swiftlint-0.54.0
+          restore-keys: |
+            ${{ runner.os }}-swiftlint-
+        
+      - name: Install SwiftLint
+        run: |
+          if ! command -v swiftlint &> /dev/null; then
+            brew install swiftlint
+          else
+            echo "SwiftLint already installed: $(swiftlint version)"
+          fi
+        
+      - name: Run SwiftLint
+        run: |
+          # Create default config if not exists
+          if [ ! -f .swiftlint.yml ]; then
+            echo "warning: .swiftlint.yml not found, using default configuration"
+          fi
+          
+          # Ensure Xcode is properly selected for SourceKit
+          export DEVELOPER_DIR="/Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer"
+          
+          # Run SwiftLint with GitHub Actions reporter
+          # Try with SourceKit first, fall back to without if it fails
+          if ! swiftlint lint --reporter github-actions-logging; then
+            echo "::warning::SwiftLint with SourceKit failed, running without analyzer rules"
+            swiftlint lint --reporter github-actions-logging --disable-source-kit || true
+          fi
+        continue-on-error: true
+        
+      - name: SwiftLint Report
+        if: always()
+        run: |
+          # Generate HTML report for artifacts
+          swiftlint lint --reporter html > swiftlint-report.html || true
+          
+          # Also generate JSON for potential future processing
+          swiftlint lint --reporter json > swiftlint-report.json || true
+          
+      - name: Upload Lint Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-reports
+          path: |
+            swiftlint-report.html
+            swiftlint-report.json
+          retention-days: 5
+
+  # Job 2: Build and Analyze
+  build-analyze:
+    name: Build & Static Analysis
+    runs-on: ${{ env.MACOS_VERSION }}
+    needs: lint
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+        
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/repositories
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+      
+      - name: Cache Derived Data
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-derived-data-${{ matrix.configuration }}-${{ hashFiles('**/*.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-derived-data-${{ matrix.configuration }}-
+            ${{ runner.os }}-derived-data-
+      
+      - name: Resolve Dependencies
+        run: |
+          echo "Resolving Swift Package Manager dependencies..."
+          xcodebuild -resolvePackageDependencies \
+            -project "${{ env.PROJECT }}" \
+            -scheme "${{ env.SCHEME }}" \
+            -clonedSourcePackagesDirPath ~/Library/Developer/Xcode/DerivedData/SPM
+      
+      - name: Install xcpretty
+        run: |
+          if ! gem list xcpretty -i > /dev/null 2>&1; then
+            gem install xcpretty
+          fi
+      
+      - name: Build and Analyze
+        run: |
+          set -o pipefail
+          
+          # Create reports directory
+          mkdir -p build/reports
+          
+          # Build and analyze
+          xcodebuild clean build analyze \
+            -project "${{ env.PROJECT }}" \
+            -scheme "${{ env.SCHEME }}" \
+            -configuration ${{ matrix.configuration }} \
+            -destination 'platform=macOS' \
+            -derivedDataPath ~/Library/Developer/Xcode/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            COMPILER_INDEX_STORE_ENABLE=YES \
+            | xcpretty --color --report junit --output build/reports/junit-${{ matrix.configuration }}.xml
+          
+          # Save exit code
+          BUILD_STATUS=${PIPESTATUS[0]}
+          
+          # Check for analyzer warnings
+          if [ -d ~/Library/Developer/Xcode/DerivedData/Build/Intermediates.noindex/*.build ]; then
+            echo "Checking for analyzer warnings..."
+            find ~/Library/Developer/Xcode/DerivedData/Build/Intermediates.noindex -name "*.plist" -exec plutil -p {} \; | grep -i warning || true
+          fi
+          
+          exit $BUILD_STATUS
+      
+      - name: Parse Analyzer Results
+        if: always()
+        run: |
+          # Find and parse static analyzer results
+          echo "Searching for analyzer results..."
+          find ~/Library/Developer/Xcode/DerivedData -name "StaticAnalyzer" -type d | while read -r dir; do
+            echo "Found analyzer results in: $dir"
+            find "$dir" -name "*.plist" -exec echo "Analyzer issue found: " {} \;
+          done
+      
+      - name: Upload Build Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-reports-${{ matrix.configuration }}
+          path: build/reports/
+          retention-days: 5
+      
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-logs-${{ matrix.configuration }}
+          path: |
+            ~/Library/Logs/DiagnosticReports/*.crash
+            ~/Library/Developer/Xcode/DerivedData/**/Logs/Build/*.xcactivitylog
+          retention-days: 5
+          if-no-files-found: ignore
+
+  # Summary job to check all required jobs passed
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [lint, build-analyze]
+    if: always()
+    
+    steps:
+      - name: Check Job Status
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.build-analyze.result }}" != "success" ]; then
+            echo "One or more required jobs failed"
+            echo "Lint: ${{ needs.lint.result }}"
+            echo "Build & Analyze: ${{ needs.build-analyze.result }}"
+            exit 1
+          else
+            echo "All required jobs passed successfully! ✅"
+          fi
