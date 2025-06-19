@@ -6,6 +6,7 @@ struct ContentView: View {
     @EnvironmentObject var playlistManager: PlaylistManager
 
     @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .table
+    @AppStorage("entityViewType") private var entityViewType: LibraryViewType = .grid
     @AppStorage("rightSidebarSplitPosition") private var splitPosition: Double = 200
     @State private var selectedTab: MainTab = .home
     @State private var showingSettings = false
@@ -22,7 +23,21 @@ struct ContentView: View {
             // Persistent Contextual Toolbar - always present when we have music
             if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
                 ContextualToolbar(
-                    viewType: $globalViewType,
+                    viewType: Binding(
+                        get: {
+                            if selectedTab == .home && homeShowingEntities {
+                                return entityViewType
+                            }
+                            return globalViewType
+                        },
+                        set: { newValue in
+                            if selectedTab == .home && homeShowingEntities {
+                                entityViewType = newValue
+                            } else {
+                                globalViewType = newValue
+                            }
+                        }
+                    ),
                     disableTableView: selectedTab == .home && homeShowingEntities
                 )
                 .frame(height: 40)

@@ -4,9 +4,17 @@ struct HomeView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
+    @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
+    @AppStorage("globalViewType") private var viewType: LibraryViewType = .table
+    @AppStorage("entityViewType") private var entityViewType: LibraryViewType = .grid
+    @AppStorage("entitySortAscending") private var entitySortAscending: Bool = true
     @State private var selectedSidebarItem: HomeSidebarItem?
     @State private var selectedTrackID: UUID?
-    @AppStorage("globalViewType") private var viewType: LibraryViewType = .table
+    @State private var sortedTracks: [Track] = []
+    @State private var sortedArtistEntities: [ArtistEntity] = []
+    @State private var sortedAlbumEntities: [AlbumEntity] = []
+    @State private var lastArtistCount: Int = 0
+    @State private var lastAlbumCount: Int = 0
     @Binding var isShowingEntities: Bool
 
     var body: some View {
@@ -51,10 +59,29 @@ struct HomeView: View {
     private var tracksView: some View {
         VStack(spacing: 0) {
             // Header
-            TrackListHeader(
-                title: "All Tracks",
-                trackCount: libraryManager.tracks.count
-            )
+            if viewType == .table {
+                TrackListHeader(
+                    title: "All Tracks",
+                    trackCount: libraryManager.tracks.count
+                ) {
+                    TrackTableColumnMenu()
+                }
+            } else {
+                TrackListHeader(
+                    title: "All Tracks",
+                    trackCount: libraryManager.tracks.count
+                ) {
+                    Button(action: {
+                        trackListSortAscending.toggle()
+                        sortTracks()
+                    }) {
+                        Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                }
+            }
 
             Divider()
 
@@ -63,11 +90,11 @@ struct HomeView: View {
                 NoMusicEmptyStateView(context: .mainWindow)
             } else {
                 TrackView(
-                    tracks: libraryManager.tracks,
+                    tracks: sortedTracks,
                     viewType: viewType,
                     selectedTrackID: $selectedTrackID,
                     onPlayTrack: { track in
-                        playlistManager.playTrack(track, fromTracks: libraryManager.tracks)
+                        playlistManager.playTrack(track, fromTracks: sortedTracks)
                     },
                     contextMenuItems: { track in
                         TrackContextMenu.createMenuItems(
@@ -81,6 +108,14 @@ struct HomeView: View {
                 .background(Color(NSColor.textBackgroundColor))
             }
         }
+        .onAppear {
+            if sortedTracks.isEmpty {
+                sortTracks()
+            }
+        }
+        .onChange(of: libraryManager.tracks) { _ in
+            sortTracks()
+        }
     }
 
     // MARK: - Artists View
@@ -91,7 +126,17 @@ struct HomeView: View {
             TrackListHeader(
                 title: "All Artists",
                 trackCount: libraryManager.artistEntities.count
-            )
+            ) {
+                Button(action: {
+                    entitySortAscending.toggle()
+                    sortEntities()
+                }) {
+                    Image(systemName: entitySortAscending ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.borderless)
+                .help("Sort \(entitySortAscending ? "descending" : "ascending")")
+            }
 
             Divider()
 
@@ -100,8 +145,8 @@ struct HomeView: View {
                 NoMusicEmptyStateView(context: .mainWindow)
             } else {
                 EntityView(
-                    entities: libraryManager.artistEntities,
-                    viewType: viewType == .table ? .list : viewType,
+                    entities: sortedArtistEntities,
+                    viewType: entityViewType,
                     onSelectEntity: { artist in
                         // TODO: Show tracks for selected artist
                         print("Selected artist: \(artist.name)")
@@ -113,12 +158,16 @@ struct HomeView: View {
                 .background(Color(NSColor.textBackgroundColor))
             }
         }
-    }
-
-    // MARK: - Context Menu
-
-    private func createArtistContextMenuItems(for artist: ArtistEntity) -> [ContextMenuItem] {
-        []
+        .onAppear {
+            if sortedArtistEntities.isEmpty {
+                sortArtistEntities()
+            }
+        }
+        .onReceive(libraryManager.$cachedArtistEntities) { _ in
+            if libraryManager.artistEntities.count != lastArtistCount {
+                sortArtistEntities()
+            }
+        }
     }
 
     // MARK: - Albums View
@@ -129,7 +178,17 @@ struct HomeView: View {
             TrackListHeader(
                 title: "All Albums",
                 trackCount: libraryManager.albumEntities.count
-            )
+            ) {
+                Button(action: {
+                    entitySortAscending.toggle()
+                    sortEntities()
+                }) {
+                    Image(systemName: entitySortAscending ? "arrow.up" : "arrow.down")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.borderless)
+                .help("Sort \(entitySortAscending ? "descending" : "ascending")")
+            }
 
             Divider()
 
@@ -138,8 +197,8 @@ struct HomeView: View {
                 NoMusicEmptyStateView(context: .mainWindow)
             } else {
                 EntityView(
-                    entities: libraryManager.albumEntities,
-                    viewType: viewType == .table ? .list : viewType,
+                    entities: sortedAlbumEntities,
+                    viewType: entityViewType,
                     onSelectEntity: { album in
                         // TODO: Show tracks for selected album
                         print("Selected album: \(album.name)")
@@ -151,16 +210,19 @@ struct HomeView: View {
                 .background(Color(NSColor.textBackgroundColor))
             }
         }
+        .onAppear {
+            if sortedAlbumEntities.isEmpty {
+                sortAlbumEntities()
+            }
+        }
+        .onReceive(libraryManager.$cachedAlbumEntities) { _ in
+            if libraryManager.albumEntities.count != lastAlbumCount {
+                sortAlbumEntities()
+            }
+        }
     }
-
-    // MARK: - Album Context Menu
-
-    private func createAlbumContextMenuItems(for album: AlbumEntity) -> [ContextMenuItem] {
-        // TODO: Implement context menu items when we add album detail view
-        []
-    }
-
-    // MARK: - Empty Selection View
+    
+    // MARK: - Helpers
 
     private var emptySelectionView: some View {
         VStack(spacing: 16) {
@@ -174,6 +236,39 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.textBackgroundColor))
+    }
+    
+    private func sortTracks() {
+        sortedTracks = trackListSortAscending
+            ? libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            : libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
+    }
+    
+    private func sortArtistEntities() {
+        sortedArtistEntities = entitySortAscending
+            ? libraryManager.artistEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            : libraryManager.artistEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        lastArtistCount = sortedArtistEntities.count
+    }
+
+    private func sortAlbumEntities() {
+        sortedAlbumEntities = entitySortAscending
+            ? libraryManager.albumEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            : libraryManager.albumEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        lastAlbumCount = sortedAlbumEntities.count
+    }
+
+    private func sortEntities() {
+        sortArtistEntities()
+        sortAlbumEntities()
+    }
+    
+    private func createAlbumContextMenuItems(for album: AlbumEntity) -> [ContextMenuItem] {
+        []
+    }
+    
+    private func createArtistContextMenuItems(for artist: ArtistEntity) -> [ContextMenuItem] {
+        []
     }
 }
 
