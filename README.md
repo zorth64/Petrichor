@@ -8,6 +8,8 @@ _a pleasant smell that frequently accompanies the first rain after a long period
 
 A beautiful, native music player for macOS built with Swift, SwiftUI, and Claude.
 
+[![CI/CD Pipeline](https://github.com/kushalpandya/Petrichor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kushalpandya/Petrichor/actions/workflows/ci.yml)
+
 ## ✨ Features
 
 ### 🎵 Music Management
