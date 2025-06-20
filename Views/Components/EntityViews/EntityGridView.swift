@@ -28,7 +28,7 @@ struct EntityGridView<T: Entity>: View {
                             entity: entity,
                             itemWidth: itemWidth
                         ) {
-                                onSelectEntity(entity)
+                            onSelectEntity(entity)
                         }
                         .frame(width: itemWidth, height: itemHeight)
                         .contextMenu {
@@ -44,10 +44,10 @@ struct EntityGridView<T: Entity>: View {
             }
             .background(Color.clear)
             .onAppear {
-                gridWidth = geometry.size.width - 32 // 16 padding on each side
+                gridWidth = geometry.size.width - 32  // 16 padding on each side
             }
             .onChange(of: geometry.size.width) { newWidth in
-                gridWidth = newWidth - 32 // 16 padding on each side
+                gridWidth = newWidth - 32  // 16 padding on each side
             }
         }
     }
@@ -119,12 +119,14 @@ private struct EntityGridItem<T: Entity>: View {
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(.primary)
+                    .frame(width: 160, alignment: .leading)
 
                 if let subtitle = entity.subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
+                        .frame(width: 160, alignment: .leading)
                 }
             }
             .frame(width: 160, alignment: .leading)

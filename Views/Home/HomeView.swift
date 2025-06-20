@@ -15,6 +15,9 @@ struct HomeView: View {
     @State private var sortedAlbumEntities: [AlbumEntity] = []
     @State private var lastArtistCount: Int = 0
     @State private var lastAlbumCount: Int = 0
+    @State private var selectedArtistEntity: ArtistEntity?
+    @State private var selectedAlbumEntity: AlbumEntity?
+    @State private var isShowingEntityDetail = false
     @Binding var isShowingEntities: Bool
 
     var body: some View {
@@ -27,7 +30,27 @@ struct HomeView: View {
                 },
                 main: {
                     VStack(spacing: 0) {
-                        if let selectedItem = selectedSidebarItem {
+                        if isShowingEntityDetail {
+                            // Show entity detail view
+                            if let artist = selectedArtistEntity {
+                                EntityDetailView(
+                                    entity: artist,
+                                    viewType: viewType
+                                )                                    {
+                                        isShowingEntityDetail = false
+                                        selectedArtistEntity = nil
+                                    }
+                            } else if let album = selectedAlbumEntity {
+                                EntityDetailView(
+                                    entity: album,
+                                    viewType: viewType
+                                )                                    {
+                                        isShowingEntityDetail = false
+                                        selectedAlbumEntity = nil
+                                    }
+                            }
+                        } else if let selectedItem = selectedSidebarItem {
+                            // Show regular views
                             switch selectedItem.type {
                             case .tracks:
                                 tracksView
@@ -40,17 +63,15 @@ struct HomeView: View {
                             emptySelectionView
                         }
                     }
-                    .navigationTitle(selectedSidebarItem?.title ?? "Home")
+                    .navigationTitle(navigationTitle)
                     .navigationSubtitle("")
-                    .onChange(of: selectedSidebarItem) { _ in
-                        guard let selectedItem = selectedSidebarItem else {
-                            isShowingEntities = false
-                            return
-                        }
-                        isShowingEntities = (selectedItem.type == .artists || selectedItem.type == .albums)
-                    }
                 }
             )
+            .onChange(of: selectedSidebarItem) { _ in
+                isShowingEntityDetail = false
+                selectedArtistEntity = nil
+                selectedAlbumEntity = nil
+            }
         }
     }
 
@@ -148,8 +169,9 @@ struct HomeView: View {
                     entities: sortedArtistEntities,
                     viewType: entityViewType,
                     onSelectEntity: { artist in
-                        // TODO: Show tracks for selected artist
-                        print("Selected artist: \(artist.name)")
+                        selectedArtistEntity = artist
+                        selectedAlbumEntity = nil
+                        isShowingEntityDetail = true
                     },
                     contextMenuItems: { artist in
                         createArtistContextMenuItems(for: artist)
@@ -200,8 +222,9 @@ struct HomeView: View {
                     entities: sortedAlbumEntities,
                     viewType: entityViewType,
                     onSelectEntity: { album in
-                        // TODO: Show tracks for selected album
-                        print("Selected album: \(album.name)")
+                        selectedAlbumEntity = album
+                        selectedArtistEntity = nil
+                        isShowingEntityDetail = true
                     },
                     contextMenuItems: { album in
                         createAlbumContextMenuItems(for: album)
@@ -223,6 +246,17 @@ struct HomeView: View {
     }
     
     // MARK: - Helpers
+    
+    private var navigationTitle: String {
+        if isShowingEntityDetail {
+            if let artist = selectedArtistEntity {
+                return artist.name
+            } else if let album = selectedAlbumEntity {
+                return album.name
+            }
+        }
+        return selectedSidebarItem?.title ?? "Home"
+    }
 
     private var emptySelectionView: some View {
         VStack(spacing: 16) {

@@ -90,14 +90,17 @@ private struct EntityListRow<T: Entity>: View {
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let subtitle = entity.subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer()
 

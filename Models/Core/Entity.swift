@@ -50,6 +50,7 @@ struct AlbumEntity: Entity {
     let tracks: [Track]
     let trackCount: Int
     let artworkData: Data?
+    let albumId: Int64?
 
     var subtitle: String? {
         if let artist = artist {
@@ -58,7 +59,6 @@ struct AlbumEntity: Entity {
         return "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
     }
 
-    // Original initializer
     init(name: String, artist: String?, tracks: [Track]) {
         let namespace = UUID(uuidString: "6BA7B811-9DAD-11D1-80B4-00C04FD430C8")!
         let combinedName = "\(name.lowercased())-\(artist?.lowercased() ?? "")"
@@ -68,9 +68,9 @@ struct AlbumEntity: Entity {
         self.tracks = tracks
         self.trackCount = tracks.count
         self.artworkData = tracks.first { $0.artworkData != nil }?.artworkData
+        self.albumId = nil
     }
 
-    // New lightweight initializer with optional albumId for uniqueness
     init(name: String, artist: String?, trackCount: Int, artworkData: Data? = nil, albumId: Int64? = nil) {
         // If we have an albumId, use it for a truly unique ID
         if let albumId = albumId {
@@ -89,6 +89,7 @@ struct AlbumEntity: Entity {
         self.tracks = []
         self.trackCount = trackCount
         self.artworkData = artworkData
+        self.albumId = albumId
     }
 }
 
