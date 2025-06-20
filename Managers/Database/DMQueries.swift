@@ -269,6 +269,86 @@ extension DatabaseManager {
         }
     }
 
+    /// Get tracks for a specific artist entity
+    func getTracksForArtistEntity(_ artistName: String) -> [Track] {
+        do {
+            return try dbQueue.read { db in
+                // First find the artist
+                let normalizedName = ArtistParser.normalizeArtistName(artistName)
+                guard let artist = try Artist
+                    .filter((Artist.Columns.name == artistName) || (Artist.Columns.normalizedName == normalizedName))
+                    .fetchOne(db),
+                    let artistId = artist.id else {
+                    return []
+                }
+                
+                // Get all track IDs for this artist
+                let trackIds = try TrackArtist
+                    .filter(TrackArtist.Columns.artistId == artistId)
+                    .select(TrackArtist.Columns.trackId, as: Int64.self)
+                    .fetchAll(db)
+                
+                // Fetch the tracks
+                return try Track
+                    .filter(trackIds.contains(Track.Columns.trackId))
+                    .order(Track.Columns.album, Track.Columns.trackNumber)
+                    .fetchAll(db)
+            }
+        } catch {
+            print("Failed to get tracks for artist entity: \(error)")
+            return []
+        }
+    }
+
+    /// Get tracks for a specific album entity using album ID
+    func getTracksForAlbumEntity(_ albumEntity: AlbumEntity) -> [Track] {
+        do {
+            return try dbQueue.read { db in
+                // If we have the album ID, use it directly - this is the most reliable way
+                if let albumId = albumEntity.albumId {
+                    return try Track
+                        .filter(Track.Columns.albumId == albumId)
+                        .order(Track.Columns.discNumber, Track.Columns.trackNumber)
+                        .fetchAll(db)
+                }
+                
+                // Fallback to name-based search if no ID (shouldn't happen with new code)
+                let normalizedTitle = albumEntity.name.lowercased()
+                    .replacingOccurrences(of: "the ", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                var query = Album
+                    .filter(Album.Columns.normalizedTitle == normalizedTitle)
+                
+                // If artist is provided, use it to narrow down the search
+                if let artistName = albumEntity.artist {
+                    let normalizedArtistName = ArtistParser.normalizeArtistName(artistName)
+                    if let artist = try Artist
+                        .filter((Artist.Columns.name == artistName) || (Artist.Columns.normalizedName == normalizedArtistName))
+                        .fetchOne(db),
+                        let artistId = artist.id {
+                        query = query.filter(Album.Columns.artistId == artistId)
+                    }
+                }
+                
+                guard let album = try query.fetchOne(db),
+                      let albumId = album.id else {
+                    print("No album found for entity: \(albumEntity.name)")
+                    return []
+                }
+                
+                // Get tracks for this album
+                return try Track
+                    .filter(Track.Columns.albumId == albumId)
+                    .order(Track.Columns.discNumber, Track.Columns.trackNumber)
+                    .fetchAll(db)
+            }
+        } catch {
+            print("Failed to get tracks for album entity: \(error)")
+            return []
+        }
+    }
+
     // MARK: - Quick Count Methods
 
     func getArtistCount() -> Int {

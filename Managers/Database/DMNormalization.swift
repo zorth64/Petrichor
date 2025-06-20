@@ -81,7 +81,7 @@ extension DatabaseManager {
         guard let artworkData = artworkData else { return }
 
         // Check if artist already has artwork
-        guard var artist = try Artist.fetchOne(db, key: artistId),
+        guard let artist = try Artist.fetchOne(db, key: artistId),
               artist.artworkData == nil else { return }
 
         // Update artwork
@@ -97,37 +97,46 @@ extension DatabaseManager {
         let normalizedTitle = title.lowercased()
             .replacingOccurrences(of: " - ", with: " ")
             .replacingOccurrences(of: "  ", with: " ")
+            .replacingOccurrences(of: "the ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // First, try to find ANY album with the same normalized title
-        // This helps prevent duplicates when artist names vary slightly
-        if let existingAlbum = try Album
-            .filter(Album.Columns.normalizedTitle == normalizedTitle)
-            .fetchOne(db) {
-            // If the existing album doesn't have an artist and we do, update it
-            if existingAlbum.artistId == nil && artistName != nil && !artistName!.isEmpty {
-                let artist = try findOrCreateArtist(artistName!, in: db)
-                if let artistId = artist.id {
-                    var updatedAlbum = existingAlbum
-                    updatedAlbum.artistId = artistId
-                    try updatedAlbum.update(db)
-                    return updatedAlbum
-                }
-            }
-
-            return existingAlbum
-        }
-
-        // No existing album found, create new one
-        var album = Album(title: title)
-
-        // Set artist if provided
-        if let artistName = artistName, !artistName.isEmpty && artistName != "Unknown Artist" {
+        // First, get or create the artist if we have one
+        var artistId: Int64?
+        if let artistName = artistName, !artistName.isEmpty, artistName != "Unknown Artist" {
             let artist = try findOrCreateArtist(artistName, in: db)
-            album.artistId = artist.id
+            artistId = artist.id
         }
-
+        
+        // Log existing albums with this normalized title
+        let existingAlbums = try Album
+            .filter(Album.Columns.normalizedTitle == normalizedTitle)
+            .fetchAll(db)
+        
+        // Try to find existing album with same normalized title and artist
+        if let artistId = artistId {
+            // Look for album with specific artist
+            if let existingAlbum = try Album
+                .filter(Album.Columns.normalizedTitle == normalizedTitle)
+                .filter(Album.Columns.artistId == artistId)
+                .fetchOne(db) {
+                return existingAlbum
+            }
+        } else {
+            // Look for album with no artist
+            if let existingAlbum = try Album
+                .filter(Album.Columns.normalizedTitle == normalizedTitle)
+                .filter(Album.Columns.artistId == nil)
+                .fetchOne(db) {
+                return existingAlbum
+            }
+        }
+        
+        // No existing album found, create new one
+        let album = Album(title: title)
+        album.artistId = artistId
+        
         try album.insert(db)
+        
         return album
     }
 

@@ -49,9 +49,9 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
     init(title: String, artistId: Int64? = nil) {
         self.title = title
         self.normalizedTitle = title.lowercased()
-            .replacingOccurrences(of: " - ", with: "-")
-            .replacingOccurrences(of: " -", with: "-")
-            .replacingOccurrences(of: "- ", with: "-")
+            .replacingOccurrences(of: " - ", with: " ")
+            .replacingOccurrences(of: "  ", with: " ")
+            .replacingOccurrences(of: "the ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         self.sortTitle = title
         self.artistId = artistId
