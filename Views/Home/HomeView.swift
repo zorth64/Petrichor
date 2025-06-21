@@ -19,7 +19,7 @@ struct HomeView: View {
     @State private var selectedAlbumEntity: AlbumEntity?
     @State private var isShowingEntityDetail = false
     @Binding var isShowingEntities: Bool
-
+    
     var body: some View {
         if libraryManager.folders.isEmpty || libraryManager.tracks.isEmpty {
             NoMusicEmptyStateView(context: .mainWindow)
@@ -36,18 +36,18 @@ struct HomeView: View {
                                 EntityDetailView(
                                     entity: artist,
                                     viewType: viewType
-                                )                                    {
-                                        isShowingEntityDetail = false
-                                        selectedArtistEntity = nil
-                                    }
+                                ) {
+                                    isShowingEntityDetail = false
+                                    selectedArtistEntity = nil
+                                }
                             } else if let album = selectedAlbumEntity {
                                 EntityDetailView(
                                     entity: album,
                                     viewType: viewType
-                                )                                    {
-                                        isShowingEntityDetail = false
-                                        selectedAlbumEntity = nil
-                                    }
+                                ) {
+                                    isShowingEntityDetail = false
+                                    selectedAlbumEntity = nil
+                                }
                             }
                         } else if let selectedItem = selectedSidebarItem {
                             // Show regular views
@@ -67,16 +67,31 @@ struct HomeView: View {
                     .navigationSubtitle("")
                 }
             )
-            .onChange(of: selectedSidebarItem) { _ in
+            .onChange(of: selectedSidebarItem) { newItem in
                 isShowingEntityDetail = false
                 selectedArtistEntity = nil
                 selectedAlbumEntity = nil
+                
+                if let item = newItem {
+                    isShowingEntities = (item.type == .artists || item.type == .albums) && !isShowingEntityDetail
+                } else {
+                    isShowingEntities = false
+                }
+            }
+            .onChange(of: isShowingEntityDetail) { _ in
+                // When showing entity detail (tracks), we're not showing entities anymore
+                if isShowingEntityDetail {
+                    isShowingEntities = false
+                } else if let item = selectedSidebarItem {
+                    // When going back to entity list, check if we should show entities
+                    isShowingEntities = (item.type == .artists || item.type == .albums)
+                }
             }
         }
     }
-
+    
     // MARK: - Tracks View
-
+    
     private var tracksView: some View {
         VStack(spacing: 0) {
             // Header
@@ -103,9 +118,9 @@ struct HomeView: View {
                     .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
                 }
             }
-
+            
             Divider()
-
+            
             // Track list
             if libraryManager.tracks.isEmpty {
                 NoMusicEmptyStateView(context: .mainWindow)
@@ -138,9 +153,9 @@ struct HomeView: View {
             sortTracks()
         }
     }
-
+    
     // MARK: - Artists View
-
+    
     private var artistsView: some View {
         VStack(spacing: 0) {
             // Header
@@ -158,9 +173,9 @@ struct HomeView: View {
                 .buttonStyle(.borderless)
                 .help("Sort \(entitySortAscending ? "descending" : "ascending")")
             }
-
+            
             Divider()
-
+            
             // Artists list
             if libraryManager.artistEntities.isEmpty {
                 NoMusicEmptyStateView(context: .mainWindow)
@@ -191,9 +206,9 @@ struct HomeView: View {
             }
         }
     }
-
+    
     // MARK: - Albums View
-
+    
     private var albumsView: some View {
         VStack(spacing: 0) {
             // Header
@@ -211,9 +226,9 @@ struct HomeView: View {
                 .buttonStyle(.borderless)
                 .help("Sort \(entitySortAscending ? "descending" : "ascending")")
             }
-
+            
             Divider()
-
+            
             // Albums list
             if libraryManager.albumEntities.isEmpty {
                 NoMusicEmptyStateView(context: .mainWindow)
@@ -257,13 +272,13 @@ struct HomeView: View {
         }
         return selectedSidebarItem?.title ?? "Home"
     }
-
+    
     private var emptySelectionView: some View {
         VStack(spacing: 16) {
             Image(systemName: "music.note.house")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
-
+            
             Text("Select an item from the sidebar")
                 .font(.headline)
                 .foregroundColor(.secondary)
@@ -274,24 +289,24 @@ struct HomeView: View {
     
     private func sortTracks() {
         sortedTracks = trackListSortAscending
-            ? libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-            : libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
+        ? libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        : libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
     }
     
     private func sortArtistEntities() {
         sortedArtistEntities = entitySortAscending
-            ? libraryManager.artistEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            : libraryManager.artistEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        ? libraryManager.artistEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        : libraryManager.artistEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
         lastArtistCount = sortedArtistEntities.count
     }
-
+    
     private func sortAlbumEntities() {
         sortedAlbumEntities = entitySortAscending
-            ? libraryManager.albumEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            : libraryManager.albumEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        ? libraryManager.albumEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        : libraryManager.albumEntities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
         lastAlbumCount = sortedAlbumEntities.count
     }
-
+    
     private func sortEntities() {
         sortArtistEntities()
         sortAlbumEntities()
@@ -308,7 +323,7 @@ struct HomeView: View {
 
 #Preview {
     @State var isShowingEntities = false
-
+    
     HomeView(isShowingEntities: $isShowingEntities)
         .environmentObject(LibraryManager())
         .environmentObject(AudioPlayerManager(libraryManager: LibraryManager(), playlistManager: PlaylistManager()))
