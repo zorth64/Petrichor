@@ -236,8 +236,6 @@ extension DatabaseManager {
                     .order(Album.Columns.sortTitle)
                     .fetchAll(db)
 
-                print("DatabaseManager: Loading \(albums.count) albums")
-
                 return albums.map { album in
                     // Fetch artist name if artistId exists
                     var artistName: String?
@@ -245,13 +243,6 @@ extension DatabaseManager {
                         artistName = try? Artist
                             .filter(Artist.Columns.id == artistId)
                             .fetchOne(db)?.name
-                    }
-
-                    // Debug logging
-                    if let artworkData = album.artworkData {
-                        print("DatabaseManager: Album '\(album.title)' has artwork (\(artworkData.count) bytes)")
-                    } else {
-                        print("DatabaseManager: Album '\(album.title)' has NO artwork")
                     }
 
                     return AlbumEntity(
