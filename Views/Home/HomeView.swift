@@ -29,9 +29,30 @@ struct HomeView: View {
                     HomeSidebarView(selectedItem: $selectedSidebarItem)
                 },
                 main: {
-                    VStack(spacing: 0) {
+                    ZStack {
+                        // Base content (always rendered)
+                        VStack(spacing: 0) {
+                            if let selectedItem = selectedSidebarItem {
+                                switch selectedItem.type {
+                                case .tracks:
+                                    tracksView
+                                case .artists:
+                                    artistsView
+                                case .albums:
+                                    albumsView
+                                }
+                            } else {
+                                emptySelectionView
+                            }
+                        }
+                        .navigationTitle(selectedSidebarItem?.title ?? "Home")
+                        .navigationSubtitle("")
+                        
+                        // Entity detail overlay
                         if isShowingEntityDetail {
-                            // Show entity detail view
+                            Color(NSColor.windowBackgroundColor)
+                                .ignoresSafeArea()
+                            
                             if let artist = selectedArtistEntity {
                                 EntityDetailView(
                                     entity: artist,
@@ -40,6 +61,7 @@ struct HomeView: View {
                                     isShowingEntityDetail = false
                                     selectedArtistEntity = nil
                                 }
+                                .zIndex(1)
                             } else if let album = selectedAlbumEntity {
                                 EntityDetailView(
                                     entity: album,
@@ -48,23 +70,10 @@ struct HomeView: View {
                                     isShowingEntityDetail = false
                                     selectedAlbumEntity = nil
                                 }
+                                .zIndex(1)
                             }
-                        } else if let selectedItem = selectedSidebarItem {
-                            // Show regular views
-                            switch selectedItem.type {
-                            case .tracks:
-                                tracksView
-                            case .artists:
-                                artistsView
-                            case .albums:
-                                albumsView
-                            }
-                        } else {
-                            emptySelectionView
                         }
                     }
-                    .navigationTitle(navigationTitle)
-                    .navigationSubtitle("")
                 }
             )
             .onChange(of: selectedSidebarItem) { newItem in
