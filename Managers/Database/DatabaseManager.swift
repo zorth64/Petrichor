@@ -56,6 +56,7 @@ class DatabaseManager: ObservableObject {
             try createPlaylistTracksTable(in: db)
             try createTrackArtistsTable(in: db)
             try createTrackGenresTable(in: db)
+            try createPinnedItemsTable(in: db)
 
             // Create all indices
             try createIndices(in: db)

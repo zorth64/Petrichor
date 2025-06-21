@@ -81,15 +81,19 @@ struct PlaylistSidebarView: View {
 
     private func createContextMenuItems(for playlist: Playlist) -> [ContextMenuItem] {
         var items: [ContextMenuItem] = []
-
+        
+        // Add pin/unpin option
+        items.append(playlistManager.createPinContextMenuItem(for: playlist))
+        
         if playlist.isUserEditable {
+            items.append(.divider)
             items.append(.button(title: "Rename") {}) // Action handled by SidebarView
             items.append(.divider)
             items.append(.button(title: "Delete", role: .destructive) {
                 playlistManager.deletePlaylist(playlist)
             })
         }
-
+        
         return items
     }
 

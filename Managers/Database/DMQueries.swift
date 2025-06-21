@@ -692,4 +692,20 @@ extension DatabaseManager {
             return nil
         }
     }
+    
+    /// Get artist ID by name
+    func getArtistId(for artistName: String) -> Int64? {
+        do {
+            return try dbQueue.read { db in
+                let normalizedName = ArtistParser.normalizeArtistName(artistName)
+                return try Artist
+                    .filter((Artist.Columns.name == artistName) || (Artist.Columns.normalizedName == normalizedName))
+                    .fetchOne(db)?
+                    .id
+            }
+        } catch {
+            print("DatabaseManager: Failed to get artist ID: \(error)")
+            return nil
+        }
+    }
 }
