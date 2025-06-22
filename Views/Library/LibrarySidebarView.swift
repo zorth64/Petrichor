@@ -24,10 +24,14 @@ struct LibrarySidebarView: View {
                 filterItems: filteredItems,
                 filterType: selectedFilterType,
                 totalTracksCount: libraryManager.searchResults.count,
-                selectedItem: $selectedSidebarItem
-            ) { item in
+                selectedItem: $selectedSidebarItem,
+                onItemTap: { item in
                     handleItemSelection(item)
-            }
+                },
+                contextMenuItems: { item in
+                    createContextMenuItems(for: item)
+                }
+            )
         }
         .onAppear {
             initializeSelection()
@@ -290,6 +294,16 @@ struct LibrarySidebarView: View {
         return artistTrackMap.map { artist, trackSet in
             LibraryFilterItem(name: artist, count: trackSet.count, filterType: .artists)
         }
+    }
+
+    private func createContextMenuItems(for item: LibrarySidebarItem) -> [ContextMenuItem] {
+        // Don't show context menu for "All" items
+        guard !item.filterName.isEmpty else { return [] }
+        
+        return [libraryManager.createPinContextMenuItem(
+            for: item.filterType,
+            filterValue: item.filterName
+        )]
     }
 }
 

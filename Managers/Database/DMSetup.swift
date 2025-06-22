@@ -214,6 +214,28 @@ extension DatabaseManager {
             t.primaryKey(["track_id", "genre_id"])
         }
     }
+    
+    // MARK: - Pinned Items Table
+    func createPinnedItemsTable(in db: Database) throws {
+        try db.create(table: "pinned_items", ifNotExists: true) { t in
+            t.autoIncrementedPrimaryKey("id")
+            t.column("item_type", .text).notNull() // "library" or "playlist"
+            t.column("filter_type", .text) // For library items: artists, albums, etc.
+            t.column("filter_value", .text) // The specific artist/album name
+            t.column("entity_id", .text) // UUID for entities (optional)
+            t.column("artist_id", .integer) // Database ID for artist (optional)
+            t.column("album_id", .integer) // Database ID for album (optional)
+            t.column("playlist_id", .text) // For playlist items
+            t.column("display_name", .text).notNull()
+            t.column("subtitle", .text) // For albums, shows artist name
+            t.column("icon_name", .text).notNull()
+            t.column("sort_order", .integer).notNull().defaults(to: 0)
+            t.column("date_added", .datetime).notNull()
+            
+            // Create unique constraint to prevent duplicate pins
+            // We'll use a custom unique check in code since the constraint is complex
+        }
+    }
 
     // MARK: - Create All Indices
     func createIndices(in db: Database) throws {
@@ -245,5 +267,9 @@ extension DatabaseManager {
         try db.create(index: "idx_track_artists_artist_id", on: "track_artists", columns: ["artist_id"], ifNotExists: true)
         try db.create(index: "idx_track_artists_track_id", on: "track_artists", columns: ["track_id"], ifNotExists: true)
         try db.create(index: "idx_track_genres_genre_id", on: "track_genres", columns: ["genre_id"], ifNotExists: true)
+        
+        // Pinned items indices
+        try db.create(index: "idx_pinned_items_sort_order", on: "pinned_items", columns: ["sort_order"], ifNotExists: true)
+        try db.create(index: "idx_pinned_items_item_type", on: "pinned_items", columns: ["item_type"], ifNotExists: true)
     }
 }

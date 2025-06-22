@@ -172,6 +172,15 @@ struct EntityDetailView: View {
         let iconTextSpacing: CGFloat = 4
         
         return HStack(spacing: buttonSpacing) {
+            Button(action: pinEntity) {
+                Image(systemName: isPinned ? "pin.fill" : "pin")
+                    .font(.system(size: iconSize))
+                    .padding(.vertical, verticalPadding)
+                    .padding(.horizontal, verticalPadding)
+            }
+            .buttonStyle(.bordered)
+            .help(isPinned ? "Remove from Home" : "Pin to Home")
+            
             Button(action: playEntity) {
                 HStack(spacing: iconTextSpacing) {
                     Image(systemName: "play.fill")
@@ -248,6 +257,15 @@ struct EntityDetailView: View {
         }
     }
     
+    private var isPinned: Bool {
+        if let artist = entity as? ArtistEntity {
+            return libraryManager.isEntityPinned(artist)
+        } else if let album = entity as? AlbumEntity {
+            return libraryManager.isEntityPinned(album)
+        }
+        return false
+    }
+    
     // MARK: - Methods
     
     private func loadTracks() {
@@ -270,6 +288,20 @@ struct EntityDetailView: View {
             await MainActor.run {
                 self.tracks = fetchedTracks
                 self.isLoading = false
+            }
+        }
+    }
+    
+    private func pinEntity() {
+        Task {
+            if isPinned {
+                await libraryManager.unpinEntity(entity)
+            } else {
+                if let artist = entity as? ArtistEntity {
+                    await libraryManager.pinArtistEntity(artist)
+                } else if let album = entity as? AlbumEntity {
+                    await libraryManager.pinAlbumEntity(album)
+                }
             }
         }
     }

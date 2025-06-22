@@ -14,6 +14,7 @@ class LibraryManager: ObservableObject {
         }
     }
     @Published var searchResults: [Track] = []
+    @Published var pinnedItems: [PinnedItem] = []
     @Published internal var cachedArtistEntities: [ArtistEntity] = []
     @Published internal var cachedAlbumEntities: [AlbumEntity] = []
 
@@ -73,6 +74,11 @@ class LibraryManager: ObservableObject {
             .assign(to: &$scanStatusMessage)
 
         loadMusicLibrary()
+        
+        Task {
+            await loadPinnedItems()
+        }
+        
         startFileWatcher()
 
         // Observe auto-scan interval changes

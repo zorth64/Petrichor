@@ -22,6 +22,7 @@ struct SidebarView<Item: SidebarItem>: View {
     let onItemTap: (Item) -> Void
     let contextMenuItems: ((Item) -> [ContextMenuItem])?
     let onRename: ((Item, String) -> Void)?
+    let trailingContent: ((Item) -> AnyView)?
 
     // Header configuration
     let headerTitle: String?
@@ -49,7 +50,8 @@ struct SidebarView<Item: SidebarItem>: View {
         headerControls: AnyView? = nil,
         showIcon: Bool = true,
         iconColor: Color = .secondary,
-        showCount: Bool = false
+        showCount: Bool = false,
+        trailingContent: ((Item) -> AnyView)? = nil
     ) {
         self.items = items
         self._selectedItem = selectedItem
@@ -61,6 +63,7 @@ struct SidebarView<Item: SidebarItem>: View {
         self.showIcon = showIcon
         self.iconColor = iconColor
         self.showCount = showCount
+        self.trailingContent = trailingContent
     }
 
     var body: some View {
@@ -117,6 +120,7 @@ struct SidebarView<Item: SidebarItem>: View {
                         showIcon: showIcon,
                         iconColor: iconColor,
                         showCount: showCount,
+                        trailingContent: trailingContent,
                         onTap: {
                             // Handled by onTapGesture below
                         },
@@ -235,6 +239,7 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
     let showIcon: Bool
     let iconColor: Color
     let showCount: Bool
+    let trailingContent: ((Item) -> AnyView)?
     let onTap: () -> Void
     let onHover: (Bool) -> Void
     let onStartEditing: () -> Void
@@ -282,8 +287,11 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
 
             Spacer(minLength: 0)
 
-            // Count badge
-            if showCount, let count = item.count, count > 0 {
+            // Trailing content (pin icon, etc.)
+            if let trailing = trailingContent?(item) {
+                trailing
+            } else if showCount, let count = item.count, count > 0 {
+                // Default count badge if no trailing content
                 Text("\(count)")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(isSelected ? .accentColor : .secondary)
@@ -329,11 +337,18 @@ private struct SidebarItemRow<Item: SidebarItem>: View {
 struct HomeSidebarItem: SidebarItem {
     let id: UUID
     let title: String
-    var subtitle: String?
+    let subtitle: String?
     let icon: String?
-    var count: Int?  // Not used for display since we use subtitle
+    var count: Int?
     let isEditable: Bool = false
-    let type: HomeItemType
+    let type: HomeItemType?
+    
+    // Item source
+    enum ItemSource {
+        case fixed(HomeItemType)
+        case pinned(PinnedItem)
+    }
+    let source: ItemSource
 
     enum HomeItemType: CaseIterable {
         case tracks
@@ -368,9 +383,11 @@ struct HomeSidebarItem: SidebarItem {
         }
     }
 
+    // Init for fixed items
     init(type: HomeItemType, trackCount: Int? = nil, artistCount: Int? = nil, albumCount: Int? = nil) {
         self.id = type.stableID
         self.type = type
+        self.source = .fixed(type)
         self.title = type.title
         self.icon = type.icon
 
@@ -394,6 +411,36 @@ struct HomeSidebarItem: SidebarItem {
             } else {
                 self.subtitle = "0 albums"
             }
+        }
+    }
+    
+    // Init for pinned items
+    init(pinnedItem: PinnedItem) {
+        self.id = UUID(uuidString: "pinned-\(pinnedItem.id ?? 0)") ?? UUID()
+        self.type = nil
+        self.source = .pinned(pinnedItem)
+        self.title = pinnedItem.displayName
+        self.subtitle = nil
+        self.icon = pinnedItem.iconName
+    }
+}
+
+// MARK: - Equatable Conformance
+extension HomeSidebarItem: Equatable {
+    static func == (lhs: HomeSidebarItem, rhs: HomeSidebarItem) -> Bool {
+        // Compare by ID first (most common case)
+        if lhs.id != rhs.id {
+            return false
+        }
+        
+        // Then compare by source
+        switch (lhs.source, rhs.source) {
+        case (.fixed(let lhsType), .fixed(let rhsType)):
+            return lhsType == rhsType
+        case (.pinned(let lhsItem), .pinned(let rhsItem)):
+            return lhsItem.id == rhsItem.id
+        default:
+            return false
         }
     }
 }
@@ -526,7 +573,8 @@ extension SidebarView where Item == LibrarySidebarItem {
         filterType: LibraryFilterType,
         totalTracksCount: Int,
         selectedItem: Binding<LibrarySidebarItem?>,
-        onItemTap: @escaping (LibrarySidebarItem) -> Void
+        onItemTap: @escaping (LibrarySidebarItem) -> Void,
+        contextMenuItems: ((LibrarySidebarItem) -> [ContextMenuItem])? = nil
     ) {
         // Create items list
         var items: [LibrarySidebarItem] = []
@@ -542,6 +590,7 @@ extension SidebarView where Item == LibrarySidebarItem {
             items: items,
             selectedItem: selectedItem,
             onItemTap: onItemTap,
+            contextMenuItems: contextMenuItems,
             showIcon: true,
             iconColor: .secondary,
             showCount: true

@@ -33,13 +33,18 @@ struct HomeView: View {
                         // Base content (always rendered)
                         VStack(spacing: 0) {
                             if let selectedItem = selectedSidebarItem {
-                                switch selectedItem.type {
-                                case .tracks:
-                                    tracksView
-                                case .artists:
-                                    artistsView
-                                case .albums:
-                                    albumsView
+                                switch selectedItem.source {
+                                case .fixed(let type):
+                                    switch type {
+                                    case .tracks:
+                                        tracksView
+                                    case .artists:
+                                        artistsView
+                                    case .albums:
+                                        albumsView
+                                    }
+                                case .pinned:
+                                    pinnedItemTracksView
                                 }
                             } else {
                                 emptySelectionView
@@ -82,7 +87,26 @@ struct HomeView: View {
                 selectedAlbumEntity = nil
                 
                 if let item = newItem {
-                    isShowingEntities = (item.type == .artists || item.type == .albums) && !isShowingEntityDetail
+                    switch item.source {
+                    case .fixed(let type):
+                        // Handle fixed items
+                        isShowingEntities = (type == .artists || type == .albums) && !isShowingEntityDetail
+                        
+                        // Load appropriate data
+                        switch type {
+                        case .tracks:
+                            sortTracks()
+                        case .artists:
+                            sortArtistEntities()
+                        case .albums:
+                            sortAlbumEntities()
+                        }
+                        
+                    case .pinned(let pinnedItem):
+                        // Handle pinned items
+                        isShowingEntities = false
+                        loadTracksForPinnedItem(pinnedItem)
+                    }
                 } else {
                     isShowingEntities = false
                 }
@@ -93,7 +117,11 @@ struct HomeView: View {
                     isShowingEntities = false
                 } else if let item = selectedSidebarItem {
                     // When going back to entity list, check if we should show entities
-                    isShowingEntities = (item.type == .artists || item.type == .albums)
+                    if case .fixed(let type) = item.source {
+                        isShowingEntities = (type == .artists || type == .albums)
+                    } else {
+                        isShowingEntities = false
+                    }
                 }
             }
         }
@@ -269,6 +297,77 @@ struct HomeView: View {
         }
     }
     
+    // MARK: - Pinned Item Tracks View
+
+    private var pinnedItemTracksView: some View {
+        VStack(spacing: 0) {
+            // Header
+            if let selectedItem = selectedSidebarItem,
+               case .pinned(let pinnedItem) = selectedItem.source {
+                if viewType == .table {
+                    TrackListHeader(
+                        title: pinnedItem.displayName,
+                        subtitle: nil,
+                        trackCount: sortedTracks.count
+                    ) {
+                        TrackTableColumnMenu()
+                    }
+                } else {
+                    TrackListHeader(
+                        title: pinnedItem.displayName,
+                        subtitle: nil,
+                        trackCount: sortedTracks.count
+                    ) {
+                        Button(action: {
+                            trackListSortAscending.toggle()
+                            sortTracks()
+                        }) {
+                            Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                    }
+                }
+            }
+
+            Divider()
+
+            // Track list
+            if sortedTracks.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "pin.slash")
+                        .font(.system(size: 48))
+                        .foregroundColor(.gray)
+
+                    Text("No tracks found")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(NSColor.textBackgroundColor))
+            } else {
+                TrackView(
+                    tracks: sortedTracks,
+                    viewType: viewType,
+                    selectedTrackID: $selectedTrackID,
+                    onPlayTrack: { track in
+                        playlistManager.playTrack(track, fromTracks: sortedTracks)
+                    },
+                    contextMenuItems: { track in
+                        TrackContextMenu.createMenuItems(
+                            for: track,
+                            audioPlayerManager: audioPlayerManager,
+                            playlistManager: playlistManager,
+                            currentContext: .library
+                        )
+                    }
+                )
+                .background(Color(NSColor.textBackgroundColor))
+            }
+        }
+    }
+    
     // MARK: - Helpers
     
     private var navigationTitle: String {
@@ -297,9 +396,16 @@ struct HomeView: View {
     }
     
     private func sortTracks() {
-        sortedTracks = trackListSortAscending
-        ? libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-        : libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
+        if let selectedItem = selectedSidebarItem,
+           case .pinned(let pinnedItem) = selectedItem.source {
+            // If viewing a pinned item, sort those tracks
+            loadTracksForPinnedItem(pinnedItem)
+        } else {
+            // Otherwise sort all library tracks
+            sortedTracks = trackListSortAscending
+                ? libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+                : libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
+        }
     }
     
     private func sortArtistEntities() {
@@ -321,12 +427,27 @@ struct HomeView: View {
         sortAlbumEntities()
     }
     
-    private func createAlbumContextMenuItems(for album: AlbumEntity) -> [ContextMenuItem] {
-        []
+    private func loadTracksForPinnedItem(_ item: PinnedItem) {
+        let tracks: [Track]
+        
+        switch item.itemType {
+        case .library:
+            tracks = libraryManager.getTracksForPinnedItem(item)
+        case .playlist:
+            tracks = playlistManager.getTracksForPinnedPlaylist(item)
+        }
+        
+        sortedTracks = trackListSortAscending
+            ? tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            : tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
     }
     
+    private func createAlbumContextMenuItems(for album: AlbumEntity) -> [ContextMenuItem] {
+        [libraryManager.createPinContextMenuItem(for: album)]
+    }
+
     private func createArtistContextMenuItems(for artist: ArtistEntity) -> [ContextMenuItem] {
-        []
+        [libraryManager.createPinContextMenuItem(for: artist)]
     }
 }
 

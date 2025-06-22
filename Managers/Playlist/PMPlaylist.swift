@@ -89,6 +89,10 @@ extension PlaylistManager {
 
         Task {
             do {
+                // Remove the playlist from pinned items
+                await handlePlaylistDeletionForPinnedItems(playlist.id)
+                
+                // Remove the playlist from db
                 try await dbManager.deletePlaylist(playlist.id)
             } catch {
                 print("Failed to delete playlist from database: \(error)")
