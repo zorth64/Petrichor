@@ -76,6 +76,47 @@ extension PlaylistManager {
 
         return newPlaylist
     }
+    
+    func refreshPlaylistsAfterFolderRemoval() {
+        // Reload all playlists from database to reflect deleted tracks
+        loadPlaylists()
+        
+        // Get current track from audio player
+        let currentTrack = audioPlayer?.currentTrack
+        
+        // Clear current track if it no longer exists
+        if let currentTrack = currentTrack {
+            // Check if current track still exists in database
+            let trackStillExists = playlists.flatMap { $0.tracks }.contains { $0.id == currentTrack.id }
+            if !trackStillExists {
+                // Stop playback
+                audioPlayer?.stop()
+            }
+        }
+        
+        // Update the queue to remove any deleted tracks
+        let validTrackIds = Set(playlists.flatMap { $0.tracks }.map { $0.id })
+        
+        currentQueue = currentQueue.filter { track in
+            validTrackIds.contains(track.id)
+        }
+        
+        // No need to access originalQueue as it's private and not used in extensions
+        
+        // If queue is now empty but we were playing, clear everything
+        if currentQueue.isEmpty && currentTrack != nil {
+            clearQueue()
+        }
+        
+        // If we had a current playlist, check if it still has tracks
+        if let currentPlaylist = currentPlaylist {
+            if let updatedPlaylist = playlists.first(where: { $0.id == currentPlaylist.id }) {
+                self.currentPlaylist = updatedPlaylist
+            }
+        }
+        
+        print("PlaylistManager: Refreshed playlists after folder removal")
+    }
 
     func deletePlaylist(_ playlist: Playlist) {
         guard playlist.isUserEditable else {

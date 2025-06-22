@@ -59,6 +59,12 @@ extension LibraryManager {
             case .success:
                 print("LibraryManager: Successfully removed folder from database")
                 self?.loadMusicLibrary() // Reload to reflect changes
+                
+                // Notify PlaylistManager to refresh playlists
+                if let coordinator = AppCoordinator.shared {
+                    coordinator.playlistManager.refreshPlaylistsAfterFolderRemoval()
+                }
+                
             case .failure(let error):
                 print("LibraryManager: Failed to remove folder from database: \(error)")
             }

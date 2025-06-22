@@ -118,8 +118,47 @@ extension DatabaseManager {
         Task {
             do {
                 try await dbQueue.write { db in
+                    // Delete the folder (cascades to tracks and junction tables)
                     try folder.delete(db)
+                    
+                    // Get all artist IDs that still have tracks
+                    let artistsWithTracks = try TrackArtist
+                        .select(TrackArtist.Columns.artistId, as: Int64.self)
+                        .distinct()
+                        .fetchSet(db)
+                    
+                    // Delete artists that are NOT in the set of artists with tracks
+                    try Artist
+                        .filter(!artistsWithTracks.contains(Artist.Columns.id))
+                        .deleteAll(db)
+                    
+                    // Get all album IDs that still have tracks
+                    let albumsWithTracks = try Track
+                        .select(Track.Columns.albumId, as: Int64?.self)
+                        .filter(Track.Columns.albumId != nil)
+                        .distinct()
+                        .fetchSet(db)
+                        .compactMap { $0 }
+                    
+                    // Delete albums that are NOT in the set of albums with tracks
+                    try Album
+                        .filter(!albumsWithTracks.contains(Album.Columns.id))
+                        .deleteAll(db)
+                    
+                    // Get all genre IDs that still have tracks
+                    let genresWithTracks = try TrackGenre
+                        .select(TrackGenre.Columns.genreId, as: Int64.self)
+                        .distinct()
+                        .fetchSet(db)
+                    
+                    // Delete genres that are NOT in the set of genres with tracks
+                    try Genre
+                        .filter(!genresWithTracks.contains(Genre.Columns.id))
+                        .deleteAll(db)
+                    
+                    print("DatabaseManager: Removed folder '\(folder.name)' and cleaned up orphaned data")
                 }
+                
                 await MainActor.run {
                     completion(.success(()))
                 }
