@@ -41,6 +41,7 @@ struct ContentView: View {
                     disableTableView: selectedTab == .home && homeShowingEntities
                 )
                 .frame(height: 40)
+                Divider()
             }
 
             // Main Content Area with Queue
