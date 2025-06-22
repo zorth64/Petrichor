@@ -7,6 +7,9 @@ struct LibraryTabView: View {
     @State private var selectedFolderIDs: Set<Int64> = []
     @State private var isSelectMode: Bool = false
     @State private var folderToRemove: Folder?
+    @State private var stableScanningState = false
+    @State private var stableRefreshButtonState = false
+    @State private var scanningStateTimer: Timer?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,6 +23,20 @@ struct LibraryTabView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            stableScanningState = libraryManager.isScanning || libraryManager.isBackgroundScanning
+        }
+        .onDisappear {
+            scanningStateTimer?.invalidate()
+        }
+        .onChange(of: libraryManager.isScanning) { newValue in
+            updateStableScanningState(newValue || libraryManager.isBackgroundScanning)
+            updateStableRefreshState(newValue || libraryManager.isBackgroundScanning)
+        }
+        .onChange(of: libraryManager.isBackgroundScanning) { newValue in
+            updateStableScanningState(newValue || libraryManager.isScanning)
+            updateStableRefreshState(newValue || libraryManager.isScanning)
+        }
         .alert("Remove Folder", isPresented: $showingRemoveFolderAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Remove", role: .destructive) {
@@ -67,7 +84,7 @@ struct LibraryTabView: View {
             Button(action: { libraryManager.refreshLibrary() }) {
                 Label("Refresh Library", systemImage: "arrow.clockwise")
             }
-            .disabled(libraryManager.isScanning)
+            .disabled(stableRefreshButtonState)
             .help("Scan for new files and update metadata")
 
             Button(action: { libraryManager.addFolder() }) {
@@ -81,38 +98,37 @@ struct LibraryTabView: View {
 
     private var foldersList: some View {
         VStack(spacing: 0) {
-            // Selection controls bar
-            if libraryManager.folders.count > 1 {
-                HStack {
-                    Button(action: toggleSelectMode) {
-                        Text(isSelectMode ? "Done" : "Select")
+            // Selection controls bar - Always visible
+            HStack {
+                Button(action: toggleSelectMode) {
+                    Text(isSelectMode ? "Done" : "Select")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .disabled(libraryManager.folders.isEmpty)
+
+                if isSelectMode {
+                    Text("\(selectedFolderIDs.count) selected")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 8)
+                }
+
+                Spacer()
+
+                if isSelectMode && !selectedFolderIDs.isEmpty {
+                    Button(action: removeSelectedFolders) {
+                        Label("Remove Selected", systemImage: "trash")
                             .font(.system(size: 12))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
-
-                    if isSelectMode {
-                        Text("\(selectedFolderIDs.count) selected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.leading, 8)
-                    }
-
-                    Spacer()
-
-                    if isSelectMode && !selectedFolderIDs.isEmpty {
-                        Button(action: removeSelectedFolders) {
-                            Label("Remove Selected", systemImage: "trash")
-                                .font(.system(size: 12))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.regular)
-                        .tint(.red)
-                    }
+                    .tint(.red)
                 }
-                .padding(.horizontal, 0)
-                .padding(.vertical, 5)
             }
+            .padding(.horizontal, 0)
+            .padding(.vertical, 5)
 
             // Folders list
             ScrollView {
@@ -124,7 +140,7 @@ struct LibraryTabView: View {
                 }
                 .padding(.vertical, 6)
             }
-            .frame(maxHeight: 350)
+            .frame(height: 350)
             .background(Color(NSColor.textBackgroundColor).opacity(0.5))
             .cornerRadius(6)
             .overlay(refreshOverlay)
@@ -134,64 +150,41 @@ struct LibraryTabView: View {
 
     @ViewBuilder
     private var refreshOverlay: some View {
-        if libraryManager.isScanning || libraryManager.isBackgroundScanning {
+        if stableScanningState {
             ZStack {
                 // Semi-transparent background
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.black.opacity(0.5))
-
-                // Content container with background
+                
+                // Content container matching NoMusicEmptyStateView style
                 VStack(spacing: 20) {
-                    // Animated icon (same as NoMusicEmptyStateView)
-                    ZStack {
-                        Circle()
-                            .stroke(Color.accentColor.opacity(0.2), lineWidth: 4)
-                            .frame(width: 60, height: 60)
-
-                        Circle()
-                            .trim(from: 0, to: 0.7)
-                            .stroke(
-                                Color.accentColor,
-                                style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                            )
-                            .frame(width: 60, height: 60)
-                            .rotationEffect(.degrees(-90))
-                            .rotationEffect(.degrees(libraryManager.isScanning || libraryManager.isBackgroundScanning ? 360 : 0))
-                            .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: libraryManager.isScanning || libraryManager.isBackgroundScanning)
-
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 24, weight: .light))
-                            .foregroundColor(.accentColor)
-                    }
-
+                    // Use the same ScanningAnimation component
+                    ScanningAnimation(size: 60, lineWidth: 3)
+                    
                     VStack(spacing: 8) {
                         Text("Refreshing Library")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-
-                        if !libraryManager.scanStatusMessage.isEmpty {
-                            Text(libraryManager.scanStatusMessage)
-                                .font(.system(size: 12))
-                                .foregroundColor(.white.opacity(0.8))
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                                .frame(width: 250, height: 32)  // Fixed height for status message
-                        } else {
-                            // Empty spacer to maintain height when no message
-                            Color.clear
-                                .frame(width: 250, height: 32)
-                        }
+                            .foregroundColor(.primary) // Use primary color for proper light/dark mode
+                        
+                        Text(libraryManager.scanStatusMessage.isEmpty ?
+                             "Discovering your music..." : libraryManager.scanStatusMessage)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary) // Use secondary color
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .frame(maxWidth: 250, minHeight: 32)
                     }
                 }
-                .frame(width: 300, height: 180)  // Fixed size container
+                .padding(.vertical, 30)
+                .padding(.horizontal, 40)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(NSColor.controlBackgroundColor))
                         .shadow(color: .black.opacity(0.2), radius: 10)
                 )
             }
-            .transition(.opacity.combined(with: .scale(scale: 0.95)))
-            .animation(.easeInOut(duration: 0.2), value: libraryManager.isScanning || libraryManager.isBackgroundScanning)
+            .transition(.opacity)
+            .animation(.easeInOut(duration: 0.3), value: stableScanningState)
         }
     }
 
@@ -267,7 +260,34 @@ struct LibraryTabView: View {
     }
 
     // MARK: - Helper Methods
+    private func updateStableScanningState(_ isScanning: Bool) {
+        // Cancel any pending timer
+        scanningStateTimer?.invalidate()
+        
+        if isScanning {
+            // Turn on immediately
+            stableScanningState = true
+        } else {
+            // Delay turning off to prevent flashing
+            scanningStateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                stableScanningState = false
+            }
+        }
+    }
+    
+    private func updateStableRefreshState(_ isDisabled: Bool) {
+        if isDisabled {
+            stableRefreshButtonState = true
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                stableRefreshButtonState = false
+            }
+        }
+    }
+
     private func toggleSelectMode() {
+        guard !libraryManager.folders.isEmpty else { return }
+        
         withAnimation(.easeInOut(duration: 0.2)) {
             isSelectMode.toggle()
             if !isSelectMode {
