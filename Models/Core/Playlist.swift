@@ -114,6 +114,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
     var coverArtworkData: Data?
     let type: PlaylistType
     let smartType: SmartPlaylistType?
+    var sortOrder: Int = 0
     var isUserEditable: Bool  // Can user delete/rename this playlist?
     var isContentEditable: Bool  // Can user add/remove tracks?
     var smartCriteria: SmartPlaylistCriteria?  // Criteria for smart playlists
@@ -183,6 +184,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         static let dateModified = Column("date_modified")
         static let coverArtworkData = Column("cover_artwork_data")
         static let smartCriteria = Column("smart_criteria")
+        static let sortOrder = Column("sort_order")
     }
 
     // FetchableRecord initializer - used by GRDB when loading from database
@@ -199,6 +201,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         dateCreated = row[Columns.dateCreated]
         dateModified = row[Columns.dateModified]
         coverArtworkData = row[Columns.coverArtworkData]
+        sortOrder = row[Columns.sortOrder]
 
         // Parse smart criteria
         if let criteriaJSON: String = row[Columns.smartCriteria],
@@ -223,6 +226,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         container[Columns.dateCreated] = dateCreated
         container[Columns.dateModified] = dateModified
         container[Columns.coverArtworkData] = coverArtworkData
+        container[Columns.sortOrder] = sortOrder
 
         // Encode smart criteria as JSON
         if let criteria = smartCriteria {

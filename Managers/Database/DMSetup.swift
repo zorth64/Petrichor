@@ -176,6 +176,7 @@ extension DatabaseManager {
             t.column("date_modified", .datetime).notNull()
             t.column("cover_artwork_data", .blob)
             t.column("smart_criteria", .text)
+            t.column("sort_order", .integer).notNull().defaults(to: 0)
         }
     }
 
@@ -231,9 +232,6 @@ extension DatabaseManager {
             t.column("icon_name", .text).notNull()
             t.column("sort_order", .integer).notNull().defaults(to: 0)
             t.column("date_added", .datetime).notNull()
-            
-            // Create unique constraint to prevent duplicate pins
-            // We'll use a custom unique check in code since the constraint is complex
         }
     }
 
