@@ -49,6 +49,8 @@ extension LibraryManager {
             return databaseManager.getAlbumFilterItems()
         case .genres:
             return databaseManager.getGenreFilterItems()
+        case .decades:
+            return databaseManager.getDecadeFilterItems()
         case .years:
             return databaseManager.getYearFilterItems()
         }

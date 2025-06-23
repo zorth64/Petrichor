@@ -6,6 +6,7 @@ enum LibraryFilterType: String, CaseIterable {
     case albumArtists = "Album Artists"
     case composers = "Composers"
     case genres = "Genres"
+    case decades = "Decades"
     case years = "Years"
 
     // MARK: - Computed Props
@@ -17,6 +18,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return "album_artist"
         case .composers: return "composer"
         case .genres: return "genre"
+        case .decades: return "year"
         case .years: return "year"
         }
     }
@@ -28,7 +30,8 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return 2
         case .composers: return 3
         case .genres: return 4
-        case .years: return 5
+        case .decades: return 5
+        case .years: return 6
         }
     }
 
@@ -39,6 +42,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return "Unknown Album Artist"
         case .composers: return "Unknown Composer"
         case .genres: return "Unknown Genre"
+        case .decades: return "Unknown Decade"
         case .years: return "Unknown Year"
         }
     }
@@ -50,6 +54,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return "Album Artist"
         case .composers: return "Composer"
         case .genres: return "Genre"
+        case .decades: return "Decade"
         case .years: return "Year"
         }
     }
@@ -61,6 +66,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return "person.2.crop.square.stack.fill"
         case .composers: return "person.2.wave.2.fill"
         case .genres: return "music.note.list"
+        case .decades: return "calendar.badge.clock"
         case .years: return "calendar.circle.fill"
         }
     }
@@ -72,6 +78,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return "person.2.crop.square.stack.fill"
         case .composers: return "person.wave.2.fill"
         case .genres: return "music.note.list"
+        case .decades: return "calendar.badge.clock"
         case .years: return "calendar"
         }
     }
@@ -83,6 +90,7 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return "No album artists found in your library"
         case .composers: return "No composers found in your library"
         case .genres: return "No genres found in your library"
+        case .decades: return "No decades found in your library"
         case .years: return "No release years found in your library"
         }
     }
@@ -103,6 +111,13 @@ enum LibraryFilterType: String, CaseIterable {
         case .albumArtists: return track.albumArtist ?? ""
         case .composers: return track.composer
         case .genres: return track.genre
+        case .decades:
+            // Compute decade from year
+            if let yearInt = Int(track.year.prefix(4)) {
+                let decade = (yearInt / 10) * 10
+                return "\(decade)s"
+            }
+            return unknownPlaceholder
         case .years: return track.year
         }
     }
@@ -157,6 +172,29 @@ enum LibraryFilterType: String, CaseIterable {
     }
 
     func trackMatches(_ track: Track, filterValue: String) -> Bool {
+        if self == .decades {
+            if filterValue == unknownPlaceholder {
+                // For unknown decade, check if year is empty or invalid
+                let year = track.year
+                if year.isEmpty || year == "Unknown Year" {
+                    return true
+                }
+                // Also check if year is invalid (not a valid decade)
+                if let yearInt = Int(year.prefix(4)) {
+                    return yearInt < 1900 || yearInt > 2100
+                }
+                return true // If can't parse as int, it's unknown
+            } else {
+                // Regular decade matching
+                if let yearInt = Int(track.year.prefix(4)) {
+                    let trackDecade = (yearInt / 10) * 10
+                    let trackDecadeString = "\(trackDecade)s"
+                    return trackDecadeString == filterValue
+                }
+                return false
+            }
+        }
+
         if usesMultiArtistParsing && filterValue != unknownPlaceholder {
             // Multi-artist parsing with normalization
             let value = getValue(from: track)

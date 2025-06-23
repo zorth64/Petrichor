@@ -92,6 +92,17 @@ struct LibrarySearch {
 
     /// Checks if a track matches a search term for a specific filter type
     private static func matchesFilterType(_ track: Track, filterType: LibraryFilterType, searchTerm: String) -> Bool {
+        // Special handling for decades
+        if filterType == .decades {
+            // Extract decade from track's year
+            if let yearInt = Int(track.year.prefix(4)) {
+                let trackDecade = (yearInt / 10) * 10
+                let trackDecadeString = "\(trackDecade)s"
+                return trackDecadeString.lowercased().contains(searchTerm)
+            }
+            return false
+        }
+        
         let fieldValue = filterType.getValue(from: track)
 
         // For filter types that use multi-artist parsing
@@ -271,6 +282,7 @@ extension LibrarySearch {
                     case .albums: break // Already handled above
                     case .genres: termScore += 20
                     case .composers: termScore += 20
+                    case .decades: termScore += 15
                     case .years: termScore += 15
                     }
                 }

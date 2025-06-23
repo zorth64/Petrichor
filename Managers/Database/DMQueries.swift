@@ -50,6 +50,31 @@ extension DatabaseManager {
                         results.append("Unknown Genre")
                     }
                     return results
+                    
+                case .decades:
+                    // Get all years and convert to decades
+                    let years = try Track
+                        .select(Track.Columns.year, as: String.self)
+                        .filter(Track.Columns.year != "")
+                        .filter(Track.Columns.year != "Unknown Year")
+                        .distinct()
+                        .fetchAll(db)
+                    
+                    // Convert years to decades
+                    var decadesSet = Set<String>()
+                    for year in years {
+                        if let yearInt = Int(year.prefix(4)) {
+                            let decade = (yearInt / 10) * 10
+                            decadesSet.insert("\(decade)s")
+                        }
+                    }
+                    
+                    // Sort decades in descending order
+                    return decadesSet.sorted { decade1, decade2 in
+                        let d1 = Int(decade1.dropLast()) ?? 0
+                        let d2 = Int(decade2.dropLast()) ?? 0
+                        return d1 > d2
+                    }
 
                 case .years:
                     // Years don't have a normalized table, use tracks directly
@@ -152,6 +177,19 @@ extension DatabaseManager {
 
                     return try Track
                         .filter(trackIds.contains(Track.Columns.trackId))
+                        .fetchAll(db)
+
+                case .decades:
+                    // Extract decade from the value (e.g., "1990s" -> 1990)
+                    guard let decadeStart = Int(value.dropLast()) else {
+                        return []
+                    }
+                    let decadeEnd = decadeStart + 9
+                    
+                    return try Track
+                        .filter(sql: "CAST(SUBSTR(year, 1, 4) AS INTEGER) BETWEEN ? AND ?",
+                                arguments: [decadeStart, decadeEnd])
+                        .order(Track.Columns.artist, Track.Columns.album, Track.Columns.trackNumber)
                         .fetchAll(db)
 
                 case .years:
@@ -613,6 +651,46 @@ extension DatabaseManager {
             }
         } catch {
             print("Failed to get genre filter items: \(error)")
+            return []
+        }
+    }
+    
+    /// Get decade filter items with counts
+    func getDecadeFilterItems() -> [LibraryFilterItem] {
+        do {
+            return try dbQueue.read { db in
+                // Get all tracks with valid years
+                let tracks = try Track
+                    .filter(Track.Columns.year != "")
+                    .filter(Track.Columns.year != "Unknown Year")
+                    .fetchAll(db)
+                
+                // Group by decade
+                var decadeCounts: [String: Int] = [:]
+                
+                for track in tracks {
+                    // Parse year to get decade
+                    if let yearInt = Int(track.year.prefix(4)) {
+                        let decade = (yearInt / 10) * 10
+                        let decadeString = "\(decade)s"
+                        decadeCounts[decadeString, default: 0] += 1
+                    }
+                }
+                
+                // Convert to LibraryFilterItems and sort by decade (descending)
+                let items = decadeCounts.map { decade, count in
+                    LibraryFilterItem(name: decade, count: count, filterType: .decades)
+                }.sorted { item1, item2 in
+                    // Extract decade year for proper numeric sorting
+                    let decade1 = Int(item1.name.dropLast()) ?? 0
+                    let decade2 = Int(item2.name.dropLast()) ?? 0
+                    return decade1 > decade2
+                }
+                
+                return items
+            }
+        } catch {
+            print("Failed to get decade filter items: \(error)")
             return []
         }
     }

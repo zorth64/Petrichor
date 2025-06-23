@@ -608,20 +608,27 @@ class MetadataExtractor {
     private static func extractYear(from dateString: String) -> String {
         // Try to extract just the year from various date formats
         let trimmed = dateString.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // If it's already just a year (4 digits), return it
-        if trimmed.count == 4 && Int(trimmed) != nil {
-            return trimmed
+        
+        // If it's already just a year (4 digits), validate it
+        if trimmed.count == 4, let yearInt = Int(trimmed) {
+            // Validate the year is reasonable (between 1900 and current year + 10)
+            let currentYear = Calendar.current.component(.year, from: Date())
+            if yearInt >= 1900 && yearInt <= currentYear + 10 {
+                return trimmed
+            } else {
+                // Year is out of reasonable range, return empty or unknown
+                return ""
+            }
         }
-
-        // Try to find a 4-digit year in the string
+        
+        // Try to find a 4-digit year in the string (1900-2099)
         let pattern = #"\b(19\d{2}|20\d{2})\b"#
         if let regex = try? NSRegularExpression(pattern: pattern),
            let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
            let yearRange = Range(match.range(at: 1), in: trimmed) {
             return String(trimmed[yearRange])
         }
-
+        
         // Try date formatter as last resort
         let dateFormatters = [
             "yyyy-MM-dd",
@@ -635,7 +642,7 @@ class MetadataExtractor {
             "yyyy-MM-dd'T'HH:mm:ssZ", // ISO 8601
             "yyyy-MM-dd HH:mm:ss"
         ]
-
+        
         for format in dateFormatters {
             let formatter = DateFormatter()
             formatter.dateFormat = format
@@ -643,12 +650,21 @@ class MetadataExtractor {
             if let date = formatter.date(from: trimmed) {
                 let yearFormatter = DateFormatter()
                 yearFormatter.dateFormat = "yyyy"
-                return yearFormatter.string(from: date)
+                let extractedYear = yearFormatter.string(from: date)
+                
+                // Validate the extracted year
+                if let yearInt = Int(extractedYear) {
+                    let currentYear = Calendar.current.component(.year, from: Date())
+                    if yearInt >= 1900 && yearInt <= currentYear + 10 {
+                        return extractedYear
+                    }
+                }
             }
         }
-
-        // If all else fails, return the original string
-        return trimmed
+        
+        // If we get here, the year is invalid or couldn't be parsed
+        // Return empty string instead of the invalid year
+        return ""
     }
 
     // Helper to convert FourCC to string

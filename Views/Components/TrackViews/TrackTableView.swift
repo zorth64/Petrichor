@@ -228,6 +228,9 @@ struct TrackTableView: NSViewRepresentable {
                 case .genres:
                     tableColumn.width = 120
                     tableColumn.minWidth = 80
+                case .decades:
+                    tableColumn.width = 80
+                    tableColumn.minWidth = 60
                 case .years:
                     tableColumn.width = 60
                     tableColumn.minWidth = 50
