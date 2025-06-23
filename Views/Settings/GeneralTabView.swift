@@ -6,6 +6,7 @@ struct GeneralTabView: View {
     @AppStorage("showNotifications") private var showNotifications = true
     @AppStorage("autoScanInterval") private var autoScanInterval: AutoScanInterval = .every60Minutes
     @AppStorage("colorMode") private var colorMode: ColorMode = .auto
+    @AppStorage("showFoldersTab") private var showFoldersTab = false
 
     enum ColorMode: String, CaseIterable, TabbedItem {
         case light = "Light"
@@ -49,6 +50,8 @@ struct GeneralTabView: View {
                     )
                     .frame(width: 200)
                 }
+
+                Toggle("Show folders tab in main window", isOn: $showFoldersTab)
             }
 
             Section("Library Scanning") {

@@ -8,6 +8,7 @@ struct ContentView: View {
     @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .table
     @AppStorage("entityViewType") private var entityViewType: LibraryViewType = .grid
     @AppStorage("rightSidebarSplitPosition") private var splitPosition: Double = 200
+    @AppStorage("showFoldersTab") private var showFoldersTab = false
     @State private var selectedTab: MainTab = .home
     @State private var showingSettings = false
     @State private var showingQueue = false
@@ -61,6 +62,13 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: showFoldersTab) { newValue in
+            if !newValue && selectedTab == .folders {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    selectedTab = .home
+                }
+            }
+        }
         .background(WindowAccessor(windowDelegate: windowDelegate))
         .navigationTitle("")
         .toolbar { toolbarContent }
@@ -106,10 +114,12 @@ struct ContentView: View {
                     .allowsHitTesting(selectedTab == .playlists)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                FoldersView(viewType: globalViewType)
-                    .opacity(selectedTab == .folders ? 1 : 0)
-                    .allowsHitTesting(selectedTab == .folders)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if showFoldersTab == true {
+                    FoldersView(viewType: globalViewType)
+                        .opacity(selectedTab == .folders ? 1 : 0)
+                        .allowsHitTesting(selectedTab == .folders)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
         .frame(minWidth: 400, minHeight: 200)
@@ -160,7 +170,7 @@ struct ContentView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             TabbedButtons(
-                items: MainTab.allCases,
+                items: MainTab.allCases.filter { $0 != .folders || showFoldersTab },
                 selection: $selectedTab,
                 animation: .transform,
                 isDisabled: libraryManager.folders.isEmpty
