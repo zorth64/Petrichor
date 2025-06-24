@@ -197,7 +197,12 @@ struct TrackTableView: NSViewRepresentable {
 
         for column in TrackTableColumn.allColumns {
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.identifier))
-            tableColumn.title = column.displayName
+
+            if case .special(.trackNumber) = column {
+                tableColumn.title = "#"
+            } else {
+                tableColumn.title = column.displayName
+            }
 
             // Set resizing mask to allow user resizing
             tableColumn.resizingMask = .userResizingMask
@@ -213,6 +218,11 @@ struct TrackTableView: NSViewRepresentable {
                 tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: "duration", ascending: true)
                 tableColumn.width = 70
                 tableColumn.minWidth = 50
+                
+            case .special(.trackNumber):
+                tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: "trackNumber", ascending: true)
+                tableColumn.width = 30
+                tableColumn.minWidth = 40
 
             case .libraryFilter(let filterType):
                 let sortKey = filterType.databaseColumn
@@ -418,6 +428,24 @@ struct TrackTableView: NSViewRepresentable {
                     color: NSColor.secondaryLabelColor,
                     alignment: .right
                 )
+            
+            case .special(.trackNumber):
+                let trackNumber = track.trackNumber
+                
+                var displayText = ""
+                if let num = trackNumber {
+                    displayText = "\(num)"
+                }
+                
+                return makeOrReuseTextCell(
+                    in: tableView,
+                    column: tableColumn,
+                    row: row,
+                    text: displayText,
+                    font: .systemFont(ofSize: 12),
+                    color: .secondaryLabelColor,
+                    alignment: .center
+                )
 
             case .libraryFilter(let filterType):
                 let value = filterType.getValue(from: track)
@@ -446,15 +474,16 @@ struct TrackTableView: NSViewRepresentable {
                 return
             }
 
-            // Use a more efficient sorting approach for large datasets
+            let sortKey = key
+            let ascending = descriptor.ascending
+
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self = self else { return }
 
                 let sorted = self.tracks.sorted { track1, track2 in
-                    let ascending = descriptor.ascending
                     var result: ComparisonResult = .orderedSame
 
-                    switch key {
+                    switch sortKey {
                     case "title":
                         result = track1.title.localizedCaseInsensitiveCompare(track2.title)
                     case "artist":
@@ -474,6 +503,11 @@ struct TrackTableView: NSViewRepresentable {
                     case "duration":
                         result = track1.duration < track2.duration ? .orderedAscending :
                                  track1.duration > track2.duration ? .orderedDescending : .orderedSame
+                    case "trackNumber":
+                        let track1Number = track1.trackNumber ?? Int.max
+                        let track2Number = track2.trackNumber ?? Int.max
+                        result = track1Number < track2Number ? .orderedAscending :
+                                 track1Number > track2Number ? .orderedDescending : .orderedSame
                     default:
                         result = .orderedSame
                     }
@@ -484,7 +518,7 @@ struct TrackTableView: NSViewRepresentable {
                 DispatchQueue.main.async {
                     self.sortedTracks = sorted
                     tableView.reloadData()
-                    self.saveSortOrder(key: key, ascending: descriptor.ascending)
+                    self.saveSortOrder(key: sortKey, ascending: ascending)
                 }
             }
         }

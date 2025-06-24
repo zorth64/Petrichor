@@ -3,11 +3,13 @@ import Foundation
 enum SpecialTableColumn: String, Codable {
     case title = "title"
     case duration = "duration"
+    case trackNumber = "trackNumber"
 
     var displayName: String {
         switch self {
         case .title: return "Title"
         case .duration: return "Duration"
+        case .trackNumber: return "Track number"
         }
     }
 }
@@ -18,7 +20,7 @@ enum TrackTableColumn: Codable, Hashable {
 
     // All available columns in order
     static var allColumns: [TrackTableColumn] {
-        var columns: [TrackTableColumn] = [.special(.title)]
+        var columns: [TrackTableColumn] = [.special(.title), .special(.trackNumber)]
 
         // Add all LibraryFilterType columns
         for filterType in LibraryFilterType.allCases {
@@ -60,6 +62,8 @@ enum TrackTableColumn: Codable, Hashable {
         switch self {
         case .special(.title), .special(.duration):
             return true
+        case .special(.trackNumber):
+            return false
         case .libraryFilter(let filterType):
             switch filterType {
             case .artists, .albums:
