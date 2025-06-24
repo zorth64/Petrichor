@@ -2,7 +2,7 @@ import SwiftUI
 
 class AppCoordinator: ObservableObject {
     // MARK: - Managers
-    static var shared: AppCoordinator?
+    private(set) static var shared: AppCoordinator?
     let libraryManager: LibraryManager
     let playlistManager: PlaylistManager
     let audioPlayerManager: AudioPlayerManager
@@ -12,6 +12,10 @@ class AppCoordinator: ObservableObject {
     private var hadFoldersAtStartup: Bool = false
     private let playbackStateKey = "SavedPlaybackState"
     private let playbackUIStateKey = "SavedPlaybackUIState"
+    
+    // Track restoration state to prevent race conditions
+    private var isRestoringPlayback = false
+    private var libraryObserver: NSObjectProtocol?
 
     @Published var isQueueVisible: Bool = false
 
@@ -42,31 +46,38 @@ class AppCoordinator: ObservableObject {
 
         // Check if library is empty at startup - if so, clear any saved state
         if !hadFoldersAtStartup {
-            print("AppCoordinator: No folders in library at startup, clearing saved playback state")
-            UserDefaults.standard.removeObject(forKey: playbackStateKey)
-            UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
-            // Clear any UI state that might have been set
-            audioPlayerManager.restoredUITrack = nil
-            audioPlayerManager.currentTrack = nil
+            clearAllSavedState()
         } else {
             // Only restore if we have folders
             restoreUIStateImmediately()
 
-            // Schedule restoration after a delay to ensure everything is initialized
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            // Schedule restoration after a minimal delay to ensure UI is ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.restorePlaybackState()
             }
         }
     }
+    
+    deinit {
+        // Clean up any remaining observers
+        if let observer = libraryObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
 
     // MARK: - Playback State Persistence
+    
+    private func clearAllSavedState() {
+        UserDefaults.standard.removeObject(forKey: playbackStateKey)
+        UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
+        audioPlayerManager.restoredUITrack = nil
+        audioPlayerManager.currentTrack = nil
+    }
 
     func savePlaybackState() {
         // Only save if we have a current track
         guard let currentTrack = audioPlayerManager.currentTrack else {
-            // Clear saved state if no track
-            UserDefaults.standard.removeObject(forKey: playbackStateKey)
-            UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
+            clearAllSavedState()
             return
         }
 
@@ -74,7 +85,6 @@ class AppCoordinator: ObservableObject {
         var sourceIdentifier: String?
         switch playlistManager.currentQueueSource {
         case .folder:
-            // Try to find the folder containing the current track
             if let folderId = currentTrack.folderId,
                let folder = libraryManager.folders.first(where: { $0.id == folderId }) {
                 sourceIdentifier = folder.url.path
@@ -94,7 +104,7 @@ class AppCoordinator: ObservableObject {
             queueSource: playlistManager.currentQueueSource,
             sourceIdentifier: sourceIdentifier,
             volume: audioPlayerManager.volume,
-            isMuted: audioPlayerManager.volume < 0.01, // Consider very low volume as muted
+            isMuted: audioPlayerManager.volume < 0.01,
             shuffleEnabled: playlistManager.isShuffleEnabled,
             repeatMode: playlistManager.repeatMode
         )
@@ -109,7 +119,6 @@ class AppCoordinator: ObservableObject {
             let encoder = JSONEncoder()
             let data = try encoder.encode(state)
             UserDefaults.standard.set(data, forKey: playbackStateKey)
-            print("AppCoordinator: Saved playback state")
         } catch {
             print("AppCoordinator: Failed to save playback state: \(error)")
         }
@@ -125,31 +134,34 @@ class AppCoordinator: ObservableObject {
         // Restore UI immediately
         audioPlayerManager.restoreUIState(uiState)
         isQueueVisible = uiState.queueVisible
-
-        print("AppCoordinator: Restored UI state immediately")
     }
 
     func restorePlaybackState() {
+        // Prevent concurrent restorations
+        guard !isRestoringPlayback else {
+            return
+        }
+        
+        isRestoringPlayback = true
+        
         // Don't restore immediately - wait for library to be fully loaded
         // Check if we have tracks loaded
         if libraryManager.tracks.isEmpty {
             // Check if we have any folders - if not, this is likely a fresh start
             if libraryManager.folders.isEmpty {
-                print("AppCoordinator: Library is empty (no folders), clearing saved playback state")
-                UserDefaults.standard.removeObject(forKey: playbackStateKey)
-                UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
+                clearAllSavedState()
+                isRestoringPlayback = false
                 return
             }
 
-            print("AppCoordinator: Delaying playback restoration until library is loaded")
-
-            // Observe for library changes
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(libraryDidLoad),
-                name: NSNotification.Name("LibraryDidLoad"),
-                object: nil
-            )
+            // Use a stored observer reference to ensure proper cleanup
+            libraryObserver = NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("LibraryDidLoad"),
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.libraryDidLoad()
+            }
             return
         }
 
@@ -159,19 +171,21 @@ class AppCoordinator: ObservableObject {
 
     @objc private func libraryDidLoad() {
         // Remove observer
-        NotificationCenter.default.removeObserver(self, name: NSNotification.Name("LibraryDidLoad"), object: nil)
+        if let observer = libraryObserver {
+            NotificationCenter.default.removeObserver(observer)
+            libraryObserver = nil
+        }
 
         // Don't restore if we didn't have folders at startup
         if !hadFoldersAtStartup {
-            print("AppCoordinator: Ignoring library load notification - no folders at startup")
+            isRestoringPlayback = false
             return
         }
 
         // Check again if library is actually loaded with content
         if libraryManager.tracks.isEmpty || libraryManager.folders.isEmpty {
-            print("AppCoordinator: Library loaded but is empty, clearing saved playback state")
-            UserDefaults.standard.removeObject(forKey: playbackStateKey)
-            UserDefaults.standard.removeObject(forKey: playbackUIStateKey)
+            clearAllSavedState()
+            isRestoringPlayback = false
             return
         }
 
@@ -180,8 +194,9 @@ class AppCoordinator: ObservableObject {
     }
 
     private func performActualRestoration() {
+        defer { isRestoringPlayback = false }
+        
         guard let data = UserDefaults.standard.data(forKey: playbackStateKey) else {
-            print("AppCoordinator: No saved playback state found")
             return
         }
 
@@ -189,60 +204,49 @@ class AppCoordinator: ObservableObject {
             let decoder = JSONDecoder()
             let state = try decoder.decode(PlaybackState.self, from: data)
 
-            print("AppCoordinator: Restoring playback state from \(state.savedDate)")
+            // Validate state age - don't restore very old states
+            let stateAge = Date().timeIntervalSince(state.savedDate)
+            if stateAge > 7 * 24 * 60 * 60 { // 7 days
+                clearAllSavedState()
+                return
+            }
 
             // Now perform restoration immediately since library is loaded
             performStateRestoration(state)
         } catch {
             print("AppCoordinator: Failed to restore playback state: \(error)")
-            UserDefaults.standard.removeObject(forKey: playbackStateKey)
+            clearAllSavedState()
         }
     }
 
     private func performStateRestoration(_ state: PlaybackState) {
-        // Add version check
-        if state.version != PlaybackState.currentVersion {
-            print("AppCoordinator: State version mismatch (saved: \(state.version), current: \(PlaybackState.currentVersion)), clearing state")
-            UserDefaults.standard.removeObject(forKey: playbackStateKey)
-            return
-        }
-
-        // Wrap the entire restoration in a do-catch
         do {
-            // Check if the saved state is too old
-            let daysSinceSaved = Date().timeIntervalSince(state.savedDate) / (24 * 60 * 60)
-            if daysSinceSaved > 7 {
-                print("AppCoordinator: Saved state is too old (\(Int(daysSinceSaved)) days), discarding")
-                UserDefaults.standard.removeObject(forKey: playbackStateKey)
-                return
-            }
-
-            // Verify we have necessary folders with valid bookmarks
-            var hasValidBookmarks = false
-            for folder in libraryManager.folders {
-                if folder.url.startAccessingSecurityScopedResource() {
-                    hasValidBookmarks = true
-                    // Don't stop accessing here - let normal cleanup handle it
+            // Create a track ID to track map for efficient lookup
+            let trackIdMap: [Int64: Track] = Dictionary(
+                libraryManager.tracks.compactMap { track in
+                    guard let trackId = track.trackId else { return nil }
+                    return (trackId, track)
                 }
-            }
+            ) { first, _ in first }
+            
+            // Also create a path to track map as fallback
+            let trackPathMap: [String: Track] = Dictionary(
+                libraryManager.tracks.map { track in
+                    (track.url.path, track)
+                }
+            ) { first, _ in first }
 
-            guard hasValidBookmarks else {
-                print("AppCoordinator: No valid security bookmarks available, clearing state")
-                UserDefaults.standard.removeObject(forKey: playbackStateKey)
-                return
-            }
-
-            // First, try to restore the queue
+            // Restore the queue efficiently
             var restoredQueue: [Track] = []
-
-            // Try to match tracks by database ID first, then by path
+            restoredQueue.reserveCapacity(state.queueTrackIds.count)
+            
             for (index, trackId) in state.queueTrackIds.enumerated() {
-                if let track = libraryManager.tracks.first(where: { $0.trackId == trackId }) {
+                if let track = trackIdMap[trackId] {
                     restoredQueue.append(track)
                 } else if index < state.queueTrackPaths.count {
                     // Fallback to path matching
                     let path = state.queueTrackPaths[index]
-                    if let track = libraryManager.tracks.first(where: { $0.url.path == path }) {
+                    if let track = trackPathMap[path] {
                         restoredQueue.append(track)
                     }
                 }
@@ -251,15 +255,13 @@ class AppCoordinator: ObservableObject {
             // Check if we restored enough of the queue
             let restorationRatio = Double(restoredQueue.count) / Double(state.queueTrackPaths.count)
             if restorationRatio < 0.5 {
-                print("AppCoordinator: Could only restore \(Int(restorationRatio * 100))% of the queue, discarding state")
-                UserDefaults.standard.removeObject(forKey: playbackStateKey)
+                clearAllSavedState()
                 return
             }
 
             // Only proceed if we found at least some tracks
             guard !restoredQueue.isEmpty else {
-                print("AppCoordinator: Could not restore any tracks from saved queue")
-                UserDefaults.standard.removeObject(forKey: playbackStateKey)
+                clearAllSavedState()
                 return
             }
 
@@ -294,56 +296,43 @@ class AppCoordinator: ObservableObject {
                 // Verify the file exists and is accessible
                 let fileManager = FileManager.default
                 guard fileManager.fileExists(atPath: currentTrack.url.path) else {
-                    print("AppCoordinator: Track file no longer exists, clearing state")
-                    UserDefaults.standard.removeObject(forKey: playbackStateKey)
+                    clearAllSavedState()
                     return
                 }
 
                 // Try to access the file
                 guard fileManager.isReadableFile(atPath: currentTrack.url.path) else {
-                    print("AppCoordinator: Track file is not readable, clearing state")
-                    UserDefaults.standard.removeObject(forKey: playbackStateKey)
+                    clearAllSavedState()
                     return
                 }
 
                 // Clear the temporary UI track before setting the real one
                 audioPlayerManager.restoredUITrack = nil
 
-                // Set up the audio player without playing
-                audioPlayerManager.playTrack(currentTrack)
-                audioPlayerManager.player?.pause()
-                audioPlayerManager.isPlaying = false
-
-                // Seek to saved position
-                if state.playbackPosition > 0 && state.playbackPosition < state.trackDuration {
-                    audioPlayerManager.seekTo(time: state.playbackPosition)
-                }
-
-                print("AppCoordinator: Successfully restored playback state")
+                // Use the new method to prepare track without immediate playback
+                audioPlayerManager.prepareTrackForRestoration(currentTrack, at: state.playbackPosition)
             }
         } catch {
-            print("AppCoordinator: Error during state restoration: \(error), clearing state")
-            UserDefaults.standard.removeObject(forKey: playbackStateKey)
+            clearAllSavedState()
         }
     }
 
     func clearPlaybackStateIfNeeded() {
         let lastVersionKey = "LastLaunchedAppVersion"
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        let lastVersion = UserDefaults.standard.string(forKey: lastVersionKey)
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
 
-        // If this is a different version, consider clearing state
-        if lastVersion != currentVersion {
-            print("AppCoordinator: App version changed from \(lastVersion ?? "unknown") to \(currentVersion)")
+        // Get the last launched version
+        let lastVersion = UserDefaults.standard.string(forKey: lastVersionKey) ?? ""
 
-            // You can add logic here to clear state for specific version transitions
-            // For now, we'll just log it
-
-            // Update the stored version
-            UserDefaults.standard.set(currentVersion, forKey: lastVersionKey)
+        // Clear state if version changed significantly
+        if lastVersion != currentVersion && !lastVersion.isEmpty {
+            clearAllSavedState()
         }
-    }
 
+        // Update the stored version
+        UserDefaults.standard.set(currentVersion, forKey: lastVersionKey)
+    }
+    
     func handleLibraryChanged() {
         // If the library was significantly changed (e.g., folders removed),
         // the saved state might no longer be valid
@@ -353,7 +342,6 @@ class AppCoordinator: ObservableObject {
             if let trackId = state.currentTrackId {
                 let trackExists = libraryManager.tracks.contains { $0.trackId == trackId }
                 if !trackExists {
-                    print("AppCoordinator: Saved track no longer exists in library, clearing state")
                     UserDefaults.standard.removeObject(forKey: playbackStateKey)
                 }
             }

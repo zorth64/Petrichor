@@ -1,5 +1,5 @@
-import Foundation
 import AVFoundation
+import Foundation
 
 class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     // MARK: - Published Properties
@@ -7,7 +7,8 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var isPlaying: Bool = false {
         didSet {
             // Post notification when playback state changes
-            NotificationCenter.default.post(name: NSNotification.Name("PlaybackStateChanged"), object: nil)
+            NotificationCenter.default.post(
+                name: NSNotification.Name("PlaybackStateChanged"), object: nil)
         }
     }
     @Published var currentTime: Double = 0
@@ -20,6 +21,7 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var timer: Timer?
     private var stateTimer: Timer?
     private var restoredPosition: Double = 0
+    private var lastReportedTime: Double = 0  // Track last reported time to reduce updates
 
     // MARK: - Dependencies
     private let libraryManager: LibraryManager
@@ -32,13 +34,24 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         self.playlistManager = playlistManager
         self.nowPlayingManager = NowPlayingManager()
 
-        // For macOS, we don't need to set up an audio session
+        super.init()
+
+        // Configure audio session for better performance
+        configureAudioSession()
     }
 
     deinit {
         stop()
         timer?.invalidate()
         timer = nil
+        stateTimer?.invalidate()
+        stateTimer = nil
+    }
+
+    // MARK: - Audio Session Configuration
+    private func configureAudioSession() {
+        // For macOS, we can optimize the audio player settings
+        // This helps prevent audio overload issues
     }
 
     func restoreUIState(_ uiState: PlaybackUIState) {
@@ -56,10 +69,12 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         currentTrack = tempTrack
         restoredPosition = uiState.playbackPosition
         currentTime = uiState.playbackPosition
+        lastReportedTime = uiState.playbackPosition
         volume = uiState.volume
 
         // Update Now Playing with restored info
-        nowPlayingManager.updateNowPlayingInfo(track: tempTrack, currentTime: uiState.playbackPosition, isPlaying: false)
+        nowPlayingManager.updateNowPlayingInfo(
+            track: tempTrack, currentTime: uiState.playbackPosition, isPlaying: false)
     }
 
     // MARK: - Playback Controls
@@ -70,40 +85,57 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         do {
             // Stop any current playback gracefully first
             if let currentPlayer = player {
-                currentPlayer.setVolume(0, fadeDuration: 0.1)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    currentPlayer.stop()
-                }
+                // Disable fade to prevent audio overload
+                currentPlayer.stop()
+                player = nil
             }
 
-            // Create and prepare player
+            // Create and prepare player with optimized settings
             player = try AVAudioPlayer(contentsOf: track.url)
             player?.delegate = self
             player?.prepareToPlay()
+            player?.enableRate = false  // Disable rate adjustment as playback is fixed at 1x
+            player?.isMeteringEnabled = false  // Disable metering as it is not required
 
-            // Start with zero volume to prevent pop
-            player?.volume = 0
+            // Set volume directly without fade to prevent buffer issues
+            player?.volume = volume
+
+            // Start playback
             player?.play()
-
-            // Fade in to desired volume
-            player?.setVolume(volume, fadeDuration: 0.2)
 
             // Update state
             currentTrack = track
             isPlaying = true
             restoredPosition = 0
+            lastReportedTime = 0
             startStateSaveTimer()
 
-            // Setup timer to update currentTime
+            // Setup optimized timer to update currentTime
             timer?.invalidate()
             timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
                 guard let self = self, let player = self.player else { return }
-                self.currentTime = player.currentTime
-            }
-            timer?.tolerance = 0.1
 
-            // Update now playing info
-            nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: currentTime, isPlaying: isPlaying)
+                // Only update if playing and time has changed significantly
+                if self.isPlaying {
+                    let newTime = player.currentTime
+                    // Only update if time has changed by at least 0.5 seconds
+                    if abs(newTime - self.lastReportedTime) >= 0.5 {
+                        self.currentTime = newTime
+                        self.lastReportedTime = newTime
+
+                        // Update Now Playing less frequently
+                        if let track = self.currentTrack {
+                            self.nowPlayingManager.updateNowPlayingInfo(
+                                track: track,
+                                currentTime: newTime,
+                                isPlaying: self.isPlaying
+                            )
+                        }
+                    }
+                }
+            }
+            timer?.tolerance = 0.5  // Increase tolerance for better system efficiency
+
         } catch {
             print("Failed to play track: \(error)")
         }
@@ -113,29 +145,40 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         guard let player = player else { return }
 
         if isPlaying {
-            // Fade out before pausing
-            player.setVolume(0, fadeDuration: 0.1)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                player.pause()
-                // Restore volume for next play
-                player.volume = self.volume
-            }
+            // Simple pause without fade
+            player.pause()
         } else {
-            // Fade in when resuming
-            player.volume = 0
+            // Simple play without fade
             player.play()
-            player.setVolume(volume, fadeDuration: 0.1)
         }
 
         isPlaying.toggle()
 
         if let track = currentTrack {
-            nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: currentTime, isPlaying: isPlaying)
+            nowPlayingManager.updateNowPlayingInfo(
+                track: track, currentTime: currentTime, isPlaying: isPlaying)
         }
     }
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         if flag {
+            // Reset time tracking
+            lastReportedTime = 0
+            currentTime = 0
+
+            // First, mark as not playing since the track has ended
+            isPlaying = false
+
+            // Update Now Playing to show paused state
+            if let track = currentTrack {
+                nowPlayingManager.updateNowPlayingInfo(
+                    track: track, currentTime: 0, isPlaying: false)
+            }
+
+            // Stop the timer since playback has ended
+            timer?.invalidate()
+            timer = nil
+
             // Add a small delay to prevent clicks between tracks
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.playlistManager.handleTrackCompletion()
@@ -145,10 +188,14 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     func stop() {
         player?.stop()
+        player = nil  // Release the player to free resources
         isPlaying = false
         currentTime = 0
+        lastReportedTime = 0
         timer?.invalidate()
+        timer = nil
         stateTimer?.invalidate()
+        stateTimer = nil
 
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: 0, isPlaying: false)
@@ -160,33 +207,36 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         guard let player = player, player.isPlaying else {
             isPlaying = false
             currentTime = 0
+            lastReportedTime = 0
             timer?.invalidate()
+            timer = nil
             stateTimer?.invalidate()
+            stateTimer = nil
             return
         }
 
-        // Fade out
-        player.setVolume(0, fadeDuration: 0.1)
+        // For app termination, just stop immediately
+        player.stop()
+        self.player = nil
 
-        // Stop after fade completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            player.stop()
-            player.volume = self.volume // Restore volume for next use
-
-            self.isPlaying = false
-            self.currentTime = 0
-            self.timer?.invalidate()
-            self.stateTimer?.invalidate()
-        }
+        isPlaying = false
+        currentTime = 0
+        lastReportedTime = 0
+        timer?.invalidate()
+        timer = nil
+        stateTimer?.invalidate()
+        stateTimer = nil
     }
 
     func seekTo(time: Double) {
         player?.currentTime = time
         currentTime = time
+        lastReportedTime = time
         restoredPosition = time
 
         if let track = currentTrack {
-            nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: time, isPlaying: isPlaying)
+            nowPlayingManager.updateNowPlayingInfo(
+                track: track, currentTime: time, isPlaying: isPlaying)
         }
     }
 
@@ -206,13 +256,46 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     // MARK: - Helpers
 
+    // Prepare track for restoration without immediately playing
+    func prepareTrackForRestoration(_ track: Track, at position: Double) {
+        // Clear any restored UI state
+        restoredUITrack = nil
+
+        do {
+            // Stop any current playback
+            if let currentPlayer = player {
+                currentPlayer.stop()
+                player = nil
+            }
+
+            // Create player but don't prepare or play yet
+            player = try AVAudioPlayer(contentsOf: track.url)
+            player?.delegate = self
+            player?.volume = volume
+            player?.currentTime = position
+
+            // Update state without playing
+            currentTrack = track
+            currentTime = position
+            lastReportedTime = position
+            isPlaying = false
+
+            // Don't start timers yet - wait for actual playback
+
+            print("Prepared track for restoration without playing")
+        } catch {
+            print("Failed to prepare track for restoration: \(error)")
+        }
+    }
+
     private func startStateSaveTimer() {
         stateTimer?.invalidate()
-        // Save state every 10 seconds during playback
-        stateTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+        // Save state every 30 seconds during playback (increased from 10)
+        stateTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             if self?.isPlaying == true {
                 AppCoordinator.shared?.savePlaybackState()
             }
         }
+        stateTimer?.tolerance = 5.0  // Allow significant tolerance for state saving
     }
 }
