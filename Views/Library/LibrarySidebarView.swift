@@ -146,8 +146,9 @@ struct LibrarySidebarView: View {
 
             // Sort button
             Button(action: { sortAscending.toggle() }) {
-                Image(systemName: sortAscending ? "arrow.up" : "arrow.down")
-                    .font(.system(size: 11, weight: .medium))
+                Image(sortAscending ? "sort.ascending" : "sort.descending")
+                    .renderingMode(.template)
+                    .scaleEffect(0.8)
             }
             .buttonStyle(.borderless)
             .help("Sort \(sortAscending ? "descending" : "ascending")")

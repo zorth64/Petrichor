@@ -162,8 +162,9 @@ struct LibraryView: View {
                     trackCount: cachedFilteredTracks.count
                 ) {
                         Button(action: { trackListSortAscending.toggle() }) {
-                            Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
-                                .font(.system(size: 11, weight: .medium))
+                            Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                                .renderingMode(.template)
+                                .scaleEffect(0.8)
                         }
                         .buttonStyle(.borderless)
                         .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
@@ -202,13 +203,6 @@ struct LibraryView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-
-                Button("Clear Search") {
-                    // We need to clear the search from here
-                    // This will require making globalSearchText a binding
-                }
-                .buttonStyle(.bordered)
-                .padding(.top, 8)
             } else if let filterItem = selectedFilterItem, !filterItem.name.hasPrefix("All") {
                 Text("No tracks found for \"\(filterItem.name)\"")
                     .font(.subheadline)

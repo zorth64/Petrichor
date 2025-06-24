@@ -89,8 +89,9 @@ struct FoldersView: View {
                     trackCount: folderTracks.count
                 ) {
                         Button(action: { trackListSortAscending.toggle() }) {
-                            Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
-                                .font(.system(size: 11, weight: .medium))
+                            Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                                .renderingMode(.template)
+                                .scaleEffect(0.8)
                         }
                         .buttonStyle(.borderless)
                         .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")

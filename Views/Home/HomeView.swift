@@ -148,8 +148,9 @@ struct HomeView: View {
                         trackListSortAscending.toggle()
                         sortTracks()
                     }) {
-                        Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
-                            .font(.system(size: 11, weight: .medium))
+                        Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                            .renderingMode(.template)
+                            .scaleEffect(0.8)
                     }
                     .buttonStyle(.borderless)
                     .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
@@ -204,8 +205,9 @@ struct HomeView: View {
                     entitySortAscending.toggle()
                     sortEntities()
                 }) {
-                    Image(systemName: entitySortAscending ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 11, weight: .medium))
+                    Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                        .renderingMode(.template)
+                        .scaleEffect(0.8)
                 }
                 .buttonStyle(.borderless)
                 .help("Sort \(entitySortAscending ? "descending" : "ascending")")
@@ -257,8 +259,9 @@ struct HomeView: View {
                     entitySortAscending.toggle()
                     sortEntities()
                 }) {
-                    Image(systemName: entitySortAscending ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 11, weight: .medium))
+                    Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                        .renderingMode(.template)
+                        .scaleEffect(0.8)
                 }
                 .buttonStyle(.borderless)
                 .help("Sort \(entitySortAscending ? "descending" : "ascending")")
@@ -322,8 +325,9 @@ struct HomeView: View {
                             trackListSortAscending.toggle()
                             sortTracks()
                         }) {
-                            Image(systemName: trackListSortAscending ? "arrow.up" : "arrow.down")
-                                .font(.system(size: 11, weight: .medium))
+                            Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                                .renderingMode(.template)
+                                .scaleEffect(0.8)
                         }
                         .buttonStyle(.borderless)
                         .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
