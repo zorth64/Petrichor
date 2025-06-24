@@ -17,7 +17,7 @@ struct TrackTableColumnMenu: View {
                 .disabled(column.isRequired)
             }
         } label: {
-            Image(systemName: "gearshape.fill")
+            Image(systemName: "line.3.horizontal.decrease")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
         }
