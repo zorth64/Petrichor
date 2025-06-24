@@ -44,13 +44,13 @@ class MetadataExtractor {
                 ]
             case .trackNumber:
                 return [
-                    "TRCK", "tracknumber", "track",
+                    "TRCK", "tracknumber", "track", "trkn",
                     AVMetadataKey.id3MetadataKeyTrackNumber.rawValue,
                     AVMetadataKey.iTunesMetadataKeyTrackNumber.rawValue
                 ]
             case .discNumber:
                 return [
-                    "TPOS", "discnumber", "disc",
+                    "TPOS", "discnumber", "disc", "disk",
                     AVMetadataKey.iTunesMetadataKeyDiscNumber.rawValue
                 ]
             case .copyright:
@@ -247,6 +247,44 @@ class MetadataExtractor {
             let identifier = item.identifier?.rawValue ?? ""
             let commonKey = item.commonKey?.rawValue ?? ""
             
+            // Special handling for track/disc numbers which might be stored as binary data
+            if keyString == "trkn" || keyString.lowercased() == "track" ||
+               identifier.contains("iTunesMetadataKeyTrackNumber") {
+                if let data = item.dataValue, data.count >= 8 {
+                    // M4A stores track numbers as binary:
+                    // bytes 2-3: track number (big endian)
+                    // bytes 4-5: total tracks (big endian)
+                    let trackNumber = Int(data[2]) << 8 | Int(data[3])
+                    let totalTracks = Int(data[4]) << 8 | Int(data[5])
+                    
+                    if trackNumber > 0 && metadata.trackNumber == nil {
+                        metadata.trackNumber = trackNumber
+                        if totalTracks > 0 {
+                            metadata.totalTracks = totalTracks
+                        }
+                        continue  // Skip normal processing for this item
+                    }
+                }
+            }
+            
+            // Similar handling for disc numbers
+            if keyString == "disk" || keyString.lowercased() == "disc" ||
+               identifier.contains("iTunesMetadataKeyDiscNumber") {
+                if let data = item.dataValue, data.count >= 6 {
+                    let discNumber = Int(data[2]) << 8 | Int(data[3])
+                    let totalDiscs = Int(data[4]) << 8 | Int(data[5])
+                    
+                    if discNumber > 0 && metadata.discNumber == nil {
+                        metadata.discNumber = discNumber
+                        if totalDiscs > 0 {
+                            metadata.totalDiscs = totalDiscs
+                        }
+                        continue
+                    }
+                }
+            }
+            
+            // Continue with normal string processing
             if let stringValue = getStringValue(from: item) {
                 // Process common keys
                 processCommonKey(item.commonKey, value: stringValue, into: &metadata)
@@ -307,18 +345,31 @@ class MetadataExtractor {
             metadata.albumArtist = value
         }
         
-        // Track Number
-        if metadata.trackNumber == nil && isKeyOfType(.trackNumber, keyString, identifier, commonKey) {
-            let (track, total) = parseNumbering(value)
-            metadata.trackNumber = track.flatMap { Int($0) }
-            metadata.totalTracks = total.flatMap { Int($0) }
+        // Track Number - Add special handling for simple "track" key
+        if metadata.trackNumber == nil {
+            let isTrackField = isKeyOfType(.trackNumber, keyString, identifier, commonKey) ||
+                              keyString.lowercased() == "track" ||
+                              keyString.lowercased() == "trkn" ||
+                              (commonKey.lowercased().contains("track") && !commonKey.lowercased().contains("artist"))
+            
+            if isTrackField {
+                let (track, total) = parseNumbering(value)
+                metadata.trackNumber = track.flatMap { Int($0) }
+                metadata.totalTracks = total.flatMap { Int($0) }
+            }
         }
         
-        // Disc Number
-        if metadata.discNumber == nil && isKeyOfType(.discNumber, keyString, identifier, commonKey) {
-            let (disc, total) = parseNumbering(value)
-            metadata.discNumber = disc.flatMap { Int($0) }
-            metadata.totalDiscs = total.flatMap { Int($0) }
+        // Disc Number - Add special handling for simple "disc" key
+        if metadata.discNumber == nil {
+            let isDiscField = isKeyOfType(.discNumber, keyString, identifier, commonKey) ||
+                             keyString.lowercased() == "disc" ||
+                             keyString.lowercased() == "disk"
+            
+            if isDiscField {
+                let (disc, total) = parseNumbering(value)
+                metadata.discNumber = disc.flatMap { Int($0) }
+                metadata.totalDiscs = total.flatMap { Int($0) }
+            }
         }
         
         // Copyright
@@ -396,12 +447,21 @@ class MetadataExtractor {
             return false
         }
         
-        let combined = (key + identifier + commonKey).lowercased()
+        let keyLower = key.lowercased()
+        let identifierLower = identifier.lowercased()
+        let commonKeyLower = commonKey.lowercased()
         
-        // Check exact matches first
-        if type.keys.contains(where: { combined.contains($0.lowercased()) }) {
+        // Check if the key exactly matches any of our known keys
+        if type.keys.contains(where: {
+            $0.lowercased() == keyLower ||
+            $0.lowercased() == identifierLower ||
+            $0.lowercased() == commonKeyLower
+        }) {
             return true
         }
+        
+        // For some fields, also check if any part contains our search terms
+        let combined = (key + identifier + commonKey).lowercased()
         
         // Check search terms
         return type.searchTerms.contains { searchTerm in
@@ -551,12 +611,24 @@ class MetadataExtractor {
         if let stringKey = key as? String {
             return stringKey
         } else if let numberKey = key as? NSNumber {
+            let intValue = numberKey.uint32Value
+            
+            // Check if this is "trkn" (0x74726b6e in hex)
+            if intValue == 0x74726b6e {
+                return "trkn"
+            }
+            
+            // Check if this is "disk" (0x6469736b in hex)
+            if intValue == 0x6469736b {
+                return "disk"
+            }
+            
             // Convert ID3 numeric keys to string
             let id3Key = String(format: "%c%c%c%c",
-                (numberKey.uint32Value >> 24) & 0xFF,
-                (numberKey.uint32Value >> 16) & 0xFF,
-                (numberKey.uint32Value >> 8) & 0xFF,
-                numberKey.uint32Value & 0xFF)
+                (intValue >> 24) & 0xFF,
+                (intValue >> 16) & 0xFF,
+                (intValue >> 8) & 0xFF,
+                intValue & 0xFF)
             return id3Key
         } else {
             return String(describing: key)
