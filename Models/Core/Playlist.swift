@@ -7,14 +7,6 @@ enum PlaylistType: String, Codable {
     case smart = "smart"
 }
 
-// Predefined smart playlist types
-enum SmartPlaylistType: String, Codable {
-    case favorites = "favorites"
-    case mostPlayed = "mostPlayed"
-    case recentlyPlayed = "recentlyPlayed"
-    case custom = "custom"  // For future user-defined smart playlists
-}
-
 // Smart playlist criteria
 struct SmartPlaylistCriteria: Codable {
     enum MatchType: String, Codable {
@@ -55,35 +47,6 @@ struct SmartPlaylistCriteria: Codable {
         self.sortBy = sortBy
         self.sortAscending = sortAscending
     }
-
-    // Convenience initializers for predefined smart playlists
-    static func favoritesPlaylist() -> SmartPlaylistCriteria {
-        SmartPlaylistCriteria(
-            rules: [Rule(field: "isFavorite", condition: .equals, value: "true")],
-            sortBy: "title",
-            sortAscending: true
-        )
-    }
-
-    static func mostPlayedPlaylist(limit: Int = 25) -> SmartPlaylistCriteria {
-        SmartPlaylistCriteria(
-            rules: [Rule(field: "playCount", condition: .greaterThan, value: "3")],
-            limit: limit,
-            sortBy: "playCount",
-            sortAscending: false  // Descending to get most played first
-        )
-    }
-
-    static func recentlyPlayedPlaylist(limit: Int = 25, daysBack: Int = 7) -> SmartPlaylistCriteria {
-        // In the future, we'll calculate the date properly
-        // For now, we'll just store the days back value
-        SmartPlaylistCriteria(
-            rules: [Rule(field: "lastPlayedDate", condition: .greaterThan, value: "\(daysBack)days")],
-            limit: limit,
-            sortBy: "lastPlayedDate",
-            sortAscending: false  // Most recent first
-        )
-    }
 }
 
 // Cache manager for playlist artwork
@@ -113,7 +76,6 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
     var dateModified: Date
     var coverArtworkData: Data?
     let type: PlaylistType
-    let smartType: SmartPlaylistType?
     var sortOrder: Int = 0
     var isUserEditable: Bool  // Can user delete/rename this playlist?
     var isContentEditable: Bool  // Can user add/remove tracks?
@@ -130,14 +92,13 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         self.dateModified = Date()
         self.coverArtworkData = coverArtworkData
         self.type = .regular
-        self.smartType = nil
         self.isUserEditable = true
         self.isContentEditable = true
         self.smartCriteria = nil
     }
 
     // Smart playlist initializer
-    init(name: String, smartType: SmartPlaylistType, criteria: SmartPlaylistCriteria, isUserEditable: Bool = false) {
+    init(name: String, criteria: SmartPlaylistCriteria, isUserEditable: Bool = false) {
         self.id = UUID()
         self.name = name
         self.tracks = []
@@ -145,7 +106,6 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         self.dateModified = Date()
         self.coverArtworkData = nil
         self.type = .smart
-        self.smartType = smartType
         self.isUserEditable = isUserEditable
         self.isContentEditable = false  // Smart playlists auto-manage their content
         self.smartCriteria = criteria
@@ -153,7 +113,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
 
     // Database restoration initializer
     init(id: UUID, name: String, tracks: [Track], dateCreated: Date, dateModified: Date,
-         coverArtworkData: Data?, type: PlaylistType, smartType: SmartPlaylistType?,
+         coverArtworkData: Data?, type: PlaylistType,
          isUserEditable: Bool, isContentEditable: Bool, smartCriteria: SmartPlaylistCriteria?) {
         self.id = id
         self.name = name
@@ -162,7 +122,6 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         self.dateModified = dateModified
         self.coverArtworkData = coverArtworkData
         self.type = type
-        self.smartType = smartType
         self.isUserEditable = isUserEditable
         self.isContentEditable = isContentEditable
         self.smartCriteria = smartCriteria
@@ -177,7 +136,6 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         static let id = Column("id")
         static let name = Column("name")
         static let type = Column("type")
-        static let smartType = Column("smart_type")
         static let isUserEditable = Column("is_user_editable")
         static let isContentEditable = Column("is_content_editable")
         static let dateCreated = Column("date_created")
@@ -192,10 +150,6 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         id = UUID(uuidString: row[Columns.id]) ?? UUID()
         name = row[Columns.name]
         type = PlaylistType(rawValue: row[Columns.type]) ?? .regular
-
-        let smartTypeRaw: String? = row[Columns.smartType]
-        smartType = smartTypeRaw.flatMap { SmartPlaylistType(rawValue: $0) }
-
         isUserEditable = row[Columns.isUserEditable]
         isContentEditable = row[Columns.isContentEditable]
         dateCreated = row[Columns.dateCreated]
@@ -220,7 +174,6 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         container[Columns.id] = id.uuidString
         container[Columns.name] = name
         container[Columns.type] = type.rawValue
-        container[Columns.smartType] = smartType?.rawValue
         container[Columns.isUserEditable] = isUserEditable
         container[Columns.isContentEditable] = isContentEditable
         container[Columns.dateCreated] = dateCreated
@@ -241,7 +194,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
     static let playlistTracks = hasMany(PlaylistTrack.self)
     static let tracks = hasMany(Track.self, through: playlistTracks, using: PlaylistTrack.track)
 
-    // MARK: - Business Logic Methods (UNCHANGED)
+    // MARK: - Business Logic Methods
 
     // Add a track to the playlist (only for regular playlists)
     mutating func addTrack(_ track: Track) {
@@ -250,7 +203,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         if !tracks.contains(where: { $0.id == track.id }) {
             tracks.append(track)
             dateModified = Date()
-            PlaylistArtworkCache.shared.clearCache(for: id) // Add this line
+            PlaylistArtworkCache.shared.clearCache(for: id)
         }
     }
 
@@ -301,7 +254,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
 
         tracks.removeAll()
         dateModified = Date()
-        PlaylistArtworkCache.shared.clearCache(for: id) // Add this line
+        PlaylistArtworkCache.shared.clearCache(for: id)
     }
 
     // Calculate total duration of the playlist
@@ -344,61 +297,70 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
     }
 
     private func createCollageArtwork() -> Data? {
-        // Get up to 4 tracks that have artwork
-        let tracksWithArtwork = tracks.filter { $0.artworkData != nil }
-        guard !tracksWithArtwork.isEmpty else { return nil }
-
-        // Randomly select up to 4 tracks
-        let selectedTracks = tracksWithArtwork.shuffled().prefix(4)
-        let artworkImages = selectedTracks.compactMap { track -> NSImage? in
-            guard let data = track.artworkData else { return nil }
-            return NSImage(data: data)
+        // Check if all tracks are from the same album
+        let uniqueAlbums = Set(tracks.map { $0.album })
+        let isSingleAlbum = uniqueAlbums.count == 1
+        
+        // If single album or single track, just use the first track's artwork
+        if isSingleAlbum || tracks.count == 1 {
+            return tracks.first?.artworkData
         }
+        
+        // Get up to 4 tracks with artwork for collage
+        let tracksWithArt = tracks.prefix(4).filter { $0.artworkData != nil }
 
-        guard !artworkImages.isEmpty else { return nil }
+        guard !tracksWithArt.isEmpty else { return nil }
 
-        // Create a 2x2 collage
-        let collageSize: CGFloat = 300 // Size of the final collage
-        let tileSize = collageSize / 2
+        let imageSize: CGFloat = 256
+        let collageImage = NSImage(size: NSSize(width: imageSize, height: imageSize))
 
-        let collageImage = NSImage(size: NSSize(width: collageSize, height: collageSize))
         collageImage.lockFocus()
 
-        // Fill with a dark background in case we have fewer than 4 images
-        NSColor.darkGray.setFill()
-        NSRect(x: 0, y: 0, width: collageSize, height: collageSize).fill()
+        // Clear background
+        NSColor.black.setFill()
+        NSRect(x: 0, y: 0, width: imageSize, height: imageSize).fill()
 
-        // Draw up to 4 images in a 2x2 grid
-        for (index, image) in artworkImages.prefix(4).enumerated() {
-            let row = index / 2
-            let col = index % 2
-            let x = CGFloat(col) * tileSize
-            let y = CGFloat(1 - row) * tileSize // Flip Y coordinate for NSImage
+        let count = tracksWithArt.count
 
-            let destRect = NSRect(x: x, y: y, width: tileSize, height: tileSize)
-
-            // Draw the image scaled to fill the tile
-            image.draw(in: destRect,
-                      from: NSRect(origin: .zero, size: image.size),
-                      operation: .copy,
-                      fraction: 1.0)
-        }
-
-        // If we have only 1 image, duplicate it to fill all 4 quadrants
-        if artworkImages.count == 1, let image = artworkImages.first {
-            for i in 1..<4 {
-                let row = i / 2
-                let col = i % 2
-                let x = CGFloat(col) * tileSize
-                let y = CGFloat(1 - row) * tileSize
-
-                let destRect = NSRect(x: x, y: y, width: tileSize, height: tileSize)
-
-                // Apply a slight tint/opacity variation to make it look intentional
+        // Special handling based on track count
+        if count == 1 {
+            // Single track - just draw it full size (this case is already handled above, but keeping for safety)
+            if let artworkData = tracksWithArt[0].artworkData,
+               let image = NSImage(data: artworkData) {
+                image.draw(in: NSRect(x: 0, y: 0, width: imageSize, height: imageSize),
+                          from: NSRect(origin: .zero, size: image.size),
+                          operation: .copy,
+                          fraction: 1.0)
+            }
+        } else {
+            // 2 or more tracks - always create 2x2 grid
+            let positions = [(0, 0), (1, 0), (0, 1), (1, 1)]  // (col, row) for each quadrant
+            
+            for (index, (col, row)) in positions.enumerated() {
+                let trackIndex: Int
+                
+                if count == 2 {
+                    // For 2 tracks: diagonal pattern (0, 1, 1, 0)
+                    trackIndex = (index == 0 || index == 3) ? 0 : 1
+                } else {
+                    // For 3+ tracks: use available tracks, repeating if necessary
+                    trackIndex = index % count
+                }
+                
+                guard let artworkData = tracksWithArt[trackIndex].artworkData,
+                      let image = NSImage(data: artworkData) else { continue }
+                
+                let destRect = NSRect(
+                    x: CGFloat(col) * imageSize / 2,
+                    y: CGFloat(row) * imageSize / 2,
+                    width: imageSize / 2,
+                    height: imageSize / 2
+                )
+                
                 image.draw(in: destRect,
                           from: NSRect(origin: .zero, size: image.size),
                           operation: .copy,
-                          fraction: 0.7 + (CGFloat(i) * 0.1))
+                          fraction: 1.0)
             }
         }
 
@@ -436,22 +398,50 @@ extension Playlist {
 extension Playlist {
     static func createDefaultSmartPlaylists() -> [Playlist] {
         [
+            // Favorites playlist - sorted by date added
             Playlist(
-                name: "Favorite Songs",
-                smartType: .favorites,
-                criteria: SmartPlaylistCriteria.favoritesPlaylist(),
+                name: "Favorites",
+                criteria: SmartPlaylistCriteria(
+                    rules: [SmartPlaylistCriteria.Rule(
+                        field: "isFavorite",
+                        condition: .equals,
+                        value: "true"
+                    )],
+                    sortBy: nil, // No sorting - will maintain order as added
+                    sortAscending: true
+                ),
                 isUserEditable: false
             ),
+            
+            // Top 25 Most Played - already correct
             Playlist(
                 name: "Top 25 Most Played",
-                smartType: .mostPlayed,
-                criteria: SmartPlaylistCriteria.mostPlayedPlaylist(limit: 25),
+                criteria: SmartPlaylistCriteria(
+                    rules: [SmartPlaylistCriteria.Rule(
+                        field: "playCount",
+                        condition: .greaterThan,
+                        value: "5"
+                    )],
+                    limit: 25,
+                    sortBy: "playCount",
+                    sortAscending: false // Descending - highest play count first
+                ),
                 isUserEditable: false
             ),
+            
+            // Top 25 Recently Played - already correct
             Playlist(
                 name: "Top 25 Recently Played",
-                smartType: .recentlyPlayed,
-                criteria: SmartPlaylistCriteria.recentlyPlayedPlaylist(limit: 25, daysBack: 7),
+                criteria: SmartPlaylistCriteria(
+                    rules: [SmartPlaylistCriteria.Rule(
+                        field: "lastPlayedDate",
+                        condition: .greaterThan,
+                        value: "7days"
+                    )],
+                    limit: 25,
+                    sortBy: "lastPlayedDate",
+                    sortAscending: false // Descending - most recent first
+                ),
                 isUserEditable: false
             )
         ]

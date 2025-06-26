@@ -108,26 +108,6 @@ extension PlaylistManager {
         guard let manager = libraryManager else { return [] }
         let allTracks = manager.tracks
         
-        switch playlist.smartType {
-        case .favorites:
-            return allTracks.filter { $0.isFavorite }
-        case .mostPlayed:
-            return allTracks
-                .filter { $0.playCount > 0 }
-                .sorted { $0.playCount > $1.playCount }
-                .prefix(playlist.trackLimit ?? 50)
-                .map { $0 }
-        case .recentlyPlayed:
-            return allTracks
-                .compactMap { track -> (Track, Date)? in
-                    guard let lastPlayed = track.lastPlayedDate else { return nil }
-                    return (track, lastPlayed)
-                }
-                .sorted { $0.1 > $1.1 }
-                .prefix(playlist.trackLimit ?? 50)
-                .map { $0.0 }
-        case .custom, .none:
-            return []
-        }
+        return evaluateSmartPlaylist(playlist, allTracks: allTracks)
     }
 }

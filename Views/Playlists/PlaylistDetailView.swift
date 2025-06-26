@@ -323,16 +323,19 @@ struct PlaylistDetailView: View {
     private var playlistIcon: String {
         guard let playlist = playlist else { return "music.note.list" }
 
-        switch playlist.smartType {
-        case .favorites:
-            return "star.fill"
-        case .mostPlayed:
-            return "play.circle.fill"
-        case .recentlyPlayed:
-            return "clock.fill"
-        case .custom, .none:
-            return "music.note.list"
+        if playlist.type == .smart && !playlist.isUserEditable {
+            switch playlist.name {
+            case "Favorites":
+                return "star.fill"
+            case "Top 25 Most Played":
+                return "play.circle.fill"
+            case "Top 25 Recently Played":
+                return "clock.fill"
+            default:
+                return "music.note.list"
+            }
         }
+        return "music.note.list"
     }
 
     private var playlistTypeText: String {
@@ -349,31 +352,37 @@ struct PlaylistDetailView: View {
     private var emptyStateTitle: String {
         guard let playlist = playlist else { return "Empty Playlist" }
 
-        switch playlist.smartType {
-        case .favorites:
-            return "No Favorite Songs"
-        case .mostPlayed:
-            return "No Frequently Played Songs"
-        case .recentlyPlayed:
-            return "No Recently Played Songs"
-        case .custom, .none:
-            return "Empty Playlist"
+        if playlist.type == .smart && !playlist.isUserEditable {
+            switch playlist.name {
+            case "Favorites":
+                return "No Favorite Songs"
+            case "Top 25 Most Played":
+                return "No Frequently Played Songs"
+            case "Top 25 Recently Played":
+                return "No Recently Played Songs"
+            default:
+                return "Empty Smart Playlist"
+            }
         }
+        return "Empty Playlist"
     }
 
     private var emptyStateMessage: String {
         guard let playlist = playlist else { return "" }
 
-        switch playlist.smartType {
-        case .favorites:
-            return "Mark songs as favorites to see them here"
-        case .mostPlayed:
-            return "Songs played 3 or more times will appear here"
-        case .recentlyPlayed:
-            return "Songs played in the last week will appear here"
-        case .custom, .none:
-            return "Add some tracks to this playlist to get started"
+        if playlist.type == .smart && !playlist.isUserEditable {
+            switch playlist.name {
+            case "Favorites":
+                return "Mark songs as favorites to see them here"
+            case "Top 25 Most Played":
+                return "Songs played more than 5 times will appear here"
+            case "Top 25 Recently Played":
+                return "Songs played in the last week will appear here"
+            default:
+                return "This smart playlist will update automatically based on its criteria"
+            }
         }
+        return "Add some tracks to this playlist to get started"
     }
 
     // MARK: - Action Methods
@@ -410,9 +419,16 @@ struct PlaylistDetailView: View {
 
 #Preview("Smart Playlist") {
     let smartPlaylist = Playlist(
-        name: "Favorite Songs",
-        smartType: .favorites,
-        criteria: SmartPlaylistCriteria.favoritesPlaylist(),
+        name: "Favorites",
+        criteria: SmartPlaylistCriteria(
+            rules: [SmartPlaylistCriteria.Rule(
+                field: "isFavorite",
+                condition: .equals,
+                value: "true"
+            )],
+            sortBy: "title",
+            sortAscending: true
+        ),
         isUserEditable: false
     )
 

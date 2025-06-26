@@ -147,24 +147,47 @@ struct PlaylistSidebarView: View {
     let previewManager = {
         let manager = PlaylistManager()
 
-        // Create sample playlists
+        // Create sample playlists using the new criteria-based approach
         let smartPlaylists = [
             Playlist(
-                name: "Favorite Songs",
-                smartType: .favorites,
-                criteria: SmartPlaylistCriteria.favoritesPlaylist(),
+                name: "Favorites",
+                criteria: SmartPlaylistCriteria(
+                    rules: [SmartPlaylistCriteria.Rule(
+                        field: "isFavorite",
+                        condition: .equals,
+                        value: "true"
+                    )],
+                    sortBy: "title",
+                    sortAscending: true
+                ),
                 isUserEditable: false
             ),
             Playlist(
                 name: "Top 25 Most Played",
-                smartType: .mostPlayed,
-                criteria: SmartPlaylistCriteria.mostPlayedPlaylist(limit: 25),
+                criteria: SmartPlaylistCriteria(
+                    rules: [SmartPlaylistCriteria.Rule(
+                        field: "playCount",
+                        condition: .greaterThan,
+                        value: "5"
+                    )],
+                    limit: 25,
+                    sortBy: "playCount",
+                    sortAscending: false
+                ),
                 isUserEditable: false
             ),
             Playlist(
-                name: "Recently Played",
-                smartType: .recentlyPlayed,
-                criteria: SmartPlaylistCriteria.recentlyPlayedPlaylist(limit: 25, daysBack: 7),
+                name: "Top 25 Recently Played",
+                criteria: SmartPlaylistCriteria(
+                    rules: [SmartPlaylistCriteria.Rule(
+                        field: "lastPlayedDate",
+                        condition: .greaterThan,
+                        value: "7days"
+                    )],
+                    limit: 25,
+                    sortBy: "lastPlayedDate",
+                    sortAscending: false
+                ),
                 isUserEditable: false
             )
         ]

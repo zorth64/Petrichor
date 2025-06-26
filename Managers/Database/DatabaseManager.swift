@@ -60,6 +60,9 @@ class DatabaseManager: ObservableObject {
 
             // Create all indices
             try createIndices(in: db)
+            
+            // Seed default data
+            try seedDefaultPlaylists(in: db)
         }
     }
 

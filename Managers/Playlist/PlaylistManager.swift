@@ -18,7 +18,6 @@ class PlaylistManager: ObservableObject {
 
     // MARK: - Private/Internal Properties
     private var shuffledIndices: [Int] = []
-    private var smartPlaylistsInitialized = false
     internal var libraryManager: LibraryManager?
 
     // MARK: - Dependencies
@@ -43,8 +42,9 @@ class PlaylistManager: ObservableObject {
 
     /// Toggle favorite status for a track
     func toggleFavorite(for track: Track) {
-        if let favoritesPlaylist = playlists.first(where: { $0.smartType == .favorites }) {
-            updateTrackInPlaylist(track: track, playlist: favoritesPlaylist, add: !track.isFavorite)
+        // Simply toggle the favorite status - the system will handle the rest
+        Task {
+            await updateTrackFavoriteStatus(track: track, isFavorite: !track.isFavorite)
         }
     }
 
@@ -60,40 +60,5 @@ class PlaylistManager: ObservableObject {
         if let playlist = playlists.first(where: { $0.id == playlistID }) {
             updateTrackInPlaylist(track: track, playlist: playlist, add: false)
         }
-    }
-
-    // MARK: - Data Persistence
-
-    func loadPlaylists() {
-        guard let dbManager = libraryManager?.databaseManager else {
-            return
-        }
-
-        let savedPlaylists = dbManager.loadAllPlaylists()
-
-        let savedSmartPlaylists = savedPlaylists.filter { $0.type == .smart }
-        let savedRegularPlaylists = savedPlaylists.filter { $0.type == .regular }
-
-        if savedSmartPlaylists.isEmpty && !smartPlaylistsInitialized {
-            let defaultSmartPlaylists = Playlist.createDefaultSmartPlaylists()
-
-            for playlist in defaultSmartPlaylists {
-                Task {
-                    do {
-                        try await dbManager.savePlaylistAsync(playlist)
-                    } catch {
-                        print("Failed to save default playlist: \(error)")
-                    }
-                }
-            }
-
-            playlists = sortPlaylists(smart: defaultSmartPlaylists, regular: savedRegularPlaylists)
-            smartPlaylistsInitialized = true
-        } else {
-            playlists = sortPlaylists(smart: savedSmartPlaylists, regular: savedRegularPlaylists)
-            smartPlaylistsInitialized = !savedSmartPlaylists.isEmpty
-        }
-
-        updateSmartPlaylists()
     }
 }

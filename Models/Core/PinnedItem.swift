@@ -82,10 +82,20 @@ struct PinnedItem: Identifiable, FetchableRecord, PersistableRecord {
         self.playlistId = playlist.id
         self.displayName = playlist.name
         self.subtitle = "\(playlist.tracks.count) songs"
-        self.iconName = playlist.smartType == .favorites ? "star.fill" :
-                        playlist.smartType == .mostPlayed ? "play.circle.fill" :
-                        playlist.smartType == .recentlyPlayed ? "clock.fill" :
-                        "music.note.list"
+        if playlist.type == .smart && !playlist.isUserEditable {
+            switch playlist.name {
+            case "Favorites":
+                self.iconName = "star.fill"
+            case "Top 25 Most Played":
+                self.iconName = "play.circle.fill"
+            case "Top 25 Recently Played":
+                self.iconName = "clock.fill"
+            default:
+                self.iconName = "music.note.list"
+            }
+        } else {
+            self.iconName = "music.note.list"
+        }
         self.sortOrder = 0
         self.dateAdded = Date()
     }

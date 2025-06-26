@@ -201,16 +201,20 @@ struct PlaylistSidebarItem: SidebarItem {
     }
 
     private static func getIcon(for playlist: Playlist) -> String {
-        switch playlist.smartType {
-        case .favorites:
-            return "star.fill"
-        case .mostPlayed:
-            return "play.circle.fill"
-        case .recentlyPlayed:
-            return "clock.fill"
-        case .custom, .none:
-            return "music.note.list"
+        // Determine icon based on playlist name for default smart playlists
+        if playlist.type == .smart && !playlist.isUserEditable {
+            switch playlist.name {
+            case "Favorites":
+                return "star.fill"
+            case "Top 25 Most Played":
+                return "play.circle.fill"
+            case "Top 25 Recently Played":
+                return "clock.fill"
+            default:
+                return "music.note.list"
+            }
         }
+        return "music.note.list"
     }
 }
 

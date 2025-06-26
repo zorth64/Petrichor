@@ -2,7 +2,44 @@ import Foundation
 import GRDB
 
 extension PlaylistManager {
-    // MARK: - Unified Playlist Management
+    // MARK: - Track Updates
+    
+    func updateTrackFavoriteStatus(track: Track, isFavorite: Bool) async {
+        guard let trackId = track.trackId else {
+            print("PlaylistManager: Cannot update favorite - track has no database ID")
+            return
+        }
+
+        // Update track object
+        await MainActor.run {
+            track.isFavorite = isFavorite
+        }
+
+        do {
+            if let dbManager = libraryManager?.databaseManager {
+                try await dbManager.updateTrackFavoriteStatus(trackId: trackId, isFavorite: isFavorite)
+
+                // Update library manager's track FIRST
+                await MainActor.run {
+                    if let libraryTrack = self.libraryManager?.tracks.first(where: { $0.trackId == trackId }) {
+                        libraryTrack.isFavorite = isFavorite
+                        print("PlaylistManager: Updated library track favorite status")
+                    }
+                }
+
+                print("PlaylistManager: Updated favorite status for track: \(track.title) to \(isFavorite)")
+                
+                // THEN update smart playlists
+                await handleTrackPropertyUpdate(track)
+            }
+        } catch {
+            print("PlaylistManager: Failed to update favorite status: \(error)")
+            // Revert change
+            await MainActor.run {
+                track.isFavorite = !isFavorite
+            }
+        }
+    }
 
     /// Add or remove a track from any playlist (handles both regular and smart playlists)
     func updateTrackInPlaylist(track: Track, playlist: Playlist, add: Bool) {
@@ -13,15 +50,12 @@ extension PlaylistManager {
                 // Handle smart playlists differently
                 if playlist.type == .smart {
                     // For smart playlists, we update the track property that controls membership
-                    switch playlist.smartType {
-                    case .favorites:
+                    if playlist.name == "Favorites" && !playlist.isUserEditable {
                         // Update favorite status
                         await updateTrackFavoriteStatus(track: track, isFavorite: add)
-                    case .mostPlayed, .recentlyPlayed:
-                        // These are read-only smart playlists
+                    } else if playlist.type == .smart && !playlist.isContentEditable {
+                        // Other smart playlists are read-only
                         print("PlaylistManager: Cannot manually add/remove tracks from \(playlist.name)")
-                        return
-                    default:
                         return
                     }
                 } else {
@@ -34,8 +68,10 @@ extension PlaylistManager {
                 }
 
                 // Update smart playlists to reflect any changes
-                await MainActor.run {
-                    self.updateSmartPlaylists()
+                if playlist.type == .smart {
+                    await MainActor.run {
+                        self.updateSmartPlaylists()
+                    }
                 }
             }
         }
@@ -161,135 +197,44 @@ extension PlaylistManager {
     func isTrackInPlaylist(track: Track, playlist: Playlist) -> Bool {
         playlist.tracks.contains { $0.trackId == track.trackId }
     }
+    
+    /// Update track properties that may affect smart playlist membership
+    func handleTrackPropertyUpdate(_ track: Track) async {
+        await MainActor.run {
+            // Only update playlists affected by this specific track
+            self.updateSmartPlaylistsForTrack(track)
+        }
+    }
 
+    /// Update track play count and last played date
     func incrementPlayCount(for track: Track) {
-        track.playCount += 1
-        track.lastPlayedDate = Date()
+        // These modifications should be on main thread
+        Task { @MainActor in
+            track.playCount += 1
+            track.lastPlayedDate = Date()
+            
+            guard let trackId = track.trackId else { return }
+            
+            // Continue with the async work
+            Task {
+                do {
+                    if let dbManager = libraryManager?.databaseManager {
+                        try await dbManager.updateTrackPlayInfo(
+                            trackId: trackId,
+                            playCount: track.playCount,
+                            lastPlayedDate: track.lastPlayedDate!
+                        )
 
-        guard let trackId = track.trackId else { return }
-
-        Task {
-            do {
-                if let dbManager = libraryManager?.databaseManager {
-                    try await dbManager.updateTrackPlayInfo(
-                        trackId: trackId,
-                        playCount: track.playCount,
-                        lastPlayedDate: track.lastPlayedDate!
-                    )
-
-                    // Update smart playlists after play info changes
+                        // Update smart playlists after play info changes
+                        await handleTrackPropertyUpdate(track)
+                    }
+                } catch {
+                    print("Failed to update play info: \(error)")
                     await MainActor.run {
-                        self.updateSmartPlaylists()
+                        track.playCount -= 1
+                        track.lastPlayedDate = nil
                     }
                 }
-            } catch {
-                print("Failed to update play info: \(error)")
-                track.playCount -= 1
-                track.lastPlayedDate = nil
-            }
-        }
-    }
-
-    // MARK: - Private Helper Methods
-
-    internal func addTrackToRegularPlaylist(track: Track, playlistID: UUID) async {
-        guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
-              playlists[index].type == .regular,
-              playlists[index].isContentEditable else {
-            print("PlaylistManager: Cannot add to this playlist")
-            return
-        }
-
-        var playlist = playlists[index]
-
-        // Check if track already exists
-        if playlist.tracks.contains(where: { $0.trackId == track.trackId }) {
-            print("PlaylistManager: Track already in playlist")
-            return
-        }
-
-        playlist.addTrack(track)
-
-        // Update in-memory
-        await MainActor.run {
-            self.playlists[index] = playlist
-        }
-
-        // Save to database
-        do {
-            if let dbManager = libraryManager?.databaseManager {
-                try await dbManager.savePlaylistAsync(playlist)
-                print("PlaylistManager: Added track to playlist")
-            }
-        } catch {
-            print("PlaylistManager: Failed to save playlist: \(error)")
-            // Revert change
-            await MainActor.run {
-                self.playlists[index].removeTrack(track)
-            }
-        }
-    }
-
-    internal func removeTrackFromRegularPlaylist(track: Track, playlistID: UUID) async {
-        guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
-              playlists[index].type == .regular,
-              playlists[index].isContentEditable else {
-            print("PlaylistManager: Cannot remove from this playlist")
-            return
-        }
-
-        var playlist = playlists[index]
-        playlist.removeTrack(track)
-
-        // Update in-memory
-        await MainActor.run {
-            self.playlists[index] = playlist
-        }
-
-        // Save to database
-        do {
-            if let dbManager = libraryManager?.databaseManager {
-                try await dbManager.savePlaylistAsync(playlist)
-                print("PlaylistManager: Removed track from playlist")
-            }
-        } catch {
-            print("PlaylistManager: Failed to save playlist: \(error)")
-            // Revert change
-            await MainActor.run {
-                self.playlists[index].addTrack(track)
-            }
-        }
-    }
-
-    internal func updateTrackFavoriteStatus(track: Track, isFavorite: Bool) async {
-        guard let trackId = track.trackId else {
-            print("PlaylistManager: Cannot update favorite - track has no database ID")
-            return
-        }
-
-        // Update track object
-        await MainActor.run {
-            track.isFavorite = isFavorite
-        }
-
-        do {
-            if let dbManager = libraryManager?.databaseManager {
-                try await dbManager.updateTrackFavoriteStatus(trackId: trackId, isFavorite: isFavorite)
-
-                // Update library manager's track
-                await MainActor.run {
-                    if let libraryTrack = self.libraryManager?.tracks.first(where: { $0.trackId == trackId }) {
-                        libraryTrack.isFavorite = isFavorite
-                    }
-                }
-
-                print("PlaylistManager: Updated favorite status")
-            }
-        } catch {
-            print("PlaylistManager: Failed to update favorite status: \(error)")
-            // Revert change
-            await MainActor.run {
-                track.isFavorite = !isFavorite
             }
         }
     }

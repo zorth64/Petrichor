@@ -169,7 +169,6 @@ extension DatabaseManager {
             t.column("id", .text).primaryKey()
             t.column("name", .text).notNull()
             t.column("type", .text).notNull()
-            t.column("smart_type", .text)
             t.column("is_user_editable", .boolean).notNull()
             t.column("is_content_editable", .boolean).notNull()
             t.column("date_created", .datetime).notNull()
@@ -188,6 +187,7 @@ extension DatabaseManager {
             t.column("track_id", .integer).notNull()
                 .references("tracks", column: "id", onDelete: .cascade)
             t.column("position", .integer).notNull()
+            t.column("date_added", .datetime).notNull()
             t.primaryKey(["playlist_id", "track_id"])
         }
     }
@@ -269,5 +269,22 @@ extension DatabaseManager {
         // Pinned items indices
         try db.create(index: "idx_pinned_items_sort_order", on: "pinned_items", columns: ["sort_order"], ifNotExists: true)
         try db.create(index: "idx_pinned_items_item_type", on: "pinned_items", columns: ["item_type"], ifNotExists: true)
+    }
+    
+    // MARK: - Seed Default Data
+    func seedDefaultPlaylists(in db: Database) throws {
+        // Check if playlists table is empty (first time setup)
+        let playlistCount = try Playlist.fetchCount(db)
+        
+        if playlistCount == 0 {
+            print("DatabaseManager: Seeding default smart playlists...")
+            
+            let defaultPlaylists = Playlist.createDefaultSmartPlaylists()
+            
+            for playlist in defaultPlaylists {
+                try playlist.insert(db)
+                print("DatabaseManager: Created default playlist: \(playlist.name)")
+            }
+        }
     }
 }
