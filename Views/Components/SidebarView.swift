@@ -93,7 +93,7 @@ extension SidebarView where Item == LibrarySidebarItem {
         self.headerControls = nil
         self.showIcon = true
         self.iconColor = .secondary
-        self.showCount = true
+        self.showCount = false
         self.trailingContent = nil
     }
 }

@@ -144,9 +144,9 @@ struct LibrarySidebarItem: SidebarItem {
     init(filterItem: LibraryFilterItem) {
         self.id = filterItem.id
         self.title = filterItem.name
-        self.subtitle = nil
+        self.subtitle = "\(filterItem.count) \(filterItem.count == 1 ? "song" : "songs")"
         self.icon = Self.getIcon(for: filterItem.filterType, isAllItem: false)
-        self.count = filterItem.count
+        self.count = nil
         self.filterType = filterItem.filterType
         self.filterName = filterItem.name
     }
@@ -155,9 +155,9 @@ struct LibrarySidebarItem: SidebarItem {
     init(allItemFor filterType: LibraryFilterType, count: Int) {
         self.id = UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012d", filterType.stableIndex))") ?? UUID()
         self.title = "All \(filterType.rawValue)"
-        self.subtitle = nil
+        self.subtitle = "\(count) \(count == 1 ? "song" : "songs")"
         self.icon = Self.getIcon(for: filterType, isAllItem: true)
-        self.count = count
+        self.count = nil
         self.filterType = filterType
         self.filterName = ""
     }

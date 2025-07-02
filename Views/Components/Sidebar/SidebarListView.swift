@@ -252,7 +252,7 @@ extension SidebarListView where Item == LibrarySidebarItem {
             contextMenuItems: contextMenuItems,
             showIcon: true,
             iconColor: .secondary,
-            showCount: true
+            showCount: false
         )
     }
 }
