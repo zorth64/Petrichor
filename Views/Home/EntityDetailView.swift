@@ -136,9 +136,15 @@ struct EntityDetailView: View {
                 .lineLimit(2)
             
             HStack {
-                Text("\(tracks.count) songs")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                if entity is ArtistEntity {
+                    Text("\(tracks.count) \(tracks.count == 1 ? "song" : "songs") involving \(entity.name)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("\(tracks.count) \(tracks.count == 1 ? "song" : "songs")")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
                 if !tracks.isEmpty {
                     Text("•")
