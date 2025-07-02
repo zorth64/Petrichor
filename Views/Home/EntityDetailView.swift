@@ -93,12 +93,6 @@ struct EntityDetailView: View {
                 Spacer()
             }
         }
-        .overlay(alignment: .bottomTrailing) {
-            if viewType == .table {
-                TrackTableColumnMenu()
-                    .padding([.bottom, .trailing], 12)
-            }
-        }
     }
     
     private var entityArtwork: some View {

@@ -10,6 +10,18 @@ class ContextMenuTableView: NSTableView {
     }
 }
 
+class ContextMenuHeaderView: NSTableHeaderView {
+    var headerContextMenuHandler: (() -> NSMenu?)?
+    
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let point = convert(event.locationInWindow, from: nil)
+        if bounds.contains(point) {
+            return headerContextMenuHandler?()
+        }
+        return super.menu(for: event)
+    }
+}
+
 struct TrackTableView: NSViewRepresentable {
     let tracks: [Track]
     let onPlayTrack: (Track) -> Void
@@ -24,7 +36,10 @@ struct TrackTableView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         let tableView = ContextMenuTableView()
-        let headerView = NSTableHeaderView()
+        let headerView = ContextMenuHeaderView()
+        headerView.headerContextMenuHandler = {
+            context.coordinator.createColumnMenu()
+        }
 
         tableView.contextMenuHandler = { event in
             context.coordinator.handleContextMenu(for: event, in: tableView)
@@ -298,6 +313,10 @@ struct TrackTableView: NSViewRepresentable {
         var currentlyPlayingTrackPath: String?
         var lastHoveredRow: Int?
         var lastMouseLocation: NSPoint = .zero
+        
+        var columnManager: ColumnVisibilityManager {
+            ColumnVisibilityManager.shared
+        }
 
         private var reloadTimer: Timer?
         private var pendingReload = false
@@ -571,6 +590,44 @@ struct TrackTableView: NSViewRepresentable {
             // Create NSMenu from ContextMenuItem array
             return createNSMenu(from: menuItems, track: track)
         }
+        
+        func createColumnMenu() -> NSMenu {
+            let menu = NSMenu()
+            
+            for column in TrackTableColumn.allColumns {
+                let item = NSMenuItem()
+                item.title = column.displayName
+                item.state = columnManager.isVisible(column) ? .on : .off
+                
+                if column.isRequired {
+                    // For required columns, set action to nil and disable
+                    item.action = nil
+                    item.target = nil
+                    item.isEnabled = false
+                } else {
+                    // For optional columns, set the action and target
+                    item.action = #selector(toggleColumnVisibility(_:))
+                    item.target = self
+                    item.representedObject = column
+                }
+                
+                menu.addItem(item)
+            }
+            
+            return menu
+        }
+
+        @objc private func toggleColumnVisibility(_ sender: NSMenuItem) {
+            guard let column = sender.representedObject as? TrackTableColumn else { return }
+            
+            if !column.isRequired {
+                columnManager.toggleVisibility(column)
+
+                if let tableView = hostTableView {
+                    updateColumnVisibility(tableView: tableView)
+                }
+            }
+        }
 
         @objc private func scrollViewDidScroll(_ notification: Notification) {
             // Clear hover state immediately when scrolling starts
@@ -732,6 +789,14 @@ struct TrackTableView: NSViewRepresentable {
                 guard let self = self, self.pendingReload else { return }
                 self.pendingReload = false
                 tableView.reloadData()
+            }
+        }
+        
+        private func updateColumnVisibility(tableView: NSTableView) {
+            for column in TrackTableColumn.allColumns {
+                if let tableColumn = tableView.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(column.identifier)) {
+                    tableColumn.isHidden = !columnManager.isVisible(column)
+                }
             }
         }
     }

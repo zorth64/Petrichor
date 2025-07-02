@@ -137,7 +137,7 @@ struct HomeView: View {
                     title: "All Tracks",
                     trackCount: libraryManager.tracks.count
                 ) {
-                    TrackTableColumnMenu()
+                    EmptyView()
                 }
             } else {
                 TrackListHeader(
@@ -347,7 +347,7 @@ struct HomeView: View {
                             subtitle: nil,
                             trackCount: sortedTracks.count
                         ) {
-                            TrackTableColumnMenu()
+                            EmptyView()
                         }
                     } else {
                         TrackListHeader(

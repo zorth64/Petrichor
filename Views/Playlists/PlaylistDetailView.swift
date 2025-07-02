@@ -75,12 +75,6 @@ struct PlaylistDetailView: View {
                     Spacer()
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                if viewType == .table {
-                    TrackTableColumnMenu()
-                        .padding([.bottom, .trailing], 12)
-                }
-            }
         }
     }
 

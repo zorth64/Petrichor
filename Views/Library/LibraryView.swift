@@ -154,20 +154,20 @@ struct LibraryView: View {
                     title: headerTitle,
                     trackCount: cachedFilteredTracks.count
                 ) {
-                        TrackTableColumnMenu()
+                    EmptyView()
                 }
             } else {
                 TrackListHeader(
                     title: headerTitle,
                     trackCount: cachedFilteredTracks.count
                 ) {
-                        Button(action: { trackListSortAscending.toggle() }) {
-                            Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
-                                .renderingMode(.template)
-                                .scaleEffect(0.8)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                    Button(action: { trackListSortAscending.toggle() }) {
+                        Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                            .renderingMode(.template)
+                            .scaleEffect(0.8)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
                 }
             }
         }
