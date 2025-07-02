@@ -77,6 +77,9 @@ struct HomeSidebarView: View {
                 }
             }
         }
+        .onChange(of: playlistManager.playlists.map { "\($0.id)-\($0.tracks.count)" }) { _ in
+            updateAllItems()
+        }
     }
 
     // MARK: - Update Items Helper
@@ -90,9 +93,19 @@ struct HomeSidebarView: View {
             HomeSidebarItem(type: .artists, artistCount: artistCount),
             HomeSidebarItem(type: .albums, albumCount: albumCount)
         ]
-        
-        // Add pinned items
-        let pinnedSidebarItems = libraryManager.pinnedItems.map { HomeSidebarItem(pinnedItem: $0) }
+
+        // Add pinned items with track counts
+        let pinnedSidebarItems = libraryManager.pinnedItems.map { pinnedItem in
+            let trackCount: Int
+            switch pinnedItem.itemType {
+            case .library:
+                trackCount = libraryManager.getTracksForPinnedItem(pinnedItem).count
+            case .playlist:
+                trackCount = playlistManager.getTracksForPinnedPlaylist(pinnedItem).count
+            }
+            
+            return HomeSidebarItem(pinnedItem: pinnedItem, trackCount: trackCount)
+        }
         items.append(contentsOf: pinnedSidebarItems)
         
         // Preserve selection when updating items

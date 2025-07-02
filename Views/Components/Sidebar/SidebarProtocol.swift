@@ -99,12 +99,12 @@ struct HomeSidebarItem: SidebarItem {
     }
     
     // Init for pinned items
-    init(pinnedItem: PinnedItem) {
+    init(pinnedItem: PinnedItem, trackCount: Int = 0) {
         self.id = UUID(uuidString: "pinned-\(pinnedItem.id ?? 0)") ?? UUID()
         self.type = nil
         self.source = .pinned(pinnedItem)
         self.title = pinnedItem.displayName
-        self.subtitle = nil
+        self.subtitle = trackCount > 0 ? "\(trackCount) songs" : nil
         self.icon = pinnedItem.iconName
     }
 }

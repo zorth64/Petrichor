@@ -104,7 +104,22 @@ extension DatabaseManager {
             guard let filterType = item.filterType,
                   let filterValue = item.filterValue else { return [] }
             
-            // Get all tracks first (this should already be loaded in memory)
+            // For artist entities, use the same method as EntityDetailView
+            if filterType == .artists && item.artistId != nil {
+                return getTracksForArtistEntity(filterValue)
+            }
+            
+            // For album entities with albumId, use the dedicated method
+            if filterType == .albums && item.albumId != nil {
+                // Try to reconstruct the AlbumEntity to use the proper method
+                if let albumEntity = getAlbumEntities().first(where: {
+                    $0.albumId == item.albumId && $0.name == filterValue
+                }) {
+                    return getTracksForAlbumEntity(albumEntity)
+                }
+            }
+            
+            // Fallback to the original filter-based method
             let allTracks = getAllTracks()
             return allTracks.filter { track in
                 filterType.trackMatches(track, filterValue: filterValue)
