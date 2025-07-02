@@ -123,10 +123,73 @@ erDiagram
         DATETIME date_updated "NOT NULL"
         BLOB bookmark_data "Security-scoped bookmark"
     }
-    
+
+    artists {
+        INTEGER id PK "AUTO_INCREMENT"
+        TEXT name "NOT NULL"
+        TEXT normalized_name "NOT NULL"
+        TEXT sort_name
+        BLOB artwork_data
+        TEXT bio
+        TEXT bio_source
+        DATETIME bio_updated_at
+        TEXT image_url
+        TEXT image_source
+        DATETIME image_updated_at
+        TEXT discogs_id
+        TEXT musicbrainz_id
+        TEXT spotify_id
+        TEXT apple_music_id
+        TEXT country
+        INTEGER formed_year
+        INTEGER disbanded_year
+        TEXT genres "JSON array"
+        TEXT websites "JSON array"
+        TEXT members "JSON array"
+        INTEGER total_tracks "NOT NULL DEFAULT 0"
+        INTEGER total_albums "NOT NULL DEFAULT 0"
+        DATETIME created_at "NOT NULL"
+        DATETIME updated_at "NOT NULL"
+    }
+
+    albums {
+        INTEGER id PK "AUTO_INCREMENT"
+        TEXT title "NOT NULL"
+        TEXT normalized_title "NOT NULL"
+        TEXT sort_title
+        INTEGER artist_id FK
+        BLOB artwork_data
+        TEXT release_date
+        INTEGER release_year
+        TEXT album_type
+        INTEGER total_tracks
+        INTEGER total_discs
+        TEXT description
+        TEXT review
+        TEXT review_source
+        TEXT cover_art_url
+        TEXT thumbnail_url
+        TEXT discogs_id
+        TEXT musicbrainz_id
+        TEXT spotify_id
+        TEXT apple_music_id
+        TEXT label
+        TEXT catalog_number
+        TEXT barcode
+        TEXT genres "JSON array"
+        DATETIME created_at "NOT NULL"
+        DATETIME updated_at "NOT NULL"
+    }
+
+    genres {
+        INTEGER id PK "AUTO_INCREMENT"
+        TEXT name "NOT NULL UNIQUE"
+    }
+
     tracks {
         INTEGER id PK "AUTO_INCREMENT"
         INTEGER folder_id FK "NOT NULL"
+        INTEGER album_id FK
         TEXT path "NOT NULL UNIQUE"
         TEXT filename "NOT NULL"
         TEXT title
@@ -166,30 +229,66 @@ erDiagram
         TEXT sort_album_artist
         TEXT extended_metadata "JSON"
     }
-    
+
     playlists {
-        TEXT id PK "UUID string"
+        TEXT id PK "UUID"
         TEXT name "NOT NULL"
         TEXT type "NOT NULL (regular/smart)"
-        TEXT smart_type "favorites/mostPlayed/recentlyPlayed/custom"
         BOOLEAN is_user_editable "NOT NULL"
         BOOLEAN is_content_editable "NOT NULL"
         DATETIME date_created "NOT NULL"
         DATETIME date_modified "NOT NULL"
         BLOB cover_artwork_data
-        TEXT smart_criteria "JSON for smart playlists"
+        TEXT smart_criteria "JSON"
+        INTEGER sort_order "NOT NULL DEFAULT 0"
     }
-    
+
     playlist_tracks {
         TEXT playlist_id FK "NOT NULL"
         INTEGER track_id FK "NOT NULL"
         INTEGER position "NOT NULL"
+        DATETIME date_added "NOT NULL"
     }
-    
+
+    track_artists {
+        INTEGER track_id FK "NOT NULL"
+        INTEGER artist_id FK "NOT NULL"
+        TEXT role "NOT NULL DEFAULT 'artist'"
+        INTEGER position "NOT NULL DEFAULT 0"
+    }
+
+    track_genres {
+        INTEGER track_id FK "NOT NULL"
+        INTEGER genre_id FK "NOT NULL"
+    }
+
+    pinned_items {
+        INTEGER id PK "AUTO_INCREMENT"
+        TEXT item_type "NOT NULL (library/playlist)"
+        TEXT filter_type "For library items"
+        TEXT filter_value "Artist/album name"
+        TEXT entity_id "UUID for entities"
+        INTEGER artist_id "Database ID"
+        INTEGER album_id "Database ID"
+        TEXT playlist_id "For playlist items"
+        TEXT display_name "NOT NULL"
+        TEXT subtitle "For albums"
+        TEXT icon_name "NOT NULL"
+        INTEGER sort_order "NOT NULL DEFAULT 0"
+        DATETIME date_added "NOT NULL"
+    }
+
     folders ||--o{ tracks : contains
-    playlists ||--o{ playlist_tracks : has
-    tracks ||--o{ playlist_tracks : "belongs to"
+    artists ||--o{ albums : "has albums"
+    albums ||--o{ tracks : contains
+    artists ||--o{ track_artists : "appears in"
+    tracks ||--o{ track_artists : "has artists"
+    genres ||--o{ track_genres : "categorizes"
+    tracks ||--o{ track_genres : "has genres"
+    playlists ||--o{ playlist_tracks : contains
+    tracks ||--o{ playlist_tracks : "appears in"
 ```
+
 </details>
 
 ### Built With
