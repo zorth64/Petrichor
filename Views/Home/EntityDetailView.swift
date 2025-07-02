@@ -3,7 +3,7 @@ import SwiftUI
 struct EntityDetailView: View {
     let entity: Entity
     let viewType: LibraryViewType
-    let onBack: () -> Void
+    let onBack: (() -> Void)?
     
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
@@ -56,28 +56,30 @@ struct EntityDetailView: View {
         PlaylistHeader {
             HStack(alignment: .top, spacing: 20) {
                 // Back button
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .frame(width: 28, height: 28)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(isBackButtonHovered ? Color(NSColor.controlAccentColor).opacity(0.15) : Color.clear)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .strokeBorder(
-                                    isBackButtonHovered ? Color(NSColor.controlAccentColor).opacity(0.3) : Color.clear,
-                                    lineWidth: 1
-                                )
-                        )
+                if let onBack = onBack {
+                    Button(action: onBack) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .frame(width: 28, height: 28)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(isBackButtonHovered ? Color(NSColor.controlAccentColor).opacity(0.15) : Color.clear)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .strokeBorder(
+                                        isBackButtonHovered ? Color(NSColor.controlAccentColor).opacity(0.3) : Color.clear,
+                                        lineWidth: 1
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        isBackButtonHovered = hovering
+                    }
+                    .help("Back to all \(entity is ArtistEntity ? "artists" : "albums")")
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    isBackButtonHovered = hovering
-                }
-                .help("Back to all \(entity is ArtistEntity ? "artists" : "albums")")
                 
                 // Artwork
                 entityArtwork

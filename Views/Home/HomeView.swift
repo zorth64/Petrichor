@@ -301,73 +301,108 @@ struct HomeView: View {
     }
     
     // MARK: - Pinned Item Tracks View
-
+    
     private var pinnedItemTracksView: some View {
         VStack(spacing: 0) {
-            // Header
             if let selectedItem = selectedSidebarItem,
                case .pinned(let pinnedItem) = selectedItem.source {
-                if viewType == .table {
-                    TrackListHeader(
-                        title: pinnedItem.displayName,
-                        subtitle: nil,
-                        trackCount: sortedTracks.count
-                    ) {
-                        TrackTableColumnMenu()
-                    }
-                } else {
-                    TrackListHeader(
-                        title: pinnedItem.displayName,
-                        subtitle: nil,
-                        trackCount: sortedTracks.count
-                    ) {
-                        Button(action: {
-                            trackListSortAscending.toggle()
-                            sortTracks()
-                        }) {
-                            Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
-                                .renderingMode(.template)
-                                .scaleEffect(0.8)
+                // Check if it's a playlist
+                if pinnedItem.itemType == .playlist,
+                   let playlistId = pinnedItem.playlistId,
+                   let playlist = playlistManager.playlists.first(where: { $0.id == playlistId }) {
+                    // Use PlaylistDetailView for playlists
+                    PlaylistDetailView(playlist: playlist, viewType: viewType)
+                }
+                // Check if it's an artist entity
+                else if pinnedItem.filterType == .artists,
+                         pinnedItem.entityId != nil || pinnedItem.artistId != nil,  // Add this check
+                         let artistEntity = libraryManager.artistEntities.first(where: { $0.name == pinnedItem.filterValue }) {
+                    // Use EntityDetailView for artist entity
+                    EntityDetailView(
+                        entity: artistEntity,
+                        viewType: viewType,
+                        onBack: nil
+                    )
+                }
+                // Check if it's an album entity
+                else if pinnedItem.filterType == .albums,
+                         pinnedItem.entityId != nil || pinnedItem.albumId != nil,  // Add this check
+                         let albumEntity = libraryManager.albumEntities.first(where: {
+                             $0.name == pinnedItem.filterValue &&
+                             (pinnedItem.albumId == nil || $0.albumId == pinnedItem.albumId)
+                         }) {
+                    // Use EntityDetailView for album entity
+                    EntityDetailView(
+                        entity: albumEntity,
+                        viewType: viewType,
+                        onBack: nil
+                    )
+                }
+                // Use default header for library items
+                else {
+                    // Header
+                    if viewType == .table {
+                        TrackListHeader(
+                            title: pinnedItem.displayName,
+                            subtitle: nil,
+                            trackCount: sortedTracks.count
+                        ) {
+                            TrackTableColumnMenu()
                         }
-                        .buttonStyle(.borderless)
-                        .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                    } else {
+                        TrackListHeader(
+                            title: pinnedItem.displayName,
+                            subtitle: nil,
+                            trackCount: sortedTracks.count
+                        ) {
+                            Button(action: {
+                                trackListSortAscending.toggle()
+                                sortTracks()
+                            }) {
+                                Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                                    .renderingMode(.template)
+                                    .scaleEffect(0.8)
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                        }
                     }
-                }
-            }
-
-            Divider()
-
-            // Track list
-            if sortedTracks.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "pin.slash")
-                        .font(.system(size: 48))
-                        .foregroundColor(.gray)
-
-                    Text("No tracks found")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.textBackgroundColor))
-            } else {
-                TrackView(
-                    tracks: sortedTracks,
-                    viewType: viewType,
-                    selectedTrackID: $selectedTrackID,
-                    onPlayTrack: { track in
-                        playlistManager.playTrack(track, fromTracks: sortedTracks)
-                    },
-                    contextMenuItems: { track in
-                        TrackContextMenu.createMenuItems(
-                            for: track,
-                            audioPlayerManager: audioPlayerManager,
-                            playlistManager: playlistManager,
-                            currentContext: .library
+                    
+                    Divider()
+                    
+                    // Track list
+                    if sortedTracks.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "pin.slash")
+                                .font(.system(size: 48))
+                                .foregroundColor(.gray)
+                            
+                            Text("No tracks found")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(NSColor.textBackgroundColor))
+                    } else {
+                        TrackView(
+                            tracks: sortedTracks,
+                            viewType: viewType,
+                            selectedTrackID: $selectedTrackID,
+                            onPlayTrack: { track in
+                                playlistManager.playTrack(track, fromTracks: sortedTracks)
+                            },
+                            contextMenuItems: { track in
+                                TrackContextMenu.createMenuItems(
+                                    for: track,
+                                    audioPlayerManager: audioPlayerManager,
+                                    playlistManager: playlistManager,
+                                    currentContext: .library
+                                )
+                            }
                         )
+                        .background(Color(NSColor.textBackgroundColor))
                     }
-                )
-                .background(Color(NSColor.textBackgroundColor))
+                }
             }
         }
     }
@@ -407,8 +442,8 @@ struct HomeView: View {
         } else {
             // Otherwise sort all library tracks
             sortedTracks = trackListSortAscending
-                ? libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-                : libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
+            ? libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            : libraryManager.tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
         }
     }
     
@@ -442,14 +477,14 @@ struct HomeView: View {
         }
         
         sortedTracks = trackListSortAscending
-            ? tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-            : tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
+        ? tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        : tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
     }
     
     private func createAlbumContextMenuItems(for album: AlbumEntity) -> [ContextMenuItem] {
         [libraryManager.createPinContextMenuItem(for: album)]
     }
-
+    
     private func createArtistContextMenuItems(for artist: ArtistEntity) -> [ContextMenuItem] {
         [libraryManager.createPinContextMenuItem(for: artist)]
     }
