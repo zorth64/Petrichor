@@ -100,7 +100,6 @@ struct SidebarListView<Item: SidebarItem>: View {
                         isEditingFieldFocused: _isEditingFieldFocused,
                         showIcon: showIcon,
                         iconColor: iconColor,
-                        showCount: showCount,
                         trailingContent: trailingContent,
                         onTap: {
                             handleItemTap(item)
