@@ -5,7 +5,7 @@ struct LibraryView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @State private var selectedTrackID: UUID?
-    @State private var selectedFilterType: LibraryFilterType = .artists
+    @AppStorage("librarySelectedFilterType") private var selectedFilterType: LibraryFilterType = .artists
     @State private var selectedFilterItem: LibraryFilterItem?
     @State private var showingCreatePlaylistWithTrack = false
     @State private var trackToAddToNewPlaylist: Track?
