@@ -5,6 +5,7 @@ struct TrackView: View {
     let tracks: [Track]
     let viewType: LibraryViewType
     @Binding var selectedTrackID: UUID?
+    let playlistID: UUID?
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
 
@@ -27,6 +28,7 @@ struct TrackView: View {
         case .table:
             TrackTableView(
                 tracks: tracks,
+                playlistID: playlistID,
                 onPlayTrack: onPlayTrack,
                 contextMenuItems: contextMenuItems
             )
@@ -86,12 +88,11 @@ struct TrackContextMenuContent: View {
         return track
     }
 
-    @State var selectedTrackID: UUID?
-
-    return TrackView(
+    TrackView(
         tracks: sampleTracks,
         viewType: .list,
-        selectedTrackID: $selectedTrackID,
+        selectedTrackID: .constant(nil),
+        playlistID: nil,
         onPlayTrack: { track in
             print("Playing \(track.title)")
         },
@@ -112,12 +113,11 @@ struct TrackContextMenuContent: View {
         return track
     }
 
-    @State var selectedTrackID: UUID?
-
-    return TrackView(
+    TrackView(
         tracks: sampleTracks,
         viewType: .grid,
-        selectedTrackID: $selectedTrackID,
+        selectedTrackID: .constant(nil),
+        playlistID: nil,
         onPlayTrack: { track in
             print("Playing \(track.title)")
         },
@@ -140,12 +140,40 @@ struct TrackContextMenuContent: View {
         return track
     }
 
-    @State var selectedTrackID: UUID?
-
-    return TrackView(
+    TrackView(
         tracks: sampleTracks,
         viewType: .table,
-        selectedTrackID: $selectedTrackID,
+        selectedTrackID: .constant(nil),
+        playlistID: nil,
+        onPlayTrack: { track in
+            print("Playing \(track.title)")
+        },
+        contextMenuItems: { _ in [] }
+    )
+    .frame(height: 600)
+    .environmentObject(AudioPlayerManager(libraryManager: LibraryManager(), playlistManager: PlaylistManager()))
+}
+
+#Preview("Table View with Playlist") {
+    let sampleTracks = (0..<10).map { i in
+        let track = Track(url: URL(fileURLWithPath: "/path/to/sample\(i).mp3"))
+        track.title = "Playlist Song \(i)"
+        track.artist = "Artist \(i % 3)"
+        track.album = "Album \(i % 2)"
+        track.genre = "Genre"
+        track.year = "202\(i % 10)"
+        track.duration = Double(180 + i * 10)
+        track.isMetadataLoaded = true
+        return track
+    }
+
+    let playlistID = UUID()
+
+    TrackView(
+        tracks: sampleTracks,
+        viewType: .table,
+        selectedTrackID: .constant(nil),
+        playlistID: nil,
         onPlayTrack: { track in
             print("Playing \(track.title)")
         },

@@ -24,6 +24,7 @@ class ContextMenuHeaderView: NSTableHeaderView {
 
 struct TrackTableView: NSViewRepresentable {
     let tracks: [Track]
+    let playlistID: UUID?
     let onPlayTrack: (Track) -> Void
     let contextMenuItems: (Track) -> [ContextMenuItem]
 
@@ -73,9 +74,26 @@ struct TrackTableView: NSViewRepresentable {
         // Set up columns
         setupColumns(tableView: tableView)
 
-        if let savedSort = UserDefaults.standard.dictionary(forKey: "trackTableSortOrder"),
-           let key = savedSort["key"] as? String,
-           let ascending = savedSort["ascending"] as? Bool {
+        if let playlistID = playlistID {
+            // For playlists, load from PlaylistSortManager
+            let sortCriteria = PlaylistSortManager.shared.getSortCriteria(for: playlistID)
+            let isAscending = PlaylistSortManager.shared.getSortAscending(for: playlistID)
+            
+            switch sortCriteria {
+            case .dateAdded:
+                // Don't apply any sort descriptor for date added
+                // The tracks should already be in the correct order
+                break
+            case .title:
+                tableView.sortDescriptors = [NSSortDescriptor(key: "title", ascending: isAscending)]
+            case .custom:
+                if let customColumn = PlaylistSortManager.shared.getCustomSortColumn(for: playlistID) {
+                    tableView.sortDescriptors = [NSSortDescriptor(key: customColumn, ascending: isAscending)]
+                }
+            }
+        } else if let savedSort = UserDefaults.standard.dictionary(forKey: "trackTableSortOrder"),
+                  let key = savedSort["key"] as? String,
+                  let ascending = savedSort["ascending"] as? Bool {
             tableView.sortDescriptors = [NSSortDescriptor(key: key, ascending: ascending)]
         }
 
@@ -188,6 +206,7 @@ struct TrackTableView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator(
             tracks: tracks,
+            playlistID: playlistID,
             onPlayTrack: onPlayTrack,
             audioPlayerManager: audioPlayerManager,
             contextMenuItems: contextMenuItems,
@@ -306,6 +325,8 @@ struct TrackTableView: NSViewRepresentable {
         var sortedTracks: [Track] = []
         var hoveredRow: Int?
         var isPlaying: Bool = false
+        let playlistID: UUID?
+        let playlistSortManager = PlaylistSortManager.shared
         let onPlayTrack: (Track) -> Void
         var audioPlayerManager: AudioPlayerManager
         let contextMenuItems: (Track) -> [ContextMenuItem]
@@ -324,12 +345,14 @@ struct TrackTableView: NSViewRepresentable {
         private weak var hostTableView: NSTableView?
 
         init(tracks: [Track],
+             playlistID: UUID?,
              onPlayTrack: @escaping (Track) -> Void,
              audioPlayerManager: AudioPlayerManager,
              contextMenuItems: @escaping (Track) -> [ContextMenuItem],
              columnVisibility: TrackTableColumnVisibility) {
             self.tracks = tracks
             self.sortedTracks = tracks
+            self.playlistID = playlistID
             self.onPlayTrack = onPlayTrack
             self.audioPlayerManager = audioPlayerManager
             self.contextMenuItems = contextMenuItems
@@ -480,6 +503,19 @@ struct TrackTableView: NSViewRepresentable {
         }
 
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+            // For playlists with date added sorting, don't apply table sorting
+            if let playlistID = playlistID {
+                let sortCriteria = playlistSortManager.getSortCriteria(for: playlistID)
+                if sortCriteria == .dateAdded {
+                    // Clear sort descriptors to show we're not sorting by any column
+                    tableView.sortDescriptors = []
+                    // Keep the original track order
+                    sortedTracks = tracks
+                    tableView.reloadData()
+                    return
+                }
+            }
+            
             guard let descriptor = tableView.sortDescriptors.first,
                   let key = descriptor.key else {
                 sortedTracks = tracks
@@ -707,8 +743,20 @@ struct TrackTableView: NSViewRepresentable {
         }
 
         private func saveSortOrder(key: String, ascending: Bool) {
-            let storage = ["key": key, "ascending": ascending] as [String: Any]
-            UserDefaults.standard.set(storage, forKey: "trackTableSortOrder")
+            if let playlistID = playlistID {
+                // For playlists, update the sort manager
+                if key == "title" {
+                    playlistSortManager.setSortCriteria(.title, for: playlistID)
+                } else {
+                    // Any other column triggers custom sorting
+                    playlistSortManager.setCustomSortColumn(key, for: playlistID)
+                }
+                playlistSortManager.setSortAscending(ascending, for: playlistID)
+            } else {
+                // For non-playlist views, use the existing behavior
+                let storage = ["key": key, "ascending": ascending] as [String: Any]
+                UserDefaults.standard.set(storage, forKey: "trackTableSortOrder")
+            }
         }
 
         private func formatDuration(_ seconds: Double) -> String {

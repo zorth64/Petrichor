@@ -6,6 +6,7 @@ struct PlaylistDetailView: View {
 
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
+    @StateObject private var playlistSortManager = PlaylistSortManager.shared
     @State private var selectedTrackID: UUID?
     @State private var showingCreatePlaylistWithTrack = false
     @State private var trackToAddToNewPlaylist: Track?
@@ -74,6 +75,15 @@ struct PlaylistDetailView: View {
 
                     Spacer()
                 }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                HStack(spacing: 12) {
+                    PlaylistSortDropdown(
+                        playlistID: playlistID,
+                        viewType: viewType
+                    )
+                }
+                .padding([.bottom, .trailing], 12)
             }
         }
     }
@@ -200,9 +210,10 @@ struct PlaylistDetailView: View {
                 emptyPlaylistView
             } else {
                 TrackView(
-                    tracks: playlist?.tracks ?? [],
+                    tracks: sortedTracks,
                     viewType: viewType,
                     selectedTrackID: $selectedTrackID,
+                    playlistID: playlistID,
                     onPlayTrack: { track in
                         if let playlist = playlist,
                            let index = playlist.tracks.firstIndex(of: track) {
@@ -390,6 +401,32 @@ struct PlaylistDetailView: View {
     
     private var isPinned: Bool {
         playlistManager.isPlaylistPinned(playlist ?? Playlist(name: "", tracks: []))
+    }
+    
+    private var sortedTracks: [Track] {
+        guard let playlist = playlist else { return [] }
+        
+        let sortCriteria = playlistSortManager.getSortCriteria(for: playlistID)
+        let isAscending = playlistSortManager.getSortAscending(for: playlistID)
+        
+        switch sortCriteria {
+        case .dateAdded:
+            // For date added, we need to maintain the playlist order
+            // In ascending order, first added (position 0) comes first
+            // In descending order, last added comes first
+            return isAscending ? playlist.tracks : playlist.tracks.reversed()
+            
+        case .title:
+            return playlist.tracks.sorted { track1, track2 in
+                let comparison = track1.title.localizedCaseInsensitiveCompare(track2.title)
+                return isAscending ? comparison == .orderedAscending : comparison == .orderedDescending
+            }
+            
+        case .custom:
+            // For custom sorting (table view column sorting),
+            // we'll handle this in the table view itself
+            return playlist.tracks
+        }
     }
 
     // MARK: - Action Methods

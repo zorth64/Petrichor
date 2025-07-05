@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct EntityDetailView: View {
+    @AppStorage("trackListSortAscending") private var trackListSortAscending = true
+
     let entity: Entity
     let viewType: LibraryViewType
     let onBack: (() -> Void)?
@@ -27,9 +29,10 @@ struct EntityDetailView: View {
                 emptyView
             } else {
                 TrackView(
-                    tracks: tracks,
+                    tracks: sortedTracks,
                     viewType: viewType,
                     selectedTrackID: $selectedTrackID,
+                    playlistID: nil,
                     onPlayTrack: { track in
                         playTrack(track)
                     },
@@ -93,6 +96,27 @@ struct EntityDetailView: View {
                 Spacer()
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            HStack(spacing: 12) {
+                // Sort button for list/grid views
+                if viewType != .table {
+                    Button(action: { trackListSortAscending.toggle() }) {
+                        Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                            .renderingMode(.template)
+                            .scaleEffect(0.8)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Sort tracks \(trackListSortAscending ? "descending" : "ascending")")
+                }
+            }
+            .padding([.bottom, .trailing], 12)
+        }
+    }
+    
+    private var sortedTracks: [Track] {
+        trackListSortAscending
+            ? tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+            : tracks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedDescending }
     }
     
     private var entityArtwork: some View {
@@ -315,20 +339,20 @@ struct EntityDetailView: View {
     }
 
     private func playEntity() {
-        guard !tracks.isEmpty else { return }
+        guard !sortedTracks.isEmpty else { return }
         // Play the first track with all tracks as context
-        playlistManager.playTrack(tracks[0], fromTracks: tracks)
-        selectedTrackID = tracks[0].id
+        playlistManager.playTrack(sortedTracks[0], fromTracks: sortedTracks)
+        selectedTrackID = sortedTracks[0].id
     }
 
     private func shuffleEntity() {
-        guard !tracks.isEmpty else { return }
+        guard !sortedTracks.isEmpty else { return }
         // Enable shuffle first
         if !playlistManager.isShuffleEnabled {
             playlistManager.toggleShuffle()
         }
         // Play the first track with all tracks as context
-        playlistManager.playTrack(tracks[0], fromTracks: tracks)
+        playlistManager.playTrack(sortedTracks[0], fromTracks: sortedTracks)
         // The selected track ID should be the first track in the shuffled queue
         if let firstTrack = playlistManager.currentQueue.first {
             selectedTrackID = firstTrack.id

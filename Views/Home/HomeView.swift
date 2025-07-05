@@ -167,6 +167,7 @@ struct HomeView: View {
                     tracks: sortedTracks,
                     viewType: viewType,
                     selectedTrackID: $selectedTrackID,
+                    playlistID: nil,
                     onPlayTrack: { track in
                         playlistManager.playTrack(track, fromTracks: sortedTracks)
                     },
@@ -388,6 +389,7 @@ struct HomeView: View {
                             tracks: sortedTracks,
                             viewType: viewType,
                             selectedTrackID: $selectedTrackID,
+                            playlistID: nil,
                             onPlayTrack: { track in
                                 playlistManager.playTrack(track, fromTracks: sortedTracks)
                             },
