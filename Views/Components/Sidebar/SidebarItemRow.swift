@@ -204,7 +204,7 @@ struct SidebarItemRow<Item: SidebarItem>: View {
         if isSelected {
             return Color.accentColor
         } else if isHovered {
-            return Color.gray.opacity(0.1)
+            return Color.accentColor.opacity(0.1)
         } else {
             return Color.clear
         }
