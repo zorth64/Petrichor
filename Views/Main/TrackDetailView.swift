@@ -38,17 +38,19 @@ struct TrackDetailView: View {
 
     private var headerSection: some View {
         ListHeader {
-            Text("Track Info")
-                .headerTitleStyle()
+            HStack(spacing: 12) {
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                Text("Track Info")
+                    .headerTitleStyle()
+            }
 
             Spacer()
-
-            Button(action: onClose) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
         }
     }
 

@@ -128,7 +128,7 @@ struct ContentView: View {
     @ViewBuilder
     private var sidePanel: some View {
         if showingQueue {
-            PlayQueueView()
+            PlayQueueView(showingQueue: $showingQueue)
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing),
                     removal: .move(edge: .trailing)
@@ -244,14 +244,18 @@ struct ContentView: View {
     // MARK: - Helper Methods
 
     private func showTrackDetail(for track: Track) {
-        showingQueue = false
-        detailTrack = track
-        showingTrackDetail = true
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showingQueue = false
+            detailTrack = track
+            showingTrackDetail = true
+        }
     }
 
     private func hideTrackDetail() {
-        showingTrackDetail = false
-        detailTrack = nil
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showingTrackDetail = false
+            detailTrack = nil
+        }
     }
 }
 

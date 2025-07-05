@@ -7,6 +7,7 @@ struct PlayQueueView: View {
     @State private var draggedTrack: Track?
     @State private var showingClearConfirmation = false
     @State private var hasAppeared = false
+    @Binding var showingQueue: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,8 +48,21 @@ struct PlayQueueView: View {
 
     private var queueHeader: some View {
         ListHeader {
-            Text("Play Queue")
-                .headerTitleStyle()
+            HStack(spacing: 12) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showingQueue = false
+                    }
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                Text("Play Queue")
+                    .headerTitleStyle()
+            }
 
             Spacer()
 
@@ -333,29 +347,48 @@ struct QueueDropDelegate: DropDelegate {
     }
 }
 
+// MARK: - Preview
+
 #Preview {
-    PlayQueueView()
+    @State var showingQueue = true
+    
+    return PlayQueueView(showingQueue: $showingQueue)
         .environmentObject({
-            let coordinator = AppCoordinator()
+            let audioPlayerManager = AudioPlayerManager(
+                libraryManager: LibraryManager(),
+                playlistManager: PlaylistManager()
+            )
+            return audioPlayerManager
+        }())
+        .environmentObject({
+            let playlistManager = PlaylistManager()
             // Add some sample tracks to the queue for preview
-            let sampleTrack1 = Track(url: URL(fileURLWithPath: "/sample1.mp3"))
-            sampleTrack1.title = "Sample Song 1"
-            sampleTrack1.artist = "Sample Artist"
-            sampleTrack1.duration = 180
-
-            let sampleTrack2 = Track(url: URL(fileURLWithPath: "/sample2.mp3"))
-            sampleTrack2.title = "Sample Song 2"
-            sampleTrack2.artist = "Another Artist"
-            sampleTrack2.duration = 240
-
-            coordinator.playlistManager.currentQueue = [sampleTrack1, sampleTrack2]
-            coordinator.playlistManager.currentQueueIndex = 0
-
-            return coordinator.playlistManager
+            let sampleTracks = (0..<5).map { i in
+                let track = Track(url: URL(fileURLWithPath: "/path/to/sample\(i).mp3"))
+                track.title = "Sample Song \(i)"
+                track.artist = "Sample Artist"
+                track.album = "Sample Album"
+                track.duration = 180.0 + Double(i * 30)
+                track.isMetadataLoaded = true
+                return track
+            }
+            playlistManager.currentQueue = sampleTracks
+            return playlistManager
         }())
+        .frame(width: 350, height: 600)
+}
+
+#Preview("Empty Queue") {
+    @State var showingQueue = true
+    
+    return PlayQueueView(showingQueue: $showingQueue)
         .environmentObject({
-            let coordinator = AppCoordinator()
-            return coordinator.audioPlayerManager
+            let audioPlayerManager = AudioPlayerManager(
+                libraryManager: LibraryManager(),
+                playlistManager: PlaylistManager()
+            )
+            return audioPlayerManager
         }())
+        .environmentObject(PlaylistManager())
         .frame(width: 350, height: 600)
 }
