@@ -55,6 +55,9 @@ struct ContentView: View {
         .onAppear(perform: handleOnAppear)
         .onReceive(NotificationCenter.default.publisher(for: .goToLibraryFilter), perform: handleLibraryFilter)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowTrackInfo")), perform: handleShowTrackInfo)
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenSettings"))) { _ in
+            showingSettings = true
+        }
         .onChange(of: libraryManager.globalSearchText) { newValue in
             if !newValue.isEmpty && selectedTab != .library {
                 withAnimation(.easeInOut(duration: 0.25)) {

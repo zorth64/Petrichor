@@ -18,24 +18,30 @@ struct PetrichorApp: App {
         .windowResizability(.contentMinSize)
         .handlesExternalEvents(matching: Set(arrayLiteral: "main"))
         .commands {
-            // Add custom menu commands
-            CommandGroup(replacing: .newItem) {
+            // Remove the default Preferences menu item
+            CommandGroup(replacing: .appSettings) {}
+            
+            // Add custom menu items under Petrichor menu
+            CommandGroup(after: .appInfo) {
+                Button("Settings") {
+                    NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
+                }
+                .keyboardShortcut(",", modifiers: .command)
+                
+                Divider()
+                
                 Button("Add Folder") {
                     appCoordinator.libraryManager.addFolder()
                 }
                 .keyboardShortcut("o", modifiers: [.command])
-            }
-
-            CommandGroup(after: .newItem) {
-                Divider()
-
+                
                 Button("Play/Pause") {
                     appCoordinator.audioPlayerManager.togglePlayPause()
                 }
                 .keyboardShortcut("p", modifiers: [.command])
-            }
-
-            CommandGroup(replacing: .appTermination) {
+                
+                Divider()
+                
                 Button("Quit Petrichor") {
                     // Ensure database is saved before quitting
                     if let coordinator = AppCoordinator.shared {
@@ -46,12 +52,5 @@ struct PetrichorApp: App {
                 .keyboardShortcut("q", modifiers: .command)
             }
         }
-
-#if os(macOS)
-        Settings {
-            SettingsView()
-                .environmentObject(appCoordinator.libraryManager)
-        }
-#endif
     }
 }

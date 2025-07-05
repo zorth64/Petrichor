@@ -41,12 +41,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        print("App finished launching")
+        NSWindow.allowsAutomaticWindowTabbing = false
+        
+        // Remove unwanted menus
+        DispatchQueue.main.async {
+            self.removeUnwantedMenus()
+        }
 
         // Ensure main window is visible
         if let window = NSApp.windows.first {
             window.makeKeyAndOrderFront(nil)
         }
+        
+        print("App finished launching")
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -74,5 +81,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return false
         }
         return true
+    }
+    
+    private func removeUnwantedMenus() {
+        guard let mainMenu = NSApp.mainMenu else { return }
+        
+        // Remove File menu
+        if let fileMenu = mainMenu.item(withTitle: "File") {
+            mainMenu.removeItem(fileMenu)
+        }
+        
+        // Remove Edit menu
+        if let editMenu = mainMenu.item(withTitle: "Edit") {
+            mainMenu.removeItem(editMenu)
+        }
+        
+        // Remove Format menu
+        if let formatMenu = mainMenu.item(withTitle: "Format") {
+            mainMenu.removeItem(formatMenu)
+        }
+        
+        // Modify View menu
+        if let viewMenu = mainMenu.item(withTitle: "View"),
+           let viewSubmenu = viewMenu.submenu {
+            // Remove tab-related items
+            if let showTabBar = viewSubmenu.item(withTitle: "Show Tab Bar") {
+                viewSubmenu.removeItem(showTabBar)
+            }
+            if let showAllTabs = viewSubmenu.item(withTitle: "Show All Tabs") {
+                viewSubmenu.removeItem(showAllTabs)
+            }
+        }
     }
 }
