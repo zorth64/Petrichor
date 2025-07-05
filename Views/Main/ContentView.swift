@@ -275,6 +275,8 @@ struct WindowAccessor: NSViewRepresentable {
                 window.identifier = NSUserInterfaceItemIdentifier("MainWindow")
                 window.setFrameAutosaveName("MainWindow")
                 WindowManager.shared.mainWindow = window
+                window.title = ""
+                window.isExcludedFromWindowsMenu = true
             }
         }
         return view
