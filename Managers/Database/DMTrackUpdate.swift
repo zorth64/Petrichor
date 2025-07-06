@@ -4,7 +4,7 @@ import GRDB
 extension DatabaseManager {
     // Updates a track's favorite status
     func updateTrackFavoriteStatus(trackId: Int64, isFavorite: Bool) async throws {
-        try await dbQueue.write { db in
+        _ = try await dbQueue.write { db in
             try Track
                 .filter(Track.Columns.trackId == trackId)
                 .updateAll(db, Track.Columns.isFavorite.set(to: isFavorite))
@@ -13,7 +13,7 @@ extension DatabaseManager {
 
     // Updates a track's play count and last played date
     func updateTrackPlayInfo(trackId: Int64, playCount: Int, lastPlayedDate: Date) async throws {
-        try await dbQueue.write { db in
+        _ = try await dbQueue.write { db in
             try Track
                 .filter(Track.Columns.trackId == trackId)
                 .updateAll(db,
@@ -25,7 +25,7 @@ extension DatabaseManager {
 
     // Batch update for track properties (more efficient for multiple updates)
     func updateTrack(_ track: Track) async throws {
-        guard let trackId = track.trackId else {
+        guard track.trackId != nil else {
             throw DatabaseError.invalidTrackId
         }
 

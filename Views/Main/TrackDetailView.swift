@@ -72,7 +72,7 @@ struct TrackDetailView: View {
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 250, height: 250)
                     .overlay(
-                        Image(systemName: "music.note")
+                        Image(systemName: Icons.musicNote)
                             .font(.system(size: 60))
                             .foregroundColor(.secondary)
                     )
@@ -260,7 +260,7 @@ struct TrackDetailView: View {
         let totalSeconds = Int(max(0, seconds))
         let minutes = totalSeconds / 60
         let remainingSeconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
+        return String(format: StringFormat.mmss, minutes, remainingSeconds)
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -286,7 +286,7 @@ private struct FileDetailsSection: View {
                 }
             }) {
                 HStack {
-                    Image(systemName: "chevron.right")
+                    Image(systemName: Icons.chevronRight)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .font(.system(size: 12))
 

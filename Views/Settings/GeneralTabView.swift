@@ -71,7 +71,7 @@ struct GeneralTabView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .padding()
-        .onChange(of: colorMode) { newValue in
+        .onChange(of: colorMode) { _, newValue in
             updateAppearance(newValue)
         }
         .onAppear {

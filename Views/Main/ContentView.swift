@@ -58,14 +58,14 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenSettings"))) { _ in
             showingSettings = true
         }
-        .onChange(of: libraryManager.globalSearchText) { newValue in
+        .onChange(of: libraryManager.globalSearchText) { _, newValue in
             if !newValue.isEmpty && selectedTab != .library {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     selectedTab = .library
                 }
             }
         }
-        .onChange(of: showFoldersTab) { newValue in
+        .onChange(of: showFoldersTab) { _, newValue in
             if !newValue && selectedTab == .folders {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     selectedTab = .home
@@ -214,7 +214,7 @@ struct ContentView: View {
         .background(
             Circle()
                 .fill(Color.gray.opacity(isSettingsHovered ? 0.1 : 0))
-                .animation(.easeInOut(duration: 0.15), value: isSettingsHovered)
+                .animation(.easeInOut(duration: AnimationDuration.standardDuration), value: isSettingsHovered)
         )
         .onHover { hovering in
             isSettingsHovered = hovering

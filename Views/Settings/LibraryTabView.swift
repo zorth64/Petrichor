@@ -29,11 +29,11 @@ struct LibraryTabView: View {
         .onDisappear {
             scanningStateTimer?.invalidate()
         }
-        .onChange(of: libraryManager.isScanning) { newValue in
+        .onChange(of: libraryManager.isScanning) { _, newValue in
             updateStableScanningState(newValue || libraryManager.isBackgroundScanning)
             updateStableRefreshState(newValue || libraryManager.isBackgroundScanning)
         }
-        .onChange(of: libraryManager.isBackgroundScanning) { newValue in
+        .onChange(of: libraryManager.isBackgroundScanning) { _, newValue in
             updateStableScanningState(newValue || libraryManager.isScanning)
             updateStableRefreshState(newValue || libraryManager.isScanning)
         }
@@ -373,7 +373,7 @@ private struct CompactFolderRowView: View {
         HStack(spacing: 12) {
             // Selection checkbox (only in select mode)
             if isSelectMode {
-                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                Image(systemName: isSelected ? Icons.checkmarkSquareFill : Icons.square)
                     .font(.system(size: 16))
                     .foregroundColor(isSelected ? .accentColor : .secondary)
                     .onTapGesture {
@@ -382,7 +382,7 @@ private struct CompactFolderRowView: View {
             }
 
             // Folder icon
-            Image(systemName: "folder.fill")
+            Image(systemName: Icons.folderFill)
                 .font(.system(size: 16))
                 .foregroundColor(.accentColor)
 
@@ -423,7 +423,7 @@ private struct CompactFolderRowView: View {
                     .help("Refresh this folder")
 
                     Button(action: onRemove) {
-                        Image(systemName: "minus.circle.fill")
+                        Image(systemName: Icons.minusCircleFill)
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
                     }

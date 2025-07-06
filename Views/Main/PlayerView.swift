@@ -126,7 +126,7 @@ struct PlayerView: View {
                 Button(action: {
                     playlistManager.toggleFavorite(for: track)
                 }) {
-                    Image(systemName: track.isFavorite ? "star.fill" : "star")
+                    Image(systemName: track.isFavorite ? Icons.starFill : Icons.star)
                         .font(.system(size: 12))
                         .foregroundColor(track.isFavorite ? .yellow : .secondary)
                         .animation(.easeInOut(duration: 0.2), value: track.isFavorite)
@@ -154,7 +154,7 @@ struct PlayerView: View {
         Button(action: {
             playlistManager.toggleShuffle()
         }) {
-            Image(systemName: "shuffle")
+            Image(systemName: Icons.shuffleFill)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(playlistManager.isShuffleEnabled ? Color.accentColor : Color.secondary)
                 .frame(width: 28, height: 28)
@@ -169,7 +169,7 @@ struct PlayerView: View {
         Button(action: {
             playlistManager.playPreviousTrack()
         }) {
-            Image(systemName: "backward.fill")
+            Image(systemName: Icons.backwardFill)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.primary)
                 .frame(width: 28, height: 28)
@@ -194,7 +194,7 @@ struct PlayerView: View {
         .buttonStyle(PlainButtonStyle())
         .hoverEffect(scale: 1.1)
         .scaleEffect(playButtonPressed ? 0.95 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: playButtonPressed)
+        .animation(.easeInOut(duration: AnimationDuration.quickDuration), value: playButtonPressed)
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
             playButtonPressed = pressing
         }, perform: {})
@@ -207,7 +207,7 @@ struct PlayerView: View {
         Button(action: {
             playlistManager.playNextTrack()
         }) {
-            Image(systemName: "forward.fill")
+            Image(systemName: Icons.forwardFill)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.primary)
                 .frame(width: 28, height: 28)
@@ -222,7 +222,7 @@ struct PlayerView: View {
         Button(action: {
             playlistManager.toggleRepeatMode()
         }) {
-            Image(systemName: repeatImageName(for: playlistManager.repeatMode))
+            Image(systemName: Icons.repeatIcon(for: playlistManager.repeatMode))
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(playlistManager.repeatMode != .off ? Color.accentColor : Color.secondary)
                 .frame(width: 28, height: 28)
@@ -427,15 +427,7 @@ struct PlayerView: View {
         let totalSeconds = Int(max(0, seconds))
         let minutes = totalSeconds / 60
         let remainingSeconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
-    }
-
-    private func repeatImageName(for mode: RepeatMode) -> String {
-        switch mode {
-        case .off: return "repeat"
-        case .one: return "repeat.1"
-        case .all: return "repeat"
-        }
+        return String(format: StringFormat.mmss, minutes, remainingSeconds)
     }
 
     private func toggleMute() {
@@ -521,7 +513,7 @@ private struct AlbumArtworkContent: View {
             RoundedRectangle(cornerRadius: 4)
                 .fill(Color.secondary.opacity(0.15))
                 .overlay(
-                    Image(systemName: "music.note")
+                    Image(systemName: Icons.musicNote)
                         .font(.system(size: 16, weight: .light))
                         .foregroundColor(.secondary)
                 )
@@ -545,14 +537,14 @@ private struct PlayPauseIcon: View {
 
     var body: some View {
         ZStack {
-            Image(systemName: "play.fill")
+            Image(systemName: Icons.playFill)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.white)
                 .opacity(isPlaying ? 0 : 1)
                 .scaleEffect(isPlaying ? 0.8 : 1)
                 .rotationEffect(.degrees(isPlaying ? -90 : 0))
 
-            Image(systemName: "pause.fill")
+            Image(systemName: Icons.pauseFill)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.white)
                 .opacity(isPlaying ? 1 : 0)

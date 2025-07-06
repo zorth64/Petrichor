@@ -45,7 +45,7 @@ struct PlaylistDetailView: View {
             .sheet(isPresented: $showingCreatePlaylistWithTrack) {
                 createPlaylistSheet
             }
-            .onChange(of: playlistID) { _ in
+            .onChange(of: playlistID) {
                 selectedTrackID = nil
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreatePlaylistWithTrack"))) { notification in
@@ -63,7 +63,7 @@ struct PlaylistDetailView: View {
 
     @ViewBuilder
     private var playlistHeader: some View {
-        if let playlist = playlist {
+        if playlist != nil {
             PlaylistHeader {
                 HStack(alignment: .top, spacing: 20) {
                     playlistArtwork
@@ -162,7 +162,7 @@ struct PlaylistDetailView: View {
             
             Button(action: playPlaylist) {
                 HStack(spacing: iconTextSpacing) {
-                    Image(systemName: "play.fill")
+                    Image(systemName: Icons.playFill)
                         .font(.system(size: iconSize))
                     Text("Play")
                         .font(.system(size: textSize, weight: .medium))
@@ -175,7 +175,7 @@ struct PlaylistDetailView: View {
 
             Button(action: shufflePlaylist) {
                 HStack(spacing: iconTextSpacing) {
-                    Image(systemName: "shuffle")
+                    Image(systemName: Icons.shuffleFill)
                         .font(.system(size: iconSize))
                     Text("Shuffle")
                         .font(.system(size: textSize, weight: .medium))
@@ -189,7 +189,7 @@ struct PlaylistDetailView: View {
             if playlist?.type == .regular {
                 Button(action: { showingAddSongs = true }) {
                     HStack(spacing: iconTextSpacing) {
-                        Image(systemName: "plus.circle")
+                        Image(systemName: Icons.plusCircle)
                             .font(.system(size: iconSize))
                         Text("Add Songs")
                             .font(.system(size: textSize, weight: .medium))
@@ -276,7 +276,7 @@ struct PlaylistDetailView: View {
 
     private var playlistNotFoundView: some View {
         VStack {
-            Image(systemName: "music.note.list")
+            Image(systemName: Icons.musicNoteList)
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
 
@@ -315,7 +315,7 @@ struct PlaylistDetailView: View {
 
                 Button("Create") {
                     if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
-                        let newPlaylist = playlistManager.createPlaylist(
+                        _ = playlistManager.createPlaylist(
                             name: newPlaylistName,
                             tracks: [track]
                         )
@@ -335,21 +335,9 @@ struct PlaylistDetailView: View {
     // MARK: - Helper Properties
 
     private var playlistIcon: String {
-        guard let playlist = playlist else { return "music.note.list" }
+        guard let playlist = playlist else { return Icons.musicNoteList }
 
-        if playlist.type == .smart && !playlist.isUserEditable {
-            switch playlist.name {
-            case "Favorites":
-                return "star.fill"
-            case "Top 25 Most Played":
-                return "play.circle.fill"
-            case "Top 25 Recently Played":
-                return "clock.fill"
-            default:
-                return "music.note.list"
-            }
-        }
-        return "music.note.list"
+        return Icons.defaultPlaylistIcon(for: playlist)
     }
 
     private var playlistTypeText: String {
@@ -366,37 +354,13 @@ struct PlaylistDetailView: View {
     private var emptyStateTitle: String {
         guard let playlist = playlist else { return "Empty Playlist" }
 
-        if playlist.type == .smart && !playlist.isUserEditable {
-            switch playlist.name {
-            case "Favorites":
-                return "No Favorite Songs"
-            case "Top 25 Most Played":
-                return "No Frequently Played Songs"
-            case "Top 25 Recently Played":
-                return "No Recently Played Songs"
-            default:
-                return "Empty Smart Playlist"
-            }
-        }
-        return "Empty Playlist"
+        return DefaultPlaylists.noSongsText(for: playlist)
     }
 
     private var emptyStateMessage: String {
         guard let playlist = playlist else { return "" }
-
-        if playlist.type == .smart && !playlist.isUserEditable {
-            switch playlist.name {
-            case "Favorites":
-                return "Mark songs as favorites to see them here"
-            case "Top 25 Most Played":
-                return "Songs played more than 5 times will appear here"
-            case "Top 25 Recently Played":
-                return "Songs played in the last week will appear here"
-            default:
-                return "This smart playlist will update automatically based on its criteria"
-            }
-        }
-        return "Add some tracks to this playlist to get started"
+        
+        return DefaultPlaylists.emptyStateText(for: playlist)
     }
     
     private var isPinned: Bool {
@@ -475,7 +439,7 @@ struct PlaylistDetailView: View {
 
 #Preview("Smart Playlist") {
     let smartPlaylist = Playlist(
-        name: "Favorites",
+        name: DefaultPlaylists.favorites,
         criteria: SmartPlaylistCriteria(
             rules: [SmartPlaylistCriteria.Rule(
                 field: "isFavorite",

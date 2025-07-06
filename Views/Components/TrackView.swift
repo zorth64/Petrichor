@@ -167,8 +167,6 @@ struct TrackContextMenuContent: View {
         return track
     }
 
-    let playlistID = UUID()
-
     TrackView(
         tracks: sampleTracks,
         viewType: .table,

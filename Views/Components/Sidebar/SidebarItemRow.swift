@@ -165,17 +165,17 @@ struct SidebarItemRow<Item: SidebarItem>: View {
                         font: .system(size: fontSize)
                     )
                 }
-                .onChange(of: text) { _ in
+                .onChange(of: text) {
                     isTruncated.wrappedValue = checkIfTruncated(
                         text: text,
                         width: geometry.size.width,
                         font: .system(size: fontSize)
                     )
                 }
-                .onChange(of: geometry.size.width) { width in
+                .onChange(of: geometry.size.width) { _, newWidth in
                     isTruncated.wrappedValue = checkIfTruncated(
                         text: text,
-                        width: width,
+                        width: newWidth,
                         font: .system(size: fontSize)
                     )
                 }

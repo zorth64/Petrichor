@@ -137,7 +137,7 @@ struct PlayQueueView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color(NSColor.textBackgroundColor))
-            .onChange(of: playlistManager.currentQueueIndex) { newIndex in
+            .onChange(of: playlistManager.currentQueueIndex) { _, newIndex in
                 handleQueueIndexChange(newIndex: newIndex, proxy: proxy)
             }
             .onAppear {
@@ -308,7 +308,7 @@ struct PlayQueueRow: View {
     private func formatDuration(_ seconds: Double) -> String {
         let minutes = Int(seconds) / 60
         let remainingSeconds = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
+        return String(format: StringFormat.mmss, minutes, remainingSeconds)
     }
 
     private func handleDoubleClick() {
@@ -350,7 +350,7 @@ struct QueueDropDelegate: DropDelegate {
 // MARK: - Preview
 
 #Preview {
-    @State var showingQueue = true
+    @Previewable @State var showingQueue = true
     
     return PlayQueueView(showingQueue: $showingQueue)
         .environmentObject({
@@ -379,7 +379,7 @@ struct QueueDropDelegate: DropDelegate {
 }
 
 #Preview("Empty Queue") {
-    @State var showingQueue = true
+    @Previewable @State var showingQueue = true
     
     return PlayQueueView(showingQueue: $showingQueue)
         .environmentObject({

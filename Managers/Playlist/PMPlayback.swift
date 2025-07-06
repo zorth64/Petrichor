@@ -155,7 +155,7 @@ extension PlaylistManager {
         case .one:
             guard let audioPlayer = audioPlayer else { return }
             audioPlayer.seekTo(time: 0)
-            if let currentTrack = currentQueue.first(where: { _ in currentQueueIndex >= 0 && currentQueueIndex < currentQueue.count }) {
+            if currentQueueIndex >= 0 && currentQueueIndex < currentQueue.count {
                 audioPlayer.playTrack(currentQueue[currentQueueIndex])
             }
         case .all, .off:

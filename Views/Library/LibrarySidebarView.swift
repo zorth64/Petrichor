@@ -37,20 +37,20 @@ struct LibrarySidebarView: View {
             initializeSelection()
             updateFilteredItems()
         }
-        .onChange(of: searchText) { _ in
+        .onChange(of: searchText) {
             updateFilteredItems()
         }
-        .onChange(of: selectedFilterType) { newType in
+        .onChange(of: selectedFilterType) { _, newType in
             handleFilterTypeChange(newType)
         }
-        .onChange(of: libraryManager.tracks) { _ in
+        .onChange(of: libraryManager.tracks) {
             updateFilteredItems()
         }
-        .onChange(of: sortAscending) { _ in
+        .onChange(of: sortAscending) {
             // Re-sort items when sort order changes
             updateFilteredItems()
         }
-        .onChange(of: pendingSearchText) { newValue in
+        .onChange(of: pendingSearchText) { _, newValue in
             if let searchValue = newValue {
                 // Clear the pending search first
                 pendingSearchText = nil
@@ -85,10 +85,10 @@ struct LibrarySidebarView: View {
                 }
             }
         }
-        .onChange(of: selectedFilterType) { newType in
+        .onChange(of: selectedFilterType) { _, newType in
             handleFilterTypeChange(newType)
         }
-        .onChange(of: libraryManager.searchResults) { _ in
+        .onChange(of: libraryManager.searchResults) {
             updateFilteredItems()
         }
     }
@@ -107,17 +107,17 @@ struct LibrarySidebarView: View {
 
             // Search bar
             HStack {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: Icons.magnifyingGlass)
                     .foregroundColor(.secondary)
                     .font(.system(size: 12))
 
                 TextField("Filter \(selectedFilterType.rawValue.lowercased())...", text: $localSearchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
-                    .onChange(of: localSearchText) { newValue in
+                    .onChange(of: localSearchText) { _, newValue in
                         searchText = newValue
                     }
-                    .onChange(of: searchText) { newValue in
+                    .onChange(of: searchText) { _, newValue in
                         if localSearchText != newValue {
                             localSearchText = newValue
                         }
@@ -146,7 +146,7 @@ struct LibrarySidebarView: View {
 
             // Sort button
             Button(action: { sortAscending.toggle() }) {
-                Image(sortAscending ? "sort.ascending" : "sort.descending")
+                Image(Icons.sortIcon(for: sortAscending))
                     .renderingMode(.template)
                     .scaleEffect(0.8)
             }
@@ -309,9 +309,9 @@ struct LibrarySidebarView: View {
 }
 
 #Preview {
-    @State var selectedFilterType: LibraryFilterType = .artists
-    @State var selectedFilterItem: LibraryFilterItem?
-    @State var pendingSearchText: String?
+    @Previewable @State var selectedFilterType: LibraryFilterType = .artists
+    @Previewable @State var selectedFilterItem: LibraryFilterItem?
+    @Previewable @State var pendingSearchText: String?
 
     LibrarySidebarView(
         selectedFilterType: $selectedFilterType,

@@ -190,6 +190,7 @@ class MetadataExtractor {
     
     // MARK: - Public Methods
     
+    @available(macOS, deprecated: 13.0)
     static func extractMetadata(from url: URL, completion: @escaping (TrackMetadata) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let metadata = extractMetadataSync(from: url)
@@ -199,6 +200,7 @@ class MetadataExtractor {
         }
     }
     
+    @available(macOS, deprecated: 13.0)
     static func extractMetadataSync(from url: URL) -> TrackMetadata {
         let asset = AVURLAsset(url: url)
         var metadata = TrackMetadata(url: url)
@@ -241,6 +243,7 @@ class MetadataExtractor {
     
     // MARK: - Private Methods
     
+    @available(macOS, deprecated: 13.0)
     private static func processMetadataItems(_ items: [AVMetadataItem], into metadata: inout TrackMetadata) {
         for item in items {
             let keyString = getKeyString(from: item)
@@ -469,6 +472,7 @@ class MetadataExtractor {
         }
     }
     
+    @available(macOS, deprecated: 13.0)
     private static func extractAudioFormatInfo(from asset: AVURLAsset, into metadata: inout TrackMetadata) {
         guard let audioTrack = asset.tracks(withMediaType: .audio).first else { return }
         
@@ -494,6 +498,7 @@ class MetadataExtractor {
         }
     }
     
+    @available(macOS, deprecated: 13.0)
     private static func extractArtwork(from item: AVMetadataItem, into metadata: inout TrackMetadata) {
         if let data = item.dataValue {
             metadata.artworkData = data
@@ -583,6 +588,7 @@ class MetadataExtractor {
     
     // MARK: - Utility Methods
     
+    @available(macOS, deprecated: 13.0)
     private static func getStringValue(from item: AVMetadataItem) -> String? {
         if let stringValue = item.stringValue {
             return stringValue

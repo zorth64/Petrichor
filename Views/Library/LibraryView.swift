@@ -61,26 +61,26 @@ struct LibraryView: View {
                 .onDisappear {
                     isViewReady = false
                 }
-                .onChange(of: libraryManager.tracks) { tracks in
+                .onChange(of: libraryManager.tracks) { _, newTracks in
                     // Update filter item when tracks change
                     if let currentItem = selectedFilterItem, currentItem.name.hasPrefix("All") {
-                        selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: tracks.count)
+                        selectedFilterItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: newTracks.count)
                     }
                 }
-                .onChange(of: selectedFilterItem) { _ in
+                .onChange(of: selectedFilterItem) {
                     updateFilteredTracks()
                 }
-                .onChange(of: selectedFilterType) { _ in
+                .onChange(of: selectedFilterType) {
                     updateFilteredTracks()
                 }
-                .onChange(of: libraryManager.tracks.count) { _ in
+                .onChange(of: libraryManager.tracks.count) {
                     // Only update if the number of tracks changed (tracks added/removed)
                     updateFilteredTracks()
                 }
-                .onChange(of: trackListSortAscending) { _ in
+                .onChange(of: trackListSortAscending) {
                     updateFilteredTracks()
                 }
-                .onChange(of: pendingFilter) { newValue in
+                .onChange(of: pendingFilter) { _, newValue in
                     if let request = newValue, isViewReady {
                         print("LibraryView: View is ready, applying filter type: \(request.filterType)")
                         selectedFilterType = request.filterType
@@ -89,7 +89,7 @@ struct LibraryView: View {
                     }
                     // If view is not ready, onAppear will handle it
                 }
-                .onChange(of: libraryManager.globalSearchText) { _ in
+                .onChange(of: libraryManager.globalSearchText) {
                     updateFilteredTracks()
                 }
                 .sheet(isPresented: $showingCreatePlaylistWithTrack) {
@@ -163,7 +163,7 @@ struct LibraryView: View {
                     trackCount: cachedFilteredTracks.count
                 ) {
                     Button(action: { trackListSortAscending.toggle() }) {
-                        Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                        Image(Icons.sortIcon(for: trackListSortAscending))
                             .renderingMode(.template)
                             .scaleEffect(0.8)
                     }
@@ -192,7 +192,7 @@ struct LibraryView: View {
 
     private var emptyFilterView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "music.note.list")
+            Image(systemName: Icons.musicNoteList)
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
 
@@ -283,7 +283,7 @@ struct LibraryView: View {
 
                 Button("Create") {
                     if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
-                        let newPlaylist = playlistManager.createPlaylist(
+                        _ = playlistManager.createPlaylist(
                             name: newPlaylistName,
                             tracks: [track]
                         )

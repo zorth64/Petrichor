@@ -56,41 +56,38 @@ extension DatabaseManager {
                 }
             }
 
-            // Collect results
-            var newTracks: [Track] = []
-            var tracksToUpdate: [Track] = []
-            var skippedCount = 0
-
-            for try await (_, result) in group {
-                switch result {
-                case TrackProcessResult.new(let track):
-                    newTracks.append(track)
-                case TrackProcessResult.update(let track):
-                    tracksToUpdate.append(track)
-                case TrackProcessResult.skipped:
-                    skippedCount += 1
+            // Collect results into a single structure to avoid concurrent mutations
+            let processResults = try await group.reduce(into: (new: [Track](), update: [Track](), skipped: 0)) { result, item in
+                let (_, trackResult) = item
+                switch trackResult {
+                case .new(let track):
+                    result.new.append(track)
+                case .update(let track):
+                    result.update.append(track)
+                case .skipped:
+                    result.skipped += 1
                 }
             }
 
             // Process in database transaction
-            try await dbQueue.write { db in
+            try await dbQueue.write { [processResults] db in
                 // Process new tracks
-                for track in newTracks {
+                for track in processResults.new {
                     try self.processNewTrack(track, in: db)
                 }
 
                 // Process updated tracks
-                for track in tracksToUpdate {
+                for track in processResults.update {
                     try self.processUpdatedTrack(track, in: db)
                 }
 
                 // Update statistics after batch
-                if !newTracks.isEmpty || !tracksToUpdate.isEmpty {
+                if !processResults.new.isEmpty || !processResults.update.isEmpty {
                     try self.updateEntityStats(in: db)
                 }
             }
 
-            print("Batch processing complete: \(newTracks.count) new, \(tracksToUpdate.count) updated, \(skippedCount) skipped")
+            print("Batch processing complete: \(processResults.new.count) new, \(processResults.update.count) updated, \(processResults.skipped) skipped")
         }
 
         await MainActor.run {

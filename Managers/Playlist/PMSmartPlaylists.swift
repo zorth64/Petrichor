@@ -38,7 +38,7 @@ extension PlaylistManager {
     
     /// Update smart playlists for a specific track change
     func updateSmartPlaylistsForTrack(_ track: Track) {
-        guard let libraryManager = libraryManager else { return }
+        guard libraryManager != nil else { return }
         
         print("PlaylistManager: Updating smart playlists for track: \(track.title)")
         

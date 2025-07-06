@@ -2,7 +2,7 @@ import Foundation
 
 class FolderHierarchyBuilder {
     private let fileManager = FileManager.default
-    private let supportedExtensions = ["mp3", "m4a", "wav", "aac", "aiff", "flac"]
+    private let supportedExtensions = AudioFormat.supportedExtensions
 
     // Build hierarchy for all watched folders
     func buildHierarchy(for folders: [Folder], tracks: [Track]) async -> [FolderNode] {
@@ -57,10 +57,12 @@ class FolderHierarchyBuilder {
                 }
             }
 
-            // Update the node
+            let finalSubfolders = subfolders
+            let finalTrackCount = trackCount
+
             await MainActor.run {
-                node.children = subfolders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                node.immediateTrackCount = trackCount
+                node.children = finalSubfolders.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                node.immediateTrackCount = finalTrackCount
             }
         } catch {
             print("FolderHierarchyBuilder: Error scanning folder \(node.url.path): \(error)")

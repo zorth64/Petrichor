@@ -63,11 +63,11 @@ struct HomeSidebarView: View {
             updateAllItems()
             updateSelectedItem()
         }
-        .onChange(of: libraryManager.tracks.count) { _ in
+        .onChange(of: libraryManager.tracks.count) {
             updateAllItems()
             updateSelectedItem()
         }
-        .onChange(of: libraryManager.pinnedItems) { _ in
+        .onChange(of: libraryManager.pinnedItems) {
             updateAllItems()
             // Update selection if a pinned item was removed
             if let selected = selectedItem,
@@ -77,7 +77,7 @@ struct HomeSidebarView: View {
                 }
             }
         }
-        .onChange(of: playlistManager.playlists.map { "\($0.id)-\($0.tracks.count)" }) { _ in
+        .onChange(of: playlistManager.playlists.map { "\($0.id)-\($0.tracks.count)" }) {
             updateAllItems()
         }
     }
@@ -144,7 +144,7 @@ struct HomeSidebarView: View {
 }
 
 #Preview {
-    @State var selectedItem: HomeSidebarItem?
+    @Previewable @State var selectedItem: HomeSidebarItem?
 
     HomeSidebarView(selectedItem: $selectedItem)
         .environmentObject(LibraryManager())

@@ -3,8 +3,7 @@ import GRDB
 
 extension DatabaseManager {
     func scanFoldersForTracks(_ folders: [Folder]) async throws {
-        let supportedExtensions = ["mp3", "m4a", "wav", "aac", "aiff", "flac"]
-        let totalFolders = folders.count
+        let supportedExtensions = AudioFormat.supportedExtensions
         var processedFolders = 0
 
         for folder in folders {
@@ -59,7 +58,7 @@ extension DatabaseManager {
         // Create immutable copy for async context
         let fileBatches = musicFiles.chunked(into: batchSize)
 
-        for (batchIndex, batch) in fileBatches.enumerated() {
+        for batch in fileBatches {
             let batchWithFolderId = batch.map { url in (url: url, folderId: folderId) }
             try await processBatch(batchWithFolderId)
 

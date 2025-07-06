@@ -78,7 +78,7 @@ private struct EntityListRow<T: Entity>: View {
                         .clipped()
                         .cornerRadius(6)
                 } else {
-                    Image(systemName: iconForEntity)
+                    Image(systemName: Icons.entityIcon(for: entity))
                         .font(.system(size: 20))
                         .foregroundColor(.gray)
                 }
@@ -106,7 +106,7 @@ private struct EntityListRow<T: Entity>: View {
 
             // Chevron on hover
             if isHovered {
-                Image(systemName: "chevron.right")
+                Image(systemName: Icons.chevronRight)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
                     .transition(.opacity.combined(with: .scale))
@@ -137,21 +137,12 @@ private struct EntityListRow<T: Entity>: View {
             .animation(.easeInOut(duration: 0.15), value: isHovered)
     }
 
-    private var iconForEntity: String {
-        if entity is ArtistEntity {
-            return "person.fill"
-        } else if entity is AlbumEntity {
-            return "opticaldisc.fill"
-        }
-        return "music.note"
-    }
-
     private func loadArtworkAsync() {
         artworkLoadTask?.cancel()
 
         artworkLoadTask = Task {
             // Small delay to prioritize scrolling
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            try? await Task.sleep(nanoseconds: TimeConstants.fiftyMilliseconds)
 
             guard !Task.isCancelled else { return }
 

@@ -49,7 +49,7 @@ struct ScanningAnimation: View {
                 }
 
             // Center icon with pulsing effect
-            Image(systemName: "music.note")
+            Image(systemName: Icons.musicNote)
                 .font(.system(size: size * 0.4, weight: .light))
                 .foregroundColor(.accentColor)
                 .scaleEffect(isAnimating ? 1.1 : 0.9)

@@ -54,7 +54,7 @@ struct TrackGridView: View {
                 .onAppear {
                     gridWidth = geometry.size.width - 32
                 }
-                .onChange(of: geometry.size.width) { newWidth in
+                .onChange(of: geometry.size.width) { _, newWidth in
                     gridWidth = newWidth - 32
                 }
             }
@@ -149,7 +149,7 @@ private struct TrackGridItem: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color.gray.opacity(0.2))
                 .overlay(
-                    Image(systemName: "music.note")
+                    Image(systemName: Icons.musicNote)
                         .font(.system(size: 40))
                         .foregroundColor(.secondary)
                 )
@@ -167,7 +167,7 @@ private struct TrackGridItem: View {
                         onPlay()
                     }
                 }) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: isPlaying ? Icons.pauseFill : Icons.playFill)
                         .font(.system(size: 24, weight: .medium))
                         .foregroundColor(.white)
                         .frame(width: 44, height: 44)
@@ -229,7 +229,7 @@ private struct TrackGridItem: View {
 
         artworkLoadTask = Task { @MainActor in
             // Small delay to prevent loading during fast scrolling
-            try? await Task.sleep(nanoseconds: 150_000_000) // 0.1 seconds
+            try? await Task.sleep(nanoseconds: TimeConstants.oneFiftyMilliseconds) // 150ms
 
             guard !Task.isCancelled else { return }
 

@@ -21,7 +21,7 @@ struct PlaylistSidebarView: View {
         .onAppear {
             updateSelectedSidebarItem()
         }
-        .onChange(of: selectedPlaylist) { _ in
+        .onChange(of: selectedPlaylist) {
             updateSelectedSidebarItem()
         }
     }
@@ -142,7 +142,7 @@ struct PlaylistSidebarView: View {
 // MARK: - Preview
 
 #Preview("Playlist Sidebar") {
-    @State var selectedPlaylist: Playlist?
+    @Previewable @State var selectedPlaylist: Playlist?
 
     let previewManager = {
         let manager = PlaylistManager()
@@ -150,7 +150,7 @@ struct PlaylistSidebarView: View {
         // Create sample playlists using the new criteria-based approach
         let smartPlaylists = [
             Playlist(
-                name: "Favorites",
+                name: DefaultPlaylists.favorites,
                 criteria: SmartPlaylistCriteria(
                     rules: [SmartPlaylistCriteria.Rule(
                         field: "isFavorite",
@@ -163,7 +163,7 @@ struct PlaylistSidebarView: View {
                 isUserEditable: false
             ),
             Playlist(
-                name: "Top 25 Most Played",
+                name: DefaultPlaylists.mostPlayed,
                 criteria: SmartPlaylistCriteria(
                     rules: [SmartPlaylistCriteria.Rule(
                         field: "playCount",
@@ -177,7 +177,7 @@ struct PlaylistSidebarView: View {
                 isUserEditable: false
             ),
             Playlist(
-                name: "Top 25 Recently Played",
+                name: DefaultPlaylists.recentlyPlayed,
                 criteria: SmartPlaylistCriteria(
                     rules: [SmartPlaylistCriteria.Rule(
                         field: "lastPlayedDate",
@@ -217,7 +217,7 @@ struct PlaylistSidebarView: View {
 }
 
 #Preview("Empty Sidebar") {
-    @State var selectedPlaylist: Playlist?
+    @Previewable @State var selectedPlaylist: Playlist?
 
     let emptyManager = PlaylistManager()
 

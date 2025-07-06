@@ -64,7 +64,7 @@ class MenuBarManager: NSObject {
         guard let button = statusItem?.button else { return }
 
         // Use play/pause circle icons based on playback state
-        let iconName = audioPlayerManager.isPlaying ? "play.circle.fill" : "pause.circle.fill"
+        let iconName = audioPlayerManager.isPlaying ? Icons.playCircleFill : Icons.pauseCircleFill
 
         if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "Petrichor") {
             image.size = NSSize(width: 18, height: 18)
@@ -187,12 +187,6 @@ class MenuBarManager: NSObject {
 
         // First restore dock icon
         NSApp.setActivationPolicy(.regular)
-
-        // Get our running application
-        let runningApp = NSRunningApplication.current
-
-        // Activate with options to force it to front
-        runningApp.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
 
         // Then show the window
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

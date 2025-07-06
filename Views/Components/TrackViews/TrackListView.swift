@@ -88,8 +88,8 @@ private struct TrackListRow: View {
             }
         }
         .frame(width: 40, height: 40)
-        .animation(.easeInOut(duration: 0.15), value: shouldShowPlayButton)
-        .animation(.easeInOut(duration: 0.15), value: isPlaying)
+        .animation(.easeInOut(duration: AnimationDuration.standardDuration), value: shouldShowPlayButton)
+        .animation(.easeInOut(duration: AnimationDuration.standardDuration), value: isPlaying)
     }
 
     private var trackContent: some View {
@@ -126,7 +126,7 @@ private struct TrackListRow: View {
             .fill(Color.gray.opacity(0.2))
             .frame(width: 40, height: 40)
             .overlay(
-                Image(systemName: "music.note")
+                Image(systemName: Icons.musicNote)
                     .font(.system(size: 16))
                     .foregroundColor(.secondary)
             )
@@ -212,9 +212,9 @@ private struct TrackListRow: View {
 
     private var playButtonIcon: String {
         if isCurrentTrack {
-            return isPlaying ? "pause.fill" : "play.fill"
+            return isPlaying ? Icons.pauseFill : Icons.playFill
         }
-        return "play.fill"
+        return Icons.playFill
     }
 
     private var playButtonColor: Color {
@@ -269,6 +269,6 @@ private struct TrackListRow: View {
         let totalSeconds = Int(max(0, seconds))
         let minutes = totalSeconds / 60
         let remainingSeconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
+        return String(format: StringFormat.mmss, minutes, remainingSeconds)
     }
 }

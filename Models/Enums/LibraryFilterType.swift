@@ -61,25 +61,25 @@ enum LibraryFilterType: String, CaseIterable {
 
     var allItemIcon: String {
         switch self {
-        case .artists: return "person.2.fill"
-        case .albums: return "opticaldisc.fill"
-        case .albumArtists: return "person.2.crop.square.stack.fill"
-        case .composers: return "person.2.wave.2.fill"
-        case .genres: return "music.note.list"
-        case .decades: return "calendar.badge.clock"
-        case .years: return "calendar.circle.fill"
+        case .artists: return Icons.person2Fill
+        case .albums: return Icons.opticalDiscFill
+        case .albumArtists: return Icons.person2CropSquareStackFill
+        case .composers: return Icons.person2Wave2Fill
+        case .genres: return Icons.musicNoteList
+        case .decades: return Icons.calendarBadgeClock
+        case .years: return Icons.calendarCircleFill
         }
     }
 
     var icon: String {
         switch self {
-        case .artists: return "person.fill"
-        case .albums: return "opticaldisc.fill"
-        case .albumArtists: return "person.2.crop.square.stack.fill"
-        case .composers: return "person.wave.2.fill"
-        case .genres: return "music.note.list"
-        case .decades: return "calendar.badge.clock"
-        case .years: return "calendar"
+        case .artists: return Icons.personFill
+        case .albums: return Icons.opticalDiscFill
+        case .albumArtists: return Icons.person2CropSquareStackFill
+        case .composers: return Icons.person2Wave2Fill
+        case .genres: return Icons.musicNoteList
+        case .decades: return Icons.calendarBadgeClock
+        case .years: return Icons.calendarCircleFill
         }
     }
 

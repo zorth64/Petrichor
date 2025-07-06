@@ -107,11 +107,6 @@ extension DatabaseManager {
             artistId = artist.id
         }
         
-        // Log existing albums with this normalized title
-        let existingAlbums = try Album
-            .filter(Album.Columns.normalizedTitle == normalizedTitle)
-            .fetchAll(db)
-        
         // Try to find existing album with same normalized title and artist
         if let artistId = artistId {
             // Look for album with specific artist
@@ -157,7 +152,7 @@ extension DatabaseManager {
     }
 
     private func updateAlbumMetadata(albumId: Int64, from track: Track, in db: Database) throws {
-        guard var album = try Album.fetchOne(db, key: albumId) else { return }
+        guard let album = try Album.fetchOne(db, key: albumId) else { return }
 
         var needsUpdate = false
 
@@ -254,7 +249,7 @@ extension DatabaseManager {
             return existing
         }
 
-        var genre = Genre(name: name)
+        let genre = Genre(name: name)
         try genre.insert(db)
         return genre
     }
@@ -338,7 +333,7 @@ extension DatabaseManager {
 
     /// Alternative: Update stats for a single artist (more efficient for incremental updates)
     func updateStatsForArtist(_ artistId: Int64, in db: Database) throws {
-        guard var artist = try Artist.fetchOne(db, key: artistId) else { return }
+        guard let artist = try Artist.fetchOne(db, key: artistId) else { return }
 
         artist.totalTracks = try TrackArtist
             .filter(TrackArtist.Columns.artistId == artistId)
@@ -356,7 +351,7 @@ extension DatabaseManager {
 
     /// Alternative: Update stats for a single album (more efficient for incremental updates)
     func updateStatsForAlbum(_ albumId: Int64, in db: Database) throws {
-        guard var album = try Album.fetchOne(db, key: albumId) else { return }
+        guard let album = try Album.fetchOne(db, key: albumId) else { return }
 
         album.totalTracks = try Track
             .filter(Track.Columns.albumId == albumId)
