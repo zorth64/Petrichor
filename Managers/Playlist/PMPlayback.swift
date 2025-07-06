@@ -33,6 +33,7 @@ extension PlaylistManager {
 
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        Logger.info("Played track: \(track.url)")
     }
 
     func playTrackFromPlaylist(_ playlist: Playlist, at index: Int) {
@@ -57,6 +58,7 @@ extension PlaylistManager {
 
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        Logger.info("Played track: \(track.url)")
     }
 
     func playTrackFromFolder(_ track: Track, folder: Folder, folderTracks: [Track]) {
@@ -82,6 +84,7 @@ extension PlaylistManager {
 
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        Logger.info("Played track: \(track.url)")
     }
 
     // MARK: - Track Navigation
@@ -116,6 +119,7 @@ extension PlaylistManager {
         let track = currentQueue[nextIndex]
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        Logger.info("Played track: \(track.url)")
     }
 
     func playPreviousTrack() {
@@ -148,6 +152,7 @@ extension PlaylistManager {
         let track = currentQueue[prevIndex]
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        Logger.info("Played track: \(track.url)")
     }
 
     func handleTrackCompletion() {
@@ -159,6 +164,7 @@ extension PlaylistManager {
                 audioPlayer.playTrack(currentQueue[currentQueueIndex])
             }
         case .all, .off:
+            Logger.info("Track completed, playing next track")
             playNextTrack()
         }
     }
@@ -167,6 +173,7 @@ extension PlaylistManager {
 
     func toggleShuffle() {
         isShuffleEnabled.toggle()
+        Logger.info("Shuffle state changed to: \(isShuffleEnabled)")
 
         if isShuffleEnabled {
             shuffleCurrentQueue()

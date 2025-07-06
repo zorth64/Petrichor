@@ -94,7 +94,7 @@ struct TrackContextMenuContent: View {
         selectedTrackID: .constant(nil),
         playlistID: nil,
         onPlayTrack: { track in
-            print("Playing \(track.title)")
+            Logger.debugPrint("Playing \(track.title)")
         },
         contextMenuItems: { _ in [] }
     )
@@ -119,7 +119,7 @@ struct TrackContextMenuContent: View {
         selectedTrackID: .constant(nil),
         playlistID: nil,
         onPlayTrack: { track in
-            print("Playing \(track.title)")
+            Logger.debugPrint("Playing \(track.title)")
         },
         contextMenuItems: { _ in [] }
     )
@@ -146,7 +146,7 @@ struct TrackContextMenuContent: View {
         selectedTrackID: .constant(nil),
         playlistID: nil,
         onPlayTrack: { track in
-            print("Playing \(track.title)")
+            Logger.debugPrint("Playing \(track.title)")
         },
         contextMenuItems: { _ in [] }
     )
@@ -173,7 +173,7 @@ struct TrackContextMenuContent: View {
         selectedTrackID: .constant(nil),
         playlistID: nil,
         onPlayTrack: { track in
-            print("Playing \(track.title)")
+            Logger.debugPrint("Playing \(track.title)")
         },
         contextMenuItems: { _ in [] }
     )

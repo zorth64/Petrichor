@@ -58,7 +58,7 @@ class MenuBarManager: NSObject {
         updateMenuBarIcon()
         updateMenu()
 
-        print("Menubar setup complete")
+        Logger.info("Menubar setup complete")
     }
 
     @objc
@@ -191,7 +191,7 @@ class MenuBarManager: NSObject {
 
     @objc
     private func showMainWindow() {
-        print("Showing main window from menubar")
+        Logger.info("Showing main window from menubar")
 
         // First restore dock icon
         NSApp.setActivationPolicy(.regular)

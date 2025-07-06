@@ -12,6 +12,7 @@ extension DatabaseManager {
             } catch {
                 await MainActor.run {
                     completion(.failure(error))
+                    Logger.error("Failed to add folders: \(error)")
                 }
             }
         }
@@ -39,7 +40,7 @@ extension DatabaseManager {
                     updatedFolder.bookmarkData = bookmarkData
                     try updatedFolder.update(db)
                     folders.append(updatedFolder)
-                    print("Folder already exists: \(existing.name) with ID: \(existing.id ?? -1), updated bookmark")
+                    Logger.info("Folder already exists: \(existing.name) with ID: \(existing.id ?? -1), updated bookmark")
                 } else {
                     // Insert new folder
                     try folder.insert(db)
@@ -49,7 +50,7 @@ extension DatabaseManager {
                         .filter(Folder.Columns.path == url.path)
                         .fetchOne(db) {
                         folders.append(insertedFolder)
-                        print("Added new folder: \(insertedFolder.name) with ID: \(insertedFolder.id ?? -1)")
+                        Logger.info("Added new folder: \(insertedFolder.name) with ID: \(insertedFolder.id ?? -1)")
                     }
                 }
             }
@@ -77,7 +78,7 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
         } catch {
-            print("Failed to fetch folders: \(error)")
+            Logger.error("Failed to fetch folders: \(error)")
             return []
         }
     }
@@ -92,14 +93,14 @@ extension DatabaseManager {
 
                 // Log the current state
                 let trackCountBefore = getTracksForFolder(folder.id ?? -1).count
-                print("DatabaseManager: Starting refresh for folder \(folder.name) with \(trackCountBefore) tracks")
+                Logger.info("Starting refresh for folder \(folder.name) with \(trackCountBefore) tracks")
 
                 // Scan the folder - this will now always check for metadata updates
-                try await scanSingleFolder(folder, supportedExtensions: ["mp3", "m4a", "wav", "aac", "aiff", "flac"])
+                try await scanSingleFolder(folder, supportedExtensions: AudioFormat.supportedExtensions)
 
                 // Log the result
                 let trackCountAfter = getTracksForFolder(folder.id ?? -1).count
-                print("DatabaseManager: Completed refresh for folder \(folder.name) with \(trackCountAfter) tracks (was \(trackCountBefore))")
+                Logger.info("Completed refresh for folder \(folder.name) with \(trackCountAfter) tracks (was \(trackCountBefore))")
 
                 await MainActor.run {
                     self.isScanning = false
@@ -111,6 +112,7 @@ extension DatabaseManager {
                     self.isScanning = false
                     self.scanStatusMessage = ""
                     completion(.failure(error))
+                    Logger.error("Failed to refresh folder \(folder.name): \(error)")
                 }
             }
         }
@@ -158,7 +160,7 @@ extension DatabaseManager {
                         .filter(!genresWithTracks.contains(Genre.Columns.id))
                         .deleteAll(db)
                     
-                    print("DatabaseManager: Removed folder '\(folder.name)' and cleaned up orphaned data")
+                    Logger.info("Removed folder '\(folder.name)' and cleaned up orphaned data")
                 }
                 
                 await MainActor.run {
@@ -167,6 +169,7 @@ extension DatabaseManager {
             } catch {
                 await MainActor.run {
                     completion(.failure(error))
+                    Logger.error("Failed to remove folder '\(folder.name)': \(error)")
                 }
             }
         }

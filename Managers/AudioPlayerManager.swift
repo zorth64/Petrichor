@@ -137,7 +137,7 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             timer?.tolerance = 0.5  // Increase tolerance for better system efficiency
 
         } catch {
-            print("Failed to play track: \(error)")
+            Logger.error("Failed to play track: \(error)")
         }
     }
 
@@ -282,9 +282,9 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
             // Don't start timers yet - wait for actual playback
 
-            print("Prepared track for restoration without playing")
+            Logger.info("Prepared track for restoration without playing")
         } catch {
-            print("Failed to prepare track for restoration: \(error)")
+            Logger.error("Failed to prepare track for restoration: \(error)")
         }
     }
 

@@ -235,7 +235,7 @@ class MetadataExtractor {
         
         let timeout = DispatchTime.now() + .seconds(5)
         if semaphore.wait(timeout: timeout) == .timedOut {
-            print("MetadataExtractor: Timeout loading metadata for \(url.lastPathComponent)")
+            Logger.error("Timeout loading metadata for \(url.lastPathComponent)")
         }
         
         return metadata

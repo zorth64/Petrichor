@@ -351,9 +351,9 @@ struct LibraryTabView: View {
         Task {
             do {
                 try await libraryManager.resetAllData()
-                print("All library data has been reset")
+                Logger.info("All library data has been reset")
             } catch {
-                print("Failed to reset library data: \(error)")
+                Logger.error("Failed to reset library data: \(error)")
             }
         }
     }

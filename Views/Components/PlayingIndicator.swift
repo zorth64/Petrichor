@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PlayingIndicator: View {
     var body: some View {
-        Image(systemName: "speaker.wave.3.fill")
+        Image(systemName: Icons.speakerWave3Fill)
             .font(.system(size: 12))
             .foregroundColor(.accentColor)
             .frame(width: 16, height: 12)

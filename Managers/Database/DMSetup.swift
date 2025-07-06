@@ -14,6 +14,7 @@ extension DatabaseManager {
             t.column("date_updated", .datetime).notNull()
             t.column("bookmark_data", .blob)
         }
+        Logger.info("Created `folders` table")
     }
 
     // MARK: - Artists Table
@@ -54,6 +55,7 @@ extension DatabaseManager {
             t.column("created_at", .datetime).notNull()
             t.column("updated_at", .datetime).notNull()
         }
+        Logger.info("Created `artists` table")
     }
 
     // MARK: - Albums Table
@@ -95,6 +97,7 @@ extension DatabaseManager {
             t.column("created_at", .datetime).notNull()
             t.column("updated_at", .datetime).notNull()
         }
+        Logger.info("Created `albums` table")
     }
 
     // MARK: - Genres Table
@@ -103,6 +106,7 @@ extension DatabaseManager {
             t.autoIncrementedPrimaryKey("id")
             t.column("name", .text).notNull().unique()
         }
+        Logger.info("Created `genres` table")
     }
 
     // MARK: - Tracks Table
@@ -158,6 +162,7 @@ extension DatabaseManager {
             // Extended metadata as JSON
             t.column("extended_metadata", .text)
         }
+        Logger.info("Created `tracks` table")
     }
 
     // MARK: - Playlists Table
@@ -174,6 +179,7 @@ extension DatabaseManager {
             t.column("smart_criteria", .text)
             t.column("sort_order", .integer).notNull().defaults(to: 0)
         }
+        Logger.info("Created `playlists` table")
     }
 
     // MARK: - Playlist Tracks Table
@@ -185,6 +191,7 @@ extension DatabaseManager {
             t.column("date_added", .datetime).notNull()
             t.primaryKey(["playlist_id", "track_id"])
         }
+        Logger.info("Created `playlist_tracks` table")
     }
 
     // MARK: - Track Artists Junction Table
@@ -196,6 +203,7 @@ extension DatabaseManager {
             t.column("position", .integer).notNull().defaults(to: 0)
             t.primaryKey(["track_id", "artist_id", "role"])
         }
+        Logger.info("Created `track_artists` table")
     }
 
     // MARK: - Track Genres Junction Table
@@ -205,6 +213,7 @@ extension DatabaseManager {
             t.column("genre_id", .integer).notNull().references("genres", onDelete: .cascade)
             t.primaryKey(["track_id", "genre_id"])
         }
+        Logger.info("Created `track_genres` table")
     }
     
     // MARK: - Pinned Items Table
@@ -224,6 +233,7 @@ extension DatabaseManager {
             t.column("sort_order", .integer).notNull().defaults(to: 0)
             t.column("date_added", .datetime).notNull()
         }
+        Logger.info("Created `pinned_items` table")
     }
 
     // MARK: - Create All Indices
@@ -260,6 +270,8 @@ extension DatabaseManager {
         // Pinned items indices
         try db.create(index: "idx_pinned_items_sort_order", on: "pinned_items", columns: ["sort_order"], ifNotExists: true)
         try db.create(index: "idx_pinned_items_item_type", on: "pinned_items", columns: ["item_type"], ifNotExists: true)
+        
+        Logger.info("Created column indices")
     }
     
     // MARK: - Seed Default Data
@@ -268,13 +280,13 @@ extension DatabaseManager {
         let playlistCount = try Playlist.fetchCount(db)
         
         if playlistCount == 0 {
-            print("DatabaseManager: Seeding default smart playlists...")
+            Logger.info("Seeding default smart playlists")
             
             let defaultPlaylists = Playlist.createDefaultSmartPlaylists()
             
             for playlist in defaultPlaylists {
                 try playlist.insert(db)
-                print("DatabaseManager: Created default playlist: \(playlist.name)")
+                Logger.info("Created default smart playlist: \(playlist.name)")
             }
         }
     }

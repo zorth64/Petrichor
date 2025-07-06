@@ -26,7 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        print("App is terminating...")
+        Logger.info("App is terminating...")
         
         // Stop audio playback gracefully to prevent clicks/pops
         if let coordinator = AppCoordinator.shared {
@@ -41,6 +41,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Initialize logging system explicitly
+        // This ensures the singleton is created and log rotation happens
+        _ = Logger.shared  // Force initialization
+        
+        // Install crash handlers to capture crashes in log file
+        Logger.installCrashHandler()
+        
+        // Log startup information
+        Logger.info("Petrichor starting up...")
+        Logger.info("Log file location: \(Logger.logFileURL?.path ?? "unknown")")
+        
+        // For debug builds, you might want more verbose logging
+        #if DEBUG
+        Logger.setMinimumLogLevel(.info)
+        #else
+        Logger.setMinimumLogLevel(.warning)
+        #endif
+
         NSWindow.allowsAutomaticWindowTabbing = false
         
         // Remove unwanted menus
@@ -68,7 +86,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
         
-        print("App finished launching")
+        Logger.info("App finished launching")
     }
     
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

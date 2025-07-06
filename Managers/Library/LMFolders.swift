@@ -24,9 +24,9 @@ extension LibraryManager {
                                                             relativeTo: nil)
                     urlsToAdd.append(url)
                     bookmarkDataMap[url] = bookmarkData
-                    print("LibraryManager: Created bookmark for folder - \(url.lastPathComponent) at \(url.path)")
+                    Logger.info("Created bookmark for folder - \(url.lastPathComponent) at \(url.path)")
                 } catch {
-                    print("LibraryManager: Failed to create security bookmark for \(url.path): \(error)")
+                    Logger.error("Failed to create security bookmark for \(url.path): \(error)")
                 }
             }
 
@@ -41,10 +41,10 @@ extension LibraryManager {
                     self.databaseManager.addFolders(urlsToAdd, bookmarkDataMap: bookmarkDataMap) { result in
                         switch result {
                         case .success(let dbFolders):
-                            print("LibraryManager: Successfully added \(dbFolders.count) folders to database")
+                            Logger.info("Successfully added \(dbFolders.count) folders to database")
                             self.loadMusicLibrary() // Reload to reflect changes
                         case .failure(let error):
-                            print("LibraryManager: Failed to add folders to database: \(error)")
+                            Logger.error("Failed to add folders to database: \(error)")
                         }
                     }
                 }
@@ -57,7 +57,7 @@ extension LibraryManager {
         databaseManager.removeFolder(folder) { [weak self] result in
             switch result {
             case .success:
-                print("LibraryManager: Successfully removed folder from database")
+                Logger.info("Successfully removed folder from database")
                 self?.loadMusicLibrary() // Reload to reflect changes
                 
                 // Notify PlaylistManager to refresh playlists
@@ -66,7 +66,7 @@ extension LibraryManager {
                 }
                 
             case .failure(let error):
-                print("LibraryManager: Failed to remove folder from database: \(error)")
+                Logger.error("Failed to remove folder from database: \(error)")
             }
         }
     }
@@ -90,12 +90,12 @@ extension LibraryManager {
                 self.databaseManager.refreshFolder(folder) { result in
                     switch result {
                     case .success:
-                        print("LibraryManager: Successfully refreshed folder \(folder.name)")
+                        Logger.info("Successfully refreshed folder \(folder.name)")
                         // Reload the library to reflect changes
                         self.loadMusicLibrary()
                         self.isBackgroundScanning = false
                     case .failure(let error):
-                        print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                        Logger.error("Failed to refresh folder \(folder.name): \(error)")
                         self.isBackgroundScanning = false
                     }
                 }
@@ -114,7 +114,7 @@ extension LibraryManager {
         }
 
         if !foldersToRemove.isEmpty {
-            print("LibraryManager: Cleaning up \(foldersToRemove.count) missing folders")
+            Logger.info("Cleaning up \(foldersToRemove.count) missing folders")
 
             for folder in foldersToRemove {
                 databaseManager.removeFolder(folder) { _ in }
@@ -130,7 +130,7 @@ extension LibraryManager {
     func refreshBookmarkForFolder(_ folder: Folder) async {
         // Only refresh if we can access the folder
         guard FileManager.default.fileExists(atPath: folder.url.path) else {
-            print("LibraryManager: Folder no longer exists at \(folder.url.path)")
+            Logger.warning("Folder no longer exists at \(folder.url.path)")
             return
         }
 
@@ -149,9 +149,9 @@ extension LibraryManager {
             // Save to database
             try await databaseManager.updateFolderBookmark(folder.id!, bookmarkData: newBookmarkData)
 
-            print("LibraryManager: Successfully refreshed bookmark for \(folder.name)")
+            Logger.info("Successfully refreshed bookmark for \(folder.name)")
         } catch {
-            print("LibraryManager: Failed to refresh bookmark for \(folder.name): \(error)")
+            Logger.error("Failed to refresh bookmark for \(folder.name): \(error)")
         }
     }
 }

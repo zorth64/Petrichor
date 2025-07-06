@@ -87,7 +87,7 @@ extension DatabaseManager {
                 }
             }
         } catch {
-            print("Failed to get distinct values for \(filterType): \(error)")
+            Logger.error("Failed to get distinct values for \(filterType): \(error)")
             return []
         }
     }
@@ -200,7 +200,7 @@ extension DatabaseManager {
                 }
             }
         } catch {
-            print("Failed to get tracks by filter type: \(error)")
+            Logger.error("Failed to get tracks by filter type: \(error)")
             return []
         }
     }
@@ -235,7 +235,7 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
         } catch {
-            print("Failed to get tracks by filter type containing: \(error)")
+            Logger.error("Failed to get tracks by filter type containing: \(error)")
             return []
         }
     }
@@ -260,7 +260,7 @@ extension DatabaseManager {
                 }
             }
         } catch {
-            print("Failed to get artist entities: \(error)")
+            Logger.error("Failed to get artist entities: \(error)")
             return []
         }
     }
@@ -293,7 +293,7 @@ extension DatabaseManager {
                 }
             }
         } catch {
-            print("Failed to get album entities: \(error)")
+            Logger.error("Failed to get album entities: \(error)")
             return []
         }
     }
@@ -324,7 +324,7 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
         } catch {
-            print("Failed to get tracks for artist entity: \(error)")
+            Logger.error("Failed to get tracks for artist entity: \(error)")
             return []
         }
     }
@@ -362,7 +362,7 @@ extension DatabaseManager {
                 
                 guard let album = try query.fetchOne(db),
                       let albumId = album.id else {
-                    print("No album found for entity: \(albumEntity.name)")
+                    Logger.warning("No album found for entity: \(albumEntity.name)")
                     return []
                 }
                 
@@ -373,7 +373,7 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
         } catch {
-            print("Failed to get tracks for album entity: \(error)")
+            Logger.error("Failed to get tracks for album entity: \(error)")
             return []
         }
     }
@@ -388,7 +388,7 @@ extension DatabaseManager {
                     .fetchCount(db)
             }
         } catch {
-            print("Failed to get artist count: \(error)")
+            Logger.error("Failed to get artist count: \(error)")
             return 0
         }
     }
@@ -401,7 +401,7 @@ extension DatabaseManager {
                     .fetchCount(db)
             }
         } catch {
-            print("Failed to get album count: \(error)")
+            Logger.error("Failed to get album count: \(error)")
             return 0
         }
     }
@@ -453,7 +453,7 @@ extension DatabaseManager {
                 return items
             }
         } catch {
-            print("Failed to get artist filter items: \(error)")
+            Logger.error("Failed to get artist filter items: \(error)")
             return []
         }
     }
@@ -503,7 +503,7 @@ extension DatabaseManager {
                 return items
             }
         } catch {
-            print("Failed to get album artist filter items: \(error)")
+            Logger.error("Failed to get album artist filter items: \(error)")
             return []
         }
     }
@@ -553,7 +553,7 @@ extension DatabaseManager {
                 return items
             }
         } catch {
-            print("Failed to get composer filter items: \(error)")
+            Logger.error("Failed to get composer filter items: \(error)")
             return []
         }
     }
@@ -601,7 +601,7 @@ extension DatabaseManager {
                 return items
             }
         } catch {
-            print("Failed to get album filter items: \(error)")
+            Logger.error("Failed to get album filter items: \(error)")
             return []
         }
     }
@@ -650,7 +650,7 @@ extension DatabaseManager {
                 return items
             }
         } catch {
-            print("Failed to get genre filter items: \(error)")
+            Logger.error("Failed to get genre filter items: \(error)")
             return []
         }
     }
@@ -690,7 +690,7 @@ extension DatabaseManager {
                 return items
             }
         } catch {
-            print("Failed to get decade filter items: \(error)")
+            Logger.error("Failed to get decade filter items: \(error)")
             return []
         }
     }
@@ -724,7 +724,7 @@ extension DatabaseManager {
                 return items
             }
         } catch {
-            print("Failed to get year filter items: \(error)")
+            Logger.error("Failed to get year filter items: \(error)")
             return []
         }
     }
@@ -738,7 +738,7 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
         } catch {
-            print("Failed to fetch tracks: \(error)")
+            Logger.error("Failed to fetch tracks: \(error)")
             return []
         }
     }
@@ -752,7 +752,7 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
         } catch {
-            print("Failed to fetch tracks for folder: \(error)")
+            Logger.error("Failed to fetch tracks for folder: \(error)")
             return []
         }
     }
@@ -766,7 +766,7 @@ extension DatabaseManager {
                     .fetchOne(db)
             }
         } catch {
-            print("Failed to fetch artwork: \(error)")
+            Logger.error("Failed to fetch artwork: \(error)")
             return nil
         }
     }
@@ -782,7 +782,7 @@ extension DatabaseManager {
                     .id
             }
         } catch {
-            print("DatabaseManager: Failed to get artist ID: \(error)")
+            Logger.error("Failed to get artist ID: \(error)")
             return nil
         }
     }

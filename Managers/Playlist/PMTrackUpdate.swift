@@ -6,7 +6,7 @@ extension PlaylistManager {
     
     func updateTrackFavoriteStatus(track: Track, isFavorite: Bool) async {
         guard let trackId = track.trackId else {
-            print("PlaylistManager: Cannot update favorite - track has no database ID")
+            Logger.error("Cannot update favorite - track has no database ID")
             return
         }
 
@@ -23,17 +23,17 @@ extension PlaylistManager {
                 await MainActor.run {
                     if let libraryTrack = self.libraryManager?.tracks.first(where: { $0.trackId == trackId }) {
                         libraryTrack.isFavorite = isFavorite
-                        print("PlaylistManager: Updated library track favorite status")
+                        Logger.info("Updated library track favorite status")
                     }
                 }
 
-                print("PlaylistManager: Updated favorite status for track: \(track.title) to \(isFavorite)")
+                Logger.info("Updated favorite status for track: \(track.title) to \(isFavorite)")
                 
                 // THEN update smart playlists
                 await handleTrackPropertyUpdate(track)
             }
         } catch {
-            print("PlaylistManager: Failed to update favorite status: \(error)")
+            Logger.error("Failed to update favorite status: \(error)")
             // Revert change
             await MainActor.run {
                 track.isFavorite = !isFavorite
@@ -55,7 +55,7 @@ extension PlaylistManager {
                         await updateTrackFavoriteStatus(track: track, isFavorite: add)
                     } else if playlist.type == .smart && !playlist.isContentEditable {
                         // Other smart playlists are read-only
-                        print("PlaylistManager: Cannot manually add/remove tracks from \(playlist.name)")
+                        Logger.warning("Cannot manually add/remove tracks from \(playlist.name)")
                         return
                     }
                 } else {
@@ -84,7 +84,7 @@ extension PlaylistManager {
             guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
                   playlists[index].type == .regular,
                   playlists[index].isContentEditable else {
-                print("PlaylistManager: Cannot add to this playlist")
+                Logger.warning("Cannot add to this playlist")
                 return
             }
 
@@ -107,10 +107,10 @@ extension PlaylistManager {
                 do {
                     if let dbManager = libraryManager?.databaseManager {
                         try await dbManager.savePlaylistAsync(updatedPlaylist)
-                        print("PlaylistManager: Added \(tracksAdded) tracks to playlist")
+                        Logger.info("Added \(tracksAdded) tracks to playlist")
                     }
                 } catch {
-                    print("PlaylistManager: Failed to save playlist: \(error)")
+                    Logger.error("Failed to save playlist: \(error)")
                     // Revert changes
                     if let dbManager = libraryManager?.databaseManager {
                         let savedPlaylists = dbManager.loadAllPlaylists()
@@ -133,7 +133,7 @@ extension PlaylistManager {
             guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
                   playlists[index].type == .regular,
                   playlists[index].isContentEditable else {
-                print("PlaylistManager: Cannot remove from this playlist")
+                Logger.warning("Cannot remove from this playlist")
                 return
             }
 
@@ -156,10 +156,10 @@ extension PlaylistManager {
                 do {
                     if let dbManager = libraryManager?.databaseManager {
                         try await dbManager.savePlaylistAsync(updatedPlaylist)
-                        print("PlaylistManager: Removed \(tracksRemoved) tracks from playlist")
+                        Logger.info("Removed \(tracksRemoved) tracks from playlist")
                     }
                 } catch {
-                    print("PlaylistManager: Failed to save playlist: \(error)")
+                    Logger.error("Failed to save playlist: \(error)")
                     // Revert changes
                     if let dbManager = libraryManager?.databaseManager {
                         let savedPlaylists = dbManager.loadAllPlaylists()
@@ -217,7 +217,7 @@ extension PlaylistManager {
                         await handleTrackPropertyUpdate(track)
                     }
                 } catch {
-                    print("Failed to update play info: \(error)")
+                    Logger.error("Failed to update play info: \(error)")
                     await MainActor.run {
                         track.playCount -= 1
                         track.lastPlayedDate = nil

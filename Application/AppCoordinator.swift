@@ -120,7 +120,7 @@ class AppCoordinator: ObservableObject {
             let data = try encoder.encode(state)
             UserDefaults.standard.set(data, forKey: playbackStateKey)
         } catch {
-            print("AppCoordinator: Failed to save playback state: \(error)")
+            Logger.warning("Failed to save playback state: \(error)")
         }
     }
     
@@ -215,7 +215,7 @@ class AppCoordinator: ObservableObject {
             // Now perform restoration immediately since library is loaded
             performStateRestoration(state)
         } catch {
-            print("AppCoordinator: Failed to restore playback state: \(error)")
+            Logger.warning("Failed to restore playback state: \(error)")
             clearAllSavedState()
         }
     }

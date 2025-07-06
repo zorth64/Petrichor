@@ -61,6 +61,7 @@ class LibraryManager: ObservableObject {
             // Initialize database manager
             databaseManager = try DatabaseManager()
         } catch {
+            Logger.critical("Failed to initialize database: \(error)")
             fatalError("Failed to initialize database: \(error)")
         }
 
@@ -112,25 +113,25 @@ class LibraryManager: ObservableObject {
 
         // Only start a timer if auto-scan is not set to "only on launch"
         guard let interval = currentInterval.timeInterval else {
-            print("LibraryManager: Auto-scan set to only on launch, no timer started")
+            Logger.info("Auto-scan set to only on launch, no timer started")
             return
         }
 
-        print("LibraryManager: Starting auto-scan timer with interval: \(interval) seconds (\(currentInterval.displayName))")
+        Logger.info("LibraryManager: Starting auto-scan timer with interval: \(interval) seconds (\(currentInterval.displayName))")
 
         fileWatcherTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
 
             // Only refresh if we're not currently scanning
             if !self.isScanning && !self.isBackgroundScanning {
-                print("LibraryManager: Starting periodic refresh...")
+                Logger.info("Starting periodic refresh...")
                 self.refreshLibrary()
             }
         }
     }
 
     private func handleAutoScanIntervalChange() {
-        print("LibraryManager: Auto-scan interval changed to: \(autoScanInterval.displayName)")
+        Logger.info("Auto-scan interval changed to: \(autoScanInterval.displayName)")
         // Restart the file watcher with new interval
         startFileWatcher()
     }

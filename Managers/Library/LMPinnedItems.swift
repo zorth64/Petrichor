@@ -12,7 +12,7 @@ extension LibraryManager {
                 self.pinnedItems = items
             }
         } catch {
-            print("LibraryManager: Failed to load pinned items: \(error)")
+            Logger.error("Failed to load pinned items: \(error)")
         }
     }
     
@@ -36,7 +36,7 @@ extension LibraryManager {
             try await databaseManager.savePinnedItem(pinnedItem)
             await loadPinnedItems()
         } catch {
-            print("LibraryManager: Failed to pin item: \(error)")
+            Logger.error("Failed to pin item: \(error)")
         }
     }
     
@@ -54,7 +54,7 @@ extension LibraryManager {
             try await databaseManager.savePinnedItem(pinnedItem)
             await loadPinnedItems()
         } catch {
-            print("LibraryManager: Failed to pin artist: \(error)")
+            Logger.error("Failed to pin artist: \(error)")
         }
     }
     
@@ -66,7 +66,7 @@ extension LibraryManager {
             try await databaseManager.savePinnedItem(pinnedItem)
             await loadPinnedItems()
         } catch {
-            print("LibraryManager: Failed to pin album: \(error)")
+            Logger.error("Failed to pin album: \(error)")
         }
     }
     
@@ -80,7 +80,7 @@ extension LibraryManager {
             )
             await loadPinnedItems()
         } catch {
-            print("LibraryManager: Failed to unpin item: \(error)")
+            Logger.error("Failed to unpin item: \(error)")
         }
     }
     
@@ -95,7 +95,7 @@ extension LibraryManager {
             try await databaseManager.removePinnedItem(pinnedItem)
             await loadPinnedItems()
         } catch {
-            print("LibraryManager: Failed to unpin entity: \(error)")
+            Logger.error("Failed to unpin entity: \(error)")
         }
     }
     
@@ -105,7 +105,7 @@ extension LibraryManager {
             try await databaseManager.removePinnedItem(item)
             await loadPinnedItems()
         } catch {
-            print("LibraryManager: Failed to remove pinned item: \(error)")
+            Logger.error("Failed to remove pinned item: \(error)")
         }
     }
     
@@ -117,7 +117,7 @@ extension LibraryManager {
                 self.pinnedItems = items
             }
         } catch {
-            print("LibraryManager: Failed to reorder pinned items: \(error)")
+            Logger.error("Failed to reorder pinned items: \(error)")
         }
     }
     
