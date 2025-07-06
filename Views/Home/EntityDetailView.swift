@@ -3,7 +3,7 @@ import SwiftUI
 struct EntityDetailView: View {
     @AppStorage("trackListSortAscending") private var trackListSortAscending = true
 
-    let entity: Entity
+    let entity: any Entity
     let viewType: LibraryViewType
     let onBack: (() -> Void)?
     
@@ -101,7 +101,7 @@ struct EntityDetailView: View {
                 // Sort button for list/grid views
                 if viewType != .table {
                     Button(action: { trackListSortAscending.toggle() }) {
-                        Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                        Image(Icons.sortIcon(for: trackListSortAscending))
                             .renderingMode(.template)
                             .scaleEffect(0.8)
                     }
@@ -133,7 +133,7 @@ struct EntityDetailView: View {
                     .fill(Color.secondary.opacity(0.2))
                     .frame(width: 120, height: 120)
                     .overlay(
-                        Image(systemName: entity is ArtistEntity ? "person.fill" : "opticaldisc.fill")
+                        Image(systemName: entity is ArtistEntity ? Icons.personFill : Icons.opticalDiscFill)
                             .font(.system(size: 40))
                             .foregroundColor(.secondary)
                     )
@@ -209,7 +209,7 @@ struct EntityDetailView: View {
             
             Button(action: playEntity) {
                 HStack(spacing: iconTextSpacing) {
-                    Image(systemName: "play.fill")
+                    Image(systemName: Icons.playFill)
                         .font(.system(size: iconSize))
                     Text("Play")
                         .font(.system(size: textSize, weight: .medium))
@@ -222,7 +222,7 @@ struct EntityDetailView: View {
             
             Button(action: shuffleEntity) {
                 HStack(spacing: iconTextSpacing) {
-                    Image(systemName: "shuffle")
+                    Image(systemName: Icons.shuffleFill)
                         .font(.system(size: iconSize))
                     Text("Shuffle")
                         .font(.system(size: textSize, weight: .medium))

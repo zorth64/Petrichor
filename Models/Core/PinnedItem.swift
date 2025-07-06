@@ -82,20 +82,7 @@ struct PinnedItem: Identifiable, FetchableRecord, PersistableRecord {
         self.playlistId = playlist.id
         self.displayName = playlist.name
         self.subtitle = "\(playlist.tracks.count) songs"
-        if playlist.type == .smart && !playlist.isUserEditable {
-            switch playlist.name {
-            case "Favorites":
-                self.iconName = "star.fill"
-            case "Top 25 Most Played":
-                self.iconName = "play.circle.fill"
-            case "Top 25 Recently Played":
-                self.iconName = "clock.fill"
-            default:
-                self.iconName = "music.note.list"
-            }
-        } else {
-            self.iconName = "music.note.list"
-        }
+        self.iconName = Icons.defaultPlaylistIcon(for: playlist)
         self.sortOrder = 0
         self.dateAdded = Date()
     }
@@ -190,7 +177,7 @@ struct PinnedItem: Identifiable, FetchableRecord, PersistableRecord {
     }
     
     /// Check if this pinned item matches a given entity
-    func matches(entity: Entity) -> Bool {
+    func matches(entity: any Entity) -> Bool {
         guard itemType == .library else { return false }
         
         // First try to match by entity ID if available

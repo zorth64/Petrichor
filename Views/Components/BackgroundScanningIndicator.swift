@@ -27,7 +27,7 @@ struct BackgroundScanningIndicator: View {
                 )
 
             // Music note icon
-            Image(systemName: "music.note")
+            Image(systemName: Icons.musicNote)
                 .font(.system(size: 8, weight: .bold))
                 .foregroundColor(.accentColor)
         }

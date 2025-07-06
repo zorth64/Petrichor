@@ -85,7 +85,7 @@ extension LibraryManager {
     }
     
     /// Unpin an entity (artist or album)
-    func unpinEntity(_ entity: Entity) async {
+    func unpinEntity(_ entity: any Entity) async {
         // Find the matching pinned item
         guard let pinnedItem = pinnedItems.first(where: { $0.matches(entity: entity) }) else {
             return
@@ -131,7 +131,7 @@ extension LibraryManager {
     }
     
     /// Check if an entity is pinned
-    func isEntityPinned(_ entity: Entity) -> Bool {
+    func isEntityPinned(_ entity: any Entity) -> Bool {
         pinnedItems.contains { $0.matches(entity: entity) }
     }
     
@@ -162,7 +162,7 @@ extension LibraryManager {
     }
     
     /// Create context menu items for entity views
-    func createPinContextMenuItem(for entity: Entity) -> ContextMenuItem {
+    func createPinContextMenuItem(for entity: any Entity) -> ContextMenuItem {
         let isPinned = isEntityPinned(entity)
         
         return .button(

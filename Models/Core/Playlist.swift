@@ -387,9 +387,9 @@ extension Playlist {
         let seconds = totalSeconds % 60
 
         if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+            return String(format: StringFormat.hhmmss, hours, minutes, seconds)
         } else {
-            return String(format: "%d:%02d", minutes, seconds)
+            return String(format: StringFormat.mmss, minutes, seconds)
         }
     }
 }
@@ -400,7 +400,7 @@ extension Playlist {
         [
             // Favorites playlist - sorted by date added
             Playlist(
-                name: "Favorites",
+                name: DefaultPlaylists.favorites,
                 criteria: SmartPlaylistCriteria(
                     rules: [SmartPlaylistCriteria.Rule(
                         field: "isFavorite",
@@ -415,7 +415,7 @@ extension Playlist {
             
             // Top 25 Most Played - already correct
             Playlist(
-                name: "Top 25 Most Played",
+                name: DefaultPlaylists.mostPlayed,
                 criteria: SmartPlaylistCriteria(
                     rules: [SmartPlaylistCriteria.Rule(
                         field: "playCount",
@@ -431,7 +431,7 @@ extension Playlist {
             
             // Top 25 Recently Played - already correct
             Playlist(
-                name: "Top 25 Recently Played",
+                name: DefaultPlaylists.recentlyPlayed,
                 criteria: SmartPlaylistCriteria(
                     rules: [SmartPlaylistCriteria.Rule(
                         field: "lastPlayedDate",

@@ -763,7 +763,7 @@ struct TrackTableView: NSViewRepresentable {
             let totalSeconds = Int(max(0, seconds))
             let minutes = totalSeconds / 60
             let remainingSeconds = totalSeconds % 60
-            return String(format: "%d:%02d", minutes, remainingSeconds)
+            return String(format: StringFormat.mmss, minutes, remainingSeconds)
         }
 
         @objc private func contextMenuAction(_ sender: NSMenuItem) {
@@ -899,7 +899,7 @@ struct TrackTableView: NSViewRepresentable {
 
             if animated {
                 CATransaction.begin()
-                CATransaction.setAnimationDuration(coordinator?.hoveredRow == row ? 0.1 : 0.15)
+                CATransaction.setAnimationDuration(coordinator?.hoveredRow == row ? AnimationDuration.quickDuration : AnimationDuration.standardDuration)
                 CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
                 backgroundLayer?.backgroundColor = color.cgColor
                 CATransaction.commit()
@@ -1013,7 +1013,7 @@ struct TrackTableTitleCell: View {
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 30, height: 30)
                     .overlay(
-                        Image(systemName: "music.note")
+                        Image(systemName: Icons.musicNote)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     )
@@ -1069,7 +1069,7 @@ struct PlayPauseCell: View {
                         onPlay()
                     }
                 }) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: isPlaying ? Icons.pauseFill : Icons.playFill)
                         .font(.system(size: 14))
                         .foregroundColor(.primary)
                 }

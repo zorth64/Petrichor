@@ -23,12 +23,12 @@ extension DatabaseManager {
             self.scanStatusMessage = "Adding folders..."
         }
 
-        var addedFolders: [Folder] = []
-
-        try await dbQueue.write { db in
+        let addedFolders = try await dbQueue.write { db -> [Folder] in
+            var folders: [Folder] = []
+            
             for url in urls {
                 let bookmarkData = bookmarkDataMap[url]
-                var folder = Folder(url: url, bookmarkData: bookmarkData)
+                let folder = Folder(url: url, bookmarkData: bookmarkData)
 
                 // Check if folder already exists
                 if let existing = try Folder
@@ -38,7 +38,7 @@ extension DatabaseManager {
                     var updatedFolder = existing
                     updatedFolder.bookmarkData = bookmarkData
                     try updatedFolder.update(db)
-                    addedFolders.append(updatedFolder)
+                    folders.append(updatedFolder)
                     print("Folder already exists: \(existing.name) with ID: \(existing.id ?? -1), updated bookmark")
                 } else {
                     // Insert new folder
@@ -48,11 +48,13 @@ extension DatabaseManager {
                     if let insertedFolder = try Folder
                         .filter(Folder.Columns.path == url.path)
                         .fetchOne(db) {
-                        addedFolders.append(insertedFolder)
+                        folders.append(insertedFolder)
                         print("Added new folder: \(insertedFolder.name) with ID: \(insertedFolder.id ?? -1)")
                     }
                 }
             }
+            
+            return folders
         }
 
         // Now scan the folders for tracks
@@ -171,7 +173,7 @@ extension DatabaseManager {
     }
 
     func updateFolderBookmark(_ folderId: Int64, bookmarkData: Data) async throws {
-        try await dbQueue.write { db in
+        _ = try await dbQueue.write { db in
             try Folder
                 .filter(Folder.Columns.id == folderId)
                 .updateAll(db, Folder.Columns.bookmarkData.set(to: bookmarkData))

@@ -8,7 +8,7 @@ class AppCoordinator: ObservableObject {
     let audioPlayerManager: AudioPlayerManager
     let nowPlayingManager: NowPlayingManager
     let menuBarManager: MenuBarManager
-
+    
     private var hadFoldersAtStartup: Bool = false
     private let playbackStateKey = "SavedPlaybackState"
     private let playbackUIStateKey = "SavedPlaybackUIState"
@@ -16,41 +16,41 @@ class AppCoordinator: ObservableObject {
     // Track restoration state to prevent race conditions
     private var isRestoringPlayback = false
     private var libraryObserver: NSObjectProtocol?
-
+    
     @Published var isQueueVisible: Bool = false
-
+    
     // MARK: - Initialization
-
+    
     init() {
         // Initialize managers
         libraryManager = LibraryManager()
         playlistManager = PlaylistManager()
-
+        
         // Create audio player with dependencies
         audioPlayerManager = AudioPlayerManager(libraryManager: libraryManager, playlistManager: playlistManager)
-
+        
         // Connect managers
         playlistManager.setAudioPlayer(audioPlayerManager)
         playlistManager.setLibraryManager(libraryManager)
-
+        
         // Setup now playing
         nowPlayingManager = NowPlayingManager()
         nowPlayingManager.connectRemoteCommandCenter(audioPlayer: audioPlayerManager, playlistManager: playlistManager)
-
+        
         // Setup menubar
         menuBarManager = MenuBarManager(audioPlayerManager: audioPlayerManager, playlistManager: playlistManager)
-
+        
         hadFoldersAtStartup = !libraryManager.folders.isEmpty
-
+        
         Self.shared = self
-
+        
         // Check if library is empty at startup - if so, clear any saved state
         if !hadFoldersAtStartup {
             clearAllSavedState()
         } else {
             // Only restore if we have folders
             restoreUIStateImmediately()
-
+            
             // Schedule restoration after a minimal delay to ensure UI is ready
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.restorePlaybackState()
@@ -64,7 +64,7 @@ class AppCoordinator: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
     }
-
+    
     // MARK: - Playback State Persistence
     
     private func clearAllSavedState() {
@@ -73,14 +73,14 @@ class AppCoordinator: ObservableObject {
         audioPlayerManager.restoredUITrack = nil
         audioPlayerManager.currentTrack = nil
     }
-
+    
     func savePlaybackState() {
         // Only save if we have a current track
         guard let currentTrack = audioPlayerManager.currentTrack else {
             clearAllSavedState()
             return
         }
-
+        
         // Determine source identifier
         var sourceIdentifier: String?
         switch playlistManager.currentQueueSource {
@@ -94,7 +94,7 @@ class AppCoordinator: ObservableObject {
         default:
             break
         }
-
+        
         let state = PlaybackState(
             currentTrack: currentTrack,
             playbackPosition: audioPlayerManager.effectiveCurrentTime,
@@ -108,13 +108,13 @@ class AppCoordinator: ObservableObject {
             shuffleEnabled: playlistManager.isShuffleEnabled,
             repeatMode: playlistManager.repeatMode
         )
-
+        
         if let uiState = state.createUIState(from: currentTrack) {
             if let uiData = try? JSONEncoder().encode(uiState) {
                 UserDefaults.standard.set(uiData, forKey: playbackUIStateKey)
             }
         }
-
+        
         do {
             let encoder = JSONEncoder()
             let data = try encoder.encode(state)
@@ -123,19 +123,19 @@ class AppCoordinator: ObservableObject {
             print("AppCoordinator: Failed to save playback state: \(error)")
         }
     }
-
+    
     func restoreUIStateImmediately() {
         // Try to restore UI state immediately
         guard let uiData = UserDefaults.standard.data(forKey: playbackUIStateKey),
               let uiState = try? JSONDecoder().decode(PlaybackUIState.self, from: uiData) else {
             return
         }
-
+        
         // Restore UI immediately
         audioPlayerManager.restoreUIState(uiState)
         isQueueVisible = uiState.queueVisible
     }
-
+    
     func restorePlaybackState() {
         // Prevent concurrent restorations
         guard !isRestoringPlayback else {
@@ -153,7 +153,7 @@ class AppCoordinator: ObservableObject {
                 isRestoringPlayback = false
                 return
             }
-
+            
             // Use a stored observer reference to ensure proper cleanup
             libraryObserver = NotificationCenter.default.addObserver(
                 forName: NSNotification.Name("LibraryDidLoad"),
@@ -164,53 +164,53 @@ class AppCoordinator: ObservableObject {
             }
             return
         }
-
+        
         // If library is already loaded, proceed with restoration
         performActualRestoration()
     }
-
+    
     @objc private func libraryDidLoad() {
         // Remove observer
         if let observer = libraryObserver {
             NotificationCenter.default.removeObserver(observer)
             libraryObserver = nil
         }
-
+        
         // Don't restore if we didn't have folders at startup
         if !hadFoldersAtStartup {
             isRestoringPlayback = false
             return
         }
-
+        
         // Check again if library is actually loaded with content
         if libraryManager.tracks.isEmpty || libraryManager.folders.isEmpty {
             clearAllSavedState()
             isRestoringPlayback = false
             return
         }
-
+        
         // Now perform restoration
         performActualRestoration()
     }
-
+    
     private func performActualRestoration() {
         defer { isRestoringPlayback = false }
         
         guard let data = UserDefaults.standard.data(forKey: playbackStateKey) else {
             return
         }
-
+        
         do {
             let decoder = JSONDecoder()
             let state = try decoder.decode(PlaybackState.self, from: data)
-
+            
             // Validate state age - don't restore very old states
             let stateAge = Date().timeIntervalSince(state.savedDate)
             if stateAge > 7 * 24 * 60 * 60 { // 7 days
                 clearAllSavedState()
                 return
             }
-
+            
             // Now perform restoration immediately since library is loaded
             performStateRestoration(state)
         } catch {
@@ -218,117 +218,113 @@ class AppCoordinator: ObservableObject {
             clearAllSavedState()
         }
     }
-
+    
     private func performStateRestoration(_ state: PlaybackState) {
-        do {
-            // Create a track ID to track map for efficient lookup
-            let trackIdMap: [Int64: Track] = Dictionary(
-                libraryManager.tracks.compactMap { track in
-                    guard let trackId = track.trackId else { return nil }
-                    return (trackId, track)
-                }
-            ) { first, _ in first }
-            
-            // Also create a path to track map as fallback
-            let trackPathMap: [String: Track] = Dictionary(
-                libraryManager.tracks.map { track in
-                    (track.url.path, track)
-                }
-            ) { first, _ in first }
-
-            // Restore the queue efficiently
-            var restoredQueue: [Track] = []
-            restoredQueue.reserveCapacity(state.queueTrackIds.count)
-            
-            for (index, trackId) in state.queueTrackIds.enumerated() {
-                if let track = trackIdMap[trackId] {
+        // Create a track ID to track map for efficient lookup
+        let trackIdMap: [Int64: Track] = Dictionary(
+            libraryManager.tracks.compactMap { track in
+                guard let trackId = track.trackId else { return nil }
+                return (trackId, track)
+            }
+        ) { first, _ in first }
+        
+        // Also create a path to track map as fallback
+        let trackPathMap: [String: Track] = Dictionary(
+            libraryManager.tracks.map { track in
+                (track.url.path, track)
+            }
+        ) { first, _ in first }
+        
+        // Restore the queue efficiently
+        var restoredQueue: [Track] = []
+        restoredQueue.reserveCapacity(state.queueTrackIds.count)
+        
+        for (index, trackId) in state.queueTrackIds.enumerated() {
+            if let track = trackIdMap[trackId] {
+                restoredQueue.append(track)
+            } else if index < state.queueTrackPaths.count {
+                // Fallback to path matching
+                let path = state.queueTrackPaths[index]
+                if let track = trackPathMap[path] {
                     restoredQueue.append(track)
-                } else if index < state.queueTrackPaths.count {
-                    // Fallback to path matching
-                    let path = state.queueTrackPaths[index]
-                    if let track = trackPathMap[path] {
-                        restoredQueue.append(track)
-                    }
                 }
             }
-
-            // Check if we restored enough of the queue
-            let restorationRatio = Double(restoredQueue.count) / Double(state.queueTrackPaths.count)
-            if restorationRatio < 0.5 {
-                clearAllSavedState()
-                return
-            }
-
-            // Only proceed if we found at least some tracks
-            guard !restoredQueue.isEmpty else {
-                clearAllSavedState()
-                return
-            }
-
-            // Restore playback settings first
-            playlistManager.isShuffleEnabled = state.shuffleEnabled
-            playlistManager.repeatMode = state.repeatModeEnum
-            audioPlayerManager.setVolume(state.isMuted ? 0 : state.volume)
-
-            // Set the queue
-            playlistManager.currentQueue = restoredQueue
-            playlistManager.currentQueueIndex = min(state.currentQueueIndex, restoredQueue.count - 1)
-            playlistManager.currentQueueSource = state.queueSourceEnum
-
-            // Try to restore the source context
-            switch state.queueSourceEnum {
-            case .playlist:
-                if let playlistId = state.sourceIdentifier,
-                   let uuid = UUID(uuidString: playlistId),
-                   let playlist = playlistManager.playlists.first(where: { $0.id == uuid }) {
-                    playlistManager.currentPlaylist = playlist
-                }
-            default:
-                break
-            }
-
-            // Restore UI state
-            isQueueVisible = state.queueVisible
-
-            // Find and prepare the current track
-            if let currentTrackId = state.currentTrackId,
-               let currentTrack = restoredQueue.first(where: { $0.trackId == currentTrackId }) {
-                // Verify the file exists and is accessible
-                let fileManager = FileManager.default
-                guard fileManager.fileExists(atPath: currentTrack.url.path) else {
-                    clearAllSavedState()
-                    return
-                }
-
-                // Try to access the file
-                guard fileManager.isReadableFile(atPath: currentTrack.url.path) else {
-                    clearAllSavedState()
-                    return
-                }
-
-                // Clear the temporary UI track before setting the real one
-                audioPlayerManager.restoredUITrack = nil
-
-                // Use the new method to prepare track without immediate playback
-                audioPlayerManager.prepareTrackForRestoration(currentTrack, at: state.playbackPosition)
-            }
-        } catch {
+        }
+        
+        // Check if we restored enough of the queue
+        let restorationRatio = Double(restoredQueue.count) / Double(state.queueTrackPaths.count)
+        if restorationRatio < 0.5 {
             clearAllSavedState()
+            return
+        }
+        
+        // Only proceed if we found at least some tracks
+        guard !restoredQueue.isEmpty else {
+            clearAllSavedState()
+            return
+        }
+        
+        // Restore playback settings first
+        playlistManager.isShuffleEnabled = state.shuffleEnabled
+        playlistManager.repeatMode = state.repeatModeEnum
+        audioPlayerManager.setVolume(state.isMuted ? 0 : state.volume)
+        
+        // Set the queue
+        playlistManager.currentQueue = restoredQueue
+        playlistManager.currentQueueIndex = min(state.currentQueueIndex, restoredQueue.count - 1)
+        playlistManager.currentQueueSource = state.queueSourceEnum
+        
+        // Try to restore the source context
+        switch state.queueSourceEnum {
+        case .playlist:
+            if let playlistId = state.sourceIdentifier,
+               let uuid = UUID(uuidString: playlistId),
+               let playlist = playlistManager.playlists.first(where: { $0.id == uuid }) {
+                playlistManager.currentPlaylist = playlist
+            }
+        default:
+            break
+        }
+        
+        // Restore UI state
+        isQueueVisible = state.queueVisible
+        
+        // Find and prepare the current track
+        if let currentTrackId = state.currentTrackId,
+           let currentTrack = restoredQueue.first(where: { $0.trackId == currentTrackId }) {
+            // Verify the file exists and is accessible
+            let fileManager = FileManager.default
+            guard fileManager.fileExists(atPath: currentTrack.url.path) else {
+                clearAllSavedState()
+                return
+            }
+            
+            // Try to access the file
+            guard fileManager.isReadableFile(atPath: currentTrack.url.path) else {
+                clearAllSavedState()
+                return
+            }
+            
+            // Clear the temporary UI track before setting the real one
+            audioPlayerManager.restoredUITrack = nil
+            
+            // Use the new method to prepare track without immediate playback
+            audioPlayerManager.prepareTrackForRestoration(currentTrack, at: state.playbackPosition)
         }
     }
-
+    
     func clearPlaybackStateIfNeeded() {
         let lastVersionKey = "LastLaunchedAppVersion"
         let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-
+        
         // Get the last launched version
         let lastVersion = UserDefaults.standard.string(forKey: lastVersionKey) ?? ""
-
+        
         // Clear state if version changed significantly
         if lastVersion != currentVersion && !lastVersion.isEmpty {
             clearAllSavedState()
         }
-
+        
         // Update the stored version
         UserDefaults.standard.set(currentVersion, forKey: lastVersionKey)
     }
@@ -345,7 +341,7 @@ class AppCoordinator: ObservableObject {
                     UserDefaults.standard.removeObject(forKey: playbackStateKey)
                 }
             }
-
+            
             // Also check UI state validity
             if let uiData = UserDefaults.standard.data(forKey: playbackUIStateKey),
                let _ = try? JSONDecoder().decode(PlaybackUIState.self, from: uiData) {

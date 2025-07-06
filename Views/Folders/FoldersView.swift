@@ -50,10 +50,10 @@ struct FoldersView: View {
             .onAppear {
                 handleHierarchicalSidebarAppear()
             }
-            .onChange(of: selectedFolderNode) { node in
-                handleFolderNodeSelection(node)
+            .onChange(of: selectedFolderNode) { _, newNode in
+                handleFolderNodeSelection(newNode)
             }
-            .onChange(of: trackListSortAscending) { _ in
+            .onChange(of: trackListSortAscending) {
                 // Re-sort the current folder tracks when sort direction changes
                 if let node = selectedFolderNode {
                     loadTracksForFolderNode(node)
@@ -89,7 +89,7 @@ struct FoldersView: View {
                     trackCount: folderTracks.count
                 ) {
                     Button(action: { trackListSortAscending.toggle() }) {
-                        Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                        Image(Icons.sortIcon(for: trackListSortAscending))
                             .renderingMode(.template)
                             .scaleEffect(0.8)
                     }
@@ -126,7 +126,7 @@ struct FoldersView: View {
 
     private var emptyFolderView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "music.note.list")
+            Image(systemName: Icons.musicNoteList)
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
 
@@ -149,7 +149,7 @@ struct FoldersView: View {
             selectedTrackID: $selectedTrackID,
             playlistID: nil,
             onPlayTrack: { track in
-                if let node = selectedFolderNode {
+                if selectedFolderNode != nil {
                     // For hierarchical view, we need to play from the track list
                     playlistManager.playTrack(track, fromTracks: folderTracks)
                     selectedTrackID = track.id
@@ -183,7 +183,7 @@ struct FoldersView: View {
 
     private var noFolderSelectedView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "folder")
+            Image(systemName: Icons.folder)
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
 
@@ -226,7 +226,7 @@ struct FoldersView: View {
 
                 Button("Create") {
                     if !newPlaylistName.isEmpty, let track = trackToAddToNewPlaylist {
-                        let newPlaylist = playlistManager.createPlaylist(
+                        _ = playlistManager.createPlaylist(
                             name: newPlaylistName,
                             tracks: [track]
                         )

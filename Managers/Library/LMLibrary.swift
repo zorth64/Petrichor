@@ -118,9 +118,23 @@ extension LibraryManager {
         // Set background scanning flag instead of regular scanning
         isBackgroundScanning = true
 
+        // Use an actor to safely track errors in concurrent context
+        actor ErrorTracker {
+            private var hasErrors = false
+            
+            func setError() {
+                hasErrors = true
+            }
+            
+            func getHasErrors() -> Bool {
+                hasErrors
+            }
+        }
+        
+        let errorTracker = ErrorTracker()
+
         // Track completion of all folder refreshes
         let group = DispatchGroup()
-        var hasErrors = false
 
         // First, ensure all folders have valid bookmarks
         Task {
@@ -139,14 +153,16 @@ extension LibraryManager {
                 for folder in self.folders {
                     group.enter()
                     self.databaseManager.refreshFolder(folder) { result in
-                        switch result {
-                        case .success:
-                            print("LibraryManager: Successfully refreshed folder \(folder.name)")
-                        case .failure(let error):
-                            print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
-                            hasErrors = true
+                        Task {
+                            switch result {
+                            case .success:
+                                print("LibraryManager: Successfully refreshed folder \(folder.name)")
+                            case .failure(let error):
+                                print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                                await errorTracker.setError()
+                            }
+                            group.leave()
                         }
-                        group.leave()
                     }
                 }
 
@@ -154,16 +170,19 @@ extension LibraryManager {
                 group.notify(queue: .main) { [weak self] in
                     guard let self = self else { return }
 
-                    // Reload the library after all refreshes complete
-                    self.loadMusicLibrary()
-                    self.isBackgroundScanning = false
+                    Task {
+                        // Reload the library after all refreshes complete
+                        self.loadMusicLibrary()
+                        self.isBackgroundScanning = false
 
-                    self.updateSearchResults()
+                        self.updateSearchResults()
 
-                    if hasErrors {
-                        print("LibraryManager: Library refresh completed with some errors")
-                    } else {
-                        print("LibraryManager: Library refresh completed successfully")
+                        let hasErrors = await errorTracker.getHasErrors()
+                        if hasErrors {
+                            print("LibraryManager: Library refresh completed with some errors")
+                        } else {
+                            print("LibraryManager: Library refresh completed successfully")
+                        }
                     }
                 }
             }

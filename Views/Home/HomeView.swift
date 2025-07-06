@@ -81,7 +81,7 @@ struct HomeView: View {
                     }
                 }
             )
-            .onChange(of: selectedSidebarItem) { newItem in
+            .onChange(of: selectedSidebarItem) { _, newItem in
                 isShowingEntityDetail = false
                 selectedArtistEntity = nil
                 selectedAlbumEntity = nil
@@ -111,7 +111,7 @@ struct HomeView: View {
                     isShowingEntities = false
                 }
             }
-            .onChange(of: isShowingEntityDetail) { _ in
+            .onChange(of: isShowingEntityDetail) {
                 // When showing entity detail (tracks), we're not showing entities anymore
                 if isShowingEntityDetail {
                     isShowingEntities = false
@@ -148,7 +148,7 @@ struct HomeView: View {
                         trackListSortAscending.toggle()
                         sortTracks()
                     }) {
-                        Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                        Image(Icons.sortIcon(for: trackListSortAscending))
                             .renderingMode(.template)
                             .scaleEffect(0.8)
                     }
@@ -188,7 +188,7 @@ struct HomeView: View {
                 sortTracks()
             }
         }
-        .onChange(of: libraryManager.tracks) { _ in
+        .onChange(of: libraryManager.tracks) {
             sortTracks()
         }
     }
@@ -206,7 +206,7 @@ struct HomeView: View {
                     entitySortAscending.toggle()
                     sortEntities()
                 }) {
-                    Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                    Image(Icons.sortIcon(for: trackListSortAscending))
                         .renderingMode(.template)
                         .scaleEffect(0.8)
                 }
@@ -260,7 +260,7 @@ struct HomeView: View {
                     entitySortAscending.toggle()
                     sortEntities()
                 }) {
-                    Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                    Image(Icons.sortIcon(for: trackListSortAscending))
                         .renderingMode(.template)
                         .scaleEffect(0.8)
                 }
@@ -360,7 +360,7 @@ struct HomeView: View {
                                 trackListSortAscending.toggle()
                                 sortTracks()
                             }) {
-                                Image(trackListSortAscending ? "sort.ascending" : "sort.descending")
+                                Image(Icons.sortIcon(for: trackListSortAscending))
                                     .renderingMode(.template)
                                     .scaleEffect(0.8)
                             }
@@ -424,7 +424,7 @@ struct HomeView: View {
     
     private var emptySelectionView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "music.note.house")
+            Image(systemName: Icons.musicNoteHouse)
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
             
@@ -493,7 +493,7 @@ struct HomeView: View {
 }
 
 #Preview {
-    @State var isShowingEntities = false
+    @Previewable @State var isShowingEntities = false
     
     HomeView(isShowingEntities: $isShowingEntities)
         .environmentObject(LibraryManager())

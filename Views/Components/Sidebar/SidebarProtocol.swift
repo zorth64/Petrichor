@@ -60,9 +60,9 @@ struct HomeSidebarItem: SidebarItem {
 
         var icon: String {
             switch self {
-            case .tracks: return "music.note"
-            case .artists: return "person.2.fill"
-            case .albums: return "opticaldisc.fill"
+            case .tracks: return Icons.musicNote
+            case .artists: return Icons.person2Fill
+            case .albums: return Icons.opticalDiscFill
             }
         }
     }
@@ -181,7 +181,7 @@ struct PlaylistSidebarItem: SidebarItem {
     init(playlist: Playlist) {
         self.id = playlist.id
         self.title = playlist.name
-        self.icon = Self.getIcon(for: playlist)
+        self.icon = Icons.defaultPlaylistIcon(for: playlist)
         self.playlist = playlist
         self.isEditable = playlist.isUserEditable
 
@@ -198,23 +198,6 @@ struct PlaylistSidebarItem: SidebarItem {
             self.subtitle = "\(playlist.tracks.count) songs"
             self.count = nil
         }
-    }
-
-    private static func getIcon(for playlist: Playlist) -> String {
-        // Determine icon based on playlist name for default smart playlists
-        if playlist.type == .smart && !playlist.isUserEditable {
-            switch playlist.name {
-            case "Favorites":
-                return "star.fill"
-            case "Top 25 Most Played":
-                return "play.circle.fill"
-            case "Top 25 Recently Played":
-                return "clock.fill"
-            default:
-                return "music.note.list"
-            }
-        }
-        return "music.note.list"
     }
 }
 
@@ -235,9 +218,9 @@ struct FolderNodeSidebarItem: SidebarItem {
         self.folderNode = folderNode
 
         if folderNode.children.isEmpty {
-            self.icon = "folder.fill"
+            self.icon = Icons.folderFill
         } else {
-            self.icon = folderNode.isExpanded ? "folder.fill.badge.minus" : "folder.fill.badge.plus"
+            self.icon = folderNode.isExpanded ? Icons.folderFillBadgeMinus : Icons.folderFillBadgePlus
         }
 
         if folderNode.immediateFolderCount > 0 && folderNode.immediateTrackCount > 0 {

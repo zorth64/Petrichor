@@ -34,7 +34,7 @@ struct PlaylistsView: View {
                     selectedPlaylist = playlistManager.playlists.first
                 }
             }
-            .onChange(of: playlistManager.playlists.count) { _ in
+            .onChange(of: playlistManager.playlists.count) {
                 // Update selection if current playlist was removed
                 if let selected = selectedPlaylist,
                    !playlistManager.playlists.contains(where: { $0.id == selected.id }) {
@@ -48,7 +48,7 @@ struct PlaylistsView: View {
 
     private var emptySelectionView: some View {
         VStack(spacing: 20) {
-            Image(systemName: "music.note.list")
+            Image(systemName: Icons.musicNoteList)
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
 

@@ -19,19 +19,19 @@ enum MainTab: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .home: return "music.note.house"
-        case .library: return "custom.music.note.rectangle.stack"
-        case .playlists: return "music.note.list"
-        case .folders: return "folder"
+        case .home: return Icons.musicNoteHouse
+        case .library: return Icons.customMusicNoteRectangleStack
+        case .playlists: return Icons.musicNoteList
+        case .folders: return Icons.folder
         }
     }
 
     var selectedIcon: String {
         switch self {
-        case .home: return "music.note.house.fill"
-        case .library: return "custom.music.note.rectangle.stack.fill"
-        case .playlists: return "music.note.list"
-        case .folders: return "folder.fill"
+        case .home: return Icons.musicNoteHouseFill
+        case .library: return Icons.customMusicNoteRectangleStackFill
+        case .playlists: return Icons.musicNoteList
+        case .folders: return Icons.folderFill
         }
     }
 }

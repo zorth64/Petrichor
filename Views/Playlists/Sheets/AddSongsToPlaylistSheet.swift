@@ -143,7 +143,7 @@ struct AddSongsToPlaylistSheet: View {
         HStack(spacing: 16) {
             // Search field
             HStack {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: Icons.magnifyingGlass)
                     .foregroundColor(.secondary)
 
                 TextField("Search by title, artist, album, or genre...", text: $searchText)
@@ -178,7 +178,7 @@ struct AddSongsToPlaylistSheet: View {
 
     private var emptyLibrary: some View {
         VStack(spacing: 16) {
-            Image(systemName: "music.note.list")
+            Image(systemName: Icons.musicNoteList)
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
 
@@ -248,11 +248,11 @@ struct AddSongsToPlaylistSheet: View {
 
     private var selectAllCheckboxImage: String {
         if allSelectableTracksSelected {
-            return "checkmark.square.fill"
+            return Icons.checkmarkSquareFill
         } else if someSelectableTracksSelected {
-            return "minus.square.fill"
+            return Icons.minusSquareFill
         } else {
-            return "square"
+            return Icons.square
         }
     }
 
@@ -462,9 +462,9 @@ struct TrackSelectionRow: View {
 
     private var checkboxImage: String {
         if isAlreadyInPlaylist {
-            return isMarkedForRemoval ? "xmark.square.fill" : "checkmark.square.fill"
+            return isMarkedForRemoval ? "xmark.square.fill" : Icons.checkmarkSquareFill
         } else {
-            return isSelected ? "checkmark.square.fill" : "square"
+            return isSelected ? Icons.checkmarkSquareFill : Icons.square
         }
     }
 
@@ -499,7 +499,7 @@ struct TrackSelectionRow: View {
     private func formatDuration(_ seconds: Double) -> String {
         let minutes = Int(seconds) / 60
         let seconds = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+        return String(format: StringFormat.mmss, minutes, seconds)
     }
 }
 

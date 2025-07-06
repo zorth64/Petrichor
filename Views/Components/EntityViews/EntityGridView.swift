@@ -46,7 +46,7 @@ struct EntityGridView<T: Entity>: View {
             .onAppear {
                 gridWidth = geometry.size.width - 32  // 16 padding on each side
             }
-            .onChange(of: geometry.size.width) { newWidth in
+            .onChange(of: geometry.size.width) { _, newWidth in
                 gridWidth = newWidth - 32  // 16 padding on each side
             }
         }
@@ -98,7 +98,7 @@ private struct EntityGridItem<T: Entity>: View {
                         .cornerRadius(8)
                 } else {
                     VStack(spacing: 8) {
-                        Image(systemName: iconForEntity)
+                        Image(systemName: Icons.entityIcon(for: entity))
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
 
@@ -154,21 +154,12 @@ private struct EntityGridItem<T: Entity>: View {
         }
     }
 
-    private var iconForEntity: String {
-        if entity is ArtistEntity {
-            return "person.fill"
-        } else if entity is AlbumEntity {
-            return "opticaldisc.fill"
-        }
-        return "music.note"
-    }
-
     private func loadArtworkAsync() {
         artworkLoadTask?.cancel()
 
         artworkLoadTask = Task {
             // Small delay to prioritize scrolling
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            try? await Task.sleep(nanoseconds: TimeConstants.fiftyMilliseconds)
 
             guard !Task.isCancelled else { return }
 

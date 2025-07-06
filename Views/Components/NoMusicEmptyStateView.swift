@@ -60,7 +60,7 @@ struct NoMusicEmptyStateView: View {
         .onDisappear {
             scanningStateTimer?.invalidate()
         }
-        .onChange(of: libraryManager.isScanning) { newValue in
+        .onChange(of: libraryManager.isScanning) { _, newValue in
             updateStableScanningState(newValue)
         }
     }
@@ -89,7 +89,7 @@ struct NoMusicEmptyStateView: View {
 
     private var noContentView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "music.note.list")
+            Image(systemName: Icons.musicNoteList)
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
 
@@ -111,7 +111,7 @@ struct NoMusicEmptyStateView: View {
                     .fill(Color.accentColor.opacity(0.1))
                     .frame(width: context.iconSize * 1.8, height: context.iconSize * 1.8)
 
-                Image(systemName: "folder.badge.plus")
+                Image(systemName: Icons.folderBadgePlus)
                     .font(.system(size: context.iconSize, weight: .light))
                     .foregroundColor(.accentColor)
                     .symbolEffect(.pulse.byLayer, options: .repeating.speed(0.5))
@@ -137,7 +137,7 @@ struct NoMusicEmptyStateView: View {
             // Add button
             Button(action: { libraryManager.addFolder() }) {
                 HStack(spacing: 6) {
-                    Image(systemName: "plus.circle.fill")
+                    Image(systemName: Icons.plusCircleFill)
                         .font(.system(size: 16))
                     Text("Add Music Folder")
                         .font(.system(size: 14, weight: .medium))
@@ -160,7 +160,7 @@ struct NoMusicEmptyStateView: View {
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
 
-                Text("MP3, M4A, WAV, AAC, AIFF, FLAC")
+                Text(AudioFormat.supportedFormatsDisplay)
                     .font(.caption)
                     .foregroundColor(.secondary.opacity(0.7))
                     .fontDesign(.monospaced)

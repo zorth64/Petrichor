@@ -41,7 +41,7 @@ struct FoldersSidebarView: View {
         .task {
             await loadFolderHierarchy()
         }
-        .onChange(of: libraryManager.folders) { _ in
+        .onChange(of: libraryManager.folders) {
             Task {
                 await loadFolderHierarchy()
             }
@@ -79,7 +79,7 @@ struct FoldersSidebarView: View {
 
     private var emptyView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "folder")
+            Image(systemName: Icons.folder)
                 .font(.system(size: 32))
                 .foregroundColor(.gray)
 
@@ -148,11 +148,11 @@ private struct FolderNodeRow: View {
 
                     // Expand/collapse button
                     if !node.children.isEmpty {
-                        Image(systemName: node.isExpanded ? "chevron.down" : "chevron.right")
+                        Image(systemName: node.isExpanded ? Icons.chevronDown : Icons.chevronRight)
                             .font(.system(size: 10, weight: .medium))
                             .foregroundColor(.secondary)
                             .frame(width: 16, height: 16)
-                            .animation(.easeInOut(duration: 0.15), value: node.isExpanded)
+                            .animation(.easeInOut(duration: AnimationDuration.standardDuration), value: node.isExpanded)
                     } else {
                         // Spacer for alignment
                         Color.clear
@@ -163,7 +163,7 @@ private struct FolderNodeRow: View {
                     let sidebarItem = FolderNodeSidebarItem(folderNode: node)
 
                     // Icon
-                    Image(systemName: sidebarItem.icon ?? "folder.fill")
+                    Image(systemName: sidebarItem.icon ?? Icons.folderFill)
                         .foregroundColor(isSelected ? .white : .secondary)
                         .font(.system(size: 16))
                         .frame(width: 16, height: 16)
@@ -182,11 +182,11 @@ private struct FolderNodeRow: View {
                                         .onAppear {
                                             checkIfTruncated(text: sidebarItem.title, width: geometry.size.width)
                                         }
-                                        .onChange(of: sidebarItem.title) { _ in
+                                        .onChange(of: sidebarItem.title) {
                                             checkIfTruncated(text: sidebarItem.title, width: geometry.size.width)
                                         }
-                                        .onChange(of: geometry.size.width) { width in
-                                            checkIfTruncated(text: sidebarItem.title, width: width)
+                                        .onChange(of: geometry.size.width) { _, newWidth in
+                                            checkIfTruncated(text: sidebarItem.title, width: newWidth)
                                         }
                                 }
                             )
@@ -209,7 +209,7 @@ private struct FolderNodeRow: View {
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(backgroundColor)
-                    .animation(.easeInOut(duration: 0.1), value: isHovered)
+                    .animation(.easeInOut(duration: AnimationDuration.quickDuration), value: isHovered)
                     .animation(.easeInOut(duration: 0.05), value: isSelected)
             )
             .onHover { hovering in
@@ -255,7 +255,7 @@ private struct FolderNodeRow: View {
 }
 
 #Preview {
-    @State var selectedNode: FolderNode?
+    @Previewable @State var selectedNode: FolderNode?
 
     return FoldersSidebarView(selectedNode: $selectedNode)
         .environmentObject(LibraryManager())

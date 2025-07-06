@@ -53,7 +53,7 @@ struct ContextualToolbar: View {
     private var searchField: some View {
         HStack(spacing: 6) {
             HStack {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: Icons.magnifyingGlass)
                     .foregroundColor(.secondary)
                     .font(.system(size: 12))
 
@@ -88,7 +88,7 @@ struct ContextualToolbar: View {
 }
 
 #Preview {
-    @State var viewType: LibraryViewType = .list
+    @Previewable @State var viewType: LibraryViewType = .list
     let libraryManager = LibraryManager()
 
     VStack(spacing: 0) {

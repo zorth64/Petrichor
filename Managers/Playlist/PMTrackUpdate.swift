@@ -45,12 +45,12 @@ extension PlaylistManager {
     func updateTrackInPlaylist(track: Track, playlist: Playlist, add: Bool) {
         Task {
             do {
-                guard let dbManager = libraryManager?.databaseManager else { return }
+                guard libraryManager?.databaseManager != nil else { return }
 
                 // Handle smart playlists differently
                 if playlist.type == .smart {
                     // For smart playlists, we update the track property that controls membership
-                    if playlist.name == "Favorites" && !playlist.isUserEditable {
+                    if playlist.name == DefaultPlaylists.favorites && !playlist.isUserEditable {
                         // Update favorite status
                         await updateTrackFavoriteStatus(track: track, isFavorite: add)
                     } else if playlist.type == .smart && !playlist.isContentEditable {
@@ -78,6 +78,7 @@ extension PlaylistManager {
     }
 
     /// Add multiple tracks to a playlist at once
+    @MainActor
     func addTracksToPlaylist(tracks: [Track], playlistID: UUID) {
         Task {
             guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
@@ -87,52 +88,46 @@ extension PlaylistManager {
                 return
             }
 
-            var playlist = playlists[index]
+            var updatedPlaylist = playlists[index]
             var tracksAdded = 0
 
             // Add all tracks that aren't already in the playlist
             for track in tracks {
-                if !playlist.tracks.contains(where: { $0.trackId == track.trackId }) {
-                    playlist.addTrack(track)
+                if !updatedPlaylist.tracks.contains(where: { $0.trackId == track.trackId }) {
+                    updatedPlaylist.addTrack(track)
                     tracksAdded += 1
                 }
             }
 
             if tracksAdded > 0 {
                 // Update in-memory
-                await MainActor.run {
-                    self.playlists[index] = playlist
-                }
+                playlists[index] = updatedPlaylist
 
                 // Save to database once
                 do {
                     if let dbManager = libraryManager?.databaseManager {
-                        try await dbManager.savePlaylistAsync(playlist)
+                        try await dbManager.savePlaylistAsync(updatedPlaylist)
                         print("PlaylistManager: Added \(tracksAdded) tracks to playlist")
                     }
                 } catch {
                     print("PlaylistManager: Failed to save playlist: \(error)")
                     // Revert changes
-                    await MainActor.run {
-                        // Reload from the original
-                        if let dbManager = self.libraryManager?.databaseManager {
-                            let savedPlaylists = dbManager.loadAllPlaylists()
-                            if let originalPlaylist = savedPlaylists.first(where: { $0.id == playlistID }) {
-                                self.playlists[index] = originalPlaylist
-                            }
+                    if let dbManager = libraryManager?.databaseManager {
+                        let savedPlaylists = dbManager.loadAllPlaylists()
+                        if let originalPlaylist = savedPlaylists.first(where: { $0.id == playlistID }) {
+                            playlists[index] = originalPlaylist
                         }
                     }
                 }
             }
 
             // Update smart playlists if needed
-            await MainActor.run {
-                self.updateSmartPlaylists()
-            }
+            updateSmartPlaylists()
         }
     }
 
     /// Remove multiple tracks from a playlist at once
+    @MainActor
     func removeTracksFromPlaylist(tracks: [Track], playlistID: UUID) {
         Task {
             guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
@@ -142,48 +137,41 @@ extension PlaylistManager {
                 return
             }
 
-            var playlist = playlists[index]
+            var updatedPlaylist = playlists[index]
             var tracksRemoved = 0
 
-            // Remove all specified tracks
+            // Remove all specified tracks from the playlist
             for track in tracks {
-                let beforeCount = playlist.tracks.count
-                playlist.removeTrack(track)
-                if playlist.tracks.count < beforeCount {
+                if updatedPlaylist.tracks.contains(where: { $0.trackId == track.trackId }) {
+                    updatedPlaylist.removeTrack(track)  // Pass the track object, not the index
                     tracksRemoved += 1
                 }
             }
 
             if tracksRemoved > 0 {
                 // Update in-memory
-                await MainActor.run {
-                    self.playlists[index] = playlist
-                }
+                playlists[index] = updatedPlaylist
 
                 // Save to database once
                 do {
                     if let dbManager = libraryManager?.databaseManager {
-                        try await dbManager.savePlaylistAsync(playlist)
+                        try await dbManager.savePlaylistAsync(updatedPlaylist)
                         print("PlaylistManager: Removed \(tracksRemoved) tracks from playlist")
                     }
                 } catch {
                     print("PlaylistManager: Failed to save playlist: \(error)")
                     // Revert changes
-                    await MainActor.run {
-                        if let dbManager = self.libraryManager?.databaseManager {
-                            let savedPlaylists = dbManager.loadAllPlaylists()
-                            if let originalPlaylist = savedPlaylists.first(where: { $0.id == playlistID }) {
-                                self.playlists[index] = originalPlaylist
-                            }
+                    if let dbManager = libraryManager?.databaseManager {
+                        let savedPlaylists = dbManager.loadAllPlaylists()
+                        if let originalPlaylist = savedPlaylists.first(where: { $0.id == playlistID }) {
+                            playlists[index] = originalPlaylist
                         }
                     }
                 }
             }
 
             // Update smart playlists if needed
-            await MainActor.run {
-                self.updateSmartPlaylists()
-            }
+            updateSmartPlaylists()
         }
     }
 

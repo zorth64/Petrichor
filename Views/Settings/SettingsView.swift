@@ -11,17 +11,17 @@ struct SettingsView: View {
 
         var icon: String {
             switch self {
-            case .general: return "gear"
-            case .library: return "music.note.list"
-            case .about: return "info.circle"
+            case .general: return Icons.settings
+            case .library: return Icons.musicNoteList
+            case .about: return Icons.infoCircle
             }
         }
 
         var selectedIcon: String {
             switch self {
-            case .general: return "gear"
-            case .library: return "music.note.list"
-            case .about: return "info.circle.fill"
+            case .general: return Icons.settings
+            case .library: return Icons.musicNoteList
+            case .about: return Icons.infoCircleFill
             }
         }
     }
