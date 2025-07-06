@@ -45,6 +45,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // This ensures the singleton is created and log rotation happens
         _ = Logger.shared  // Force initialization
         
+        // Install crash handlers to capture crashes in log file
+        Logger.installCrashHandler()
+        
         // Log startup information
         Logger.info("Petrichor starting up...")
         Logger.info("Log file location: \(Logger.logFileURL?.path ?? "unknown")")

@@ -162,6 +162,62 @@ final class Logger {
         shared.minimumLogLevel = level
     }
     
+    // MARK: - Crash Handling
+    
+    static func installCrashHandler() {
+        // Install exception handler
+        NSSetUncaughtExceptionHandler { exception in
+            Logger.critical("UNCAUGHT EXCEPTION: \(exception.name.rawValue)")
+            if let reason = exception.reason {
+                Logger.critical("Reason: \(reason)")
+            }
+            Logger.critical("Call Stack:\n\(exception.callStackSymbols.joined(separator: "\n"))")
+            
+            // Force synchronous write
+            Logger.shared.flush()
+            
+            // Give a moment for the write to complete
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        
+        // Install signal handlers for crashes that don't throw exceptions
+        let signals = [SIGABRT, SIGILL, SIGSEGV, SIGFPE, SIGBUS, SIGPIPE, SIGTRAP]
+        
+        for sig in signals {
+            Darwin.signal(sig) { signum in
+                Logger.critical("SIGNAL CRASH: Received signal \(signum)")
+                
+                // Try to get signal name
+                let signalName: String
+                switch signum {
+                case SIGABRT: signalName = "SIGABRT"
+                case SIGILL: signalName = "SIGILL"
+                case SIGSEGV: signalName = "SIGSEGV"
+                case SIGFPE: signalName = "SIGFPE"
+                case SIGBUS: signalName = "SIGBUS"
+                case SIGPIPE: signalName = "SIGPIPE"
+                case SIGTRAP: signalName = "SIGTRAP"
+                default: signalName = "Unknown"
+                }
+                Logger.critical("Signal name: \(signalName)")
+                
+                // Try to capture some stack trace
+                let callstack = Thread.callStackSymbols
+                Logger.critical("Call Stack:\n\(callstack.joined(separator: "\n"))")
+                
+                // Force flush
+                Logger.shared.flush()
+                Thread.sleep(forTimeInterval: 0.5)
+                
+                // Re-raise the signal to ensure proper termination
+                Darwin.signal(signum, SIG_DFL)
+                raise(signum)
+            }
+        }
+        
+        Logger.info("Crash handlers installed successfully")
+    }
+    
     // MARK: - Private Methods
     
     private func log(
@@ -193,6 +249,14 @@ final class Logger {
             logQueue.async { [weak self] in
                 self?.fileManager.write(entry)
             }
+        }
+    }
+    
+    // Force synchronous flush of pending logs
+    private func flush() {
+        logQueue.sync {
+            // This ensures all pending async writes are completed
+            // The sync call blocks until all previously submitted tasks finish
         }
     }
     
