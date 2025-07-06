@@ -169,7 +169,8 @@ class AppCoordinator: ObservableObject {
         performActualRestoration()
     }
     
-    @objc private func libraryDidLoad() {
+    @objc
+    private func libraryDidLoad() {
         // Remove observer
         if let observer = libraryObserver {
             NotificationCenter.default.removeObserver(observer)
@@ -344,7 +345,7 @@ class AppCoordinator: ObservableObject {
             
             // Also check UI state validity
             if let uiData = UserDefaults.standard.data(forKey: playbackUIStateKey),
-               let _ = try? JSONDecoder().decode(PlaybackUIState.self, from: uiData) {
+               (try? JSONDecoder().decode(PlaybackUIState.self, from: uiData)) != nil {
                 // If the main state is invalid, clear UI state too
                 if UserDefaults.standard.data(forKey: playbackStateKey) == nil {
                     UserDefaults.standard.removeObject(forKey: playbackUIStateKey)

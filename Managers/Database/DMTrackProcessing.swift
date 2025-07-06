@@ -87,7 +87,8 @@ extension DatabaseManager {
                 }
             }
 
-            print("Batch processing complete: \(processResults.new.count) new, \(processResults.update.count) updated, \(processResults.skipped) skipped")
+            let r = processResults
+            print("Batch processing complete: \(r.new.count) new, \(r.update.count) updated, \(r.skipped) skipped")
         }
 
         await MainActor.run {

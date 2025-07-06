@@ -41,7 +41,8 @@ class MenuBarManager: NSObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    @objc private func handleCloseToMenubarChange() {
+    @objc
+    private func handleCloseToMenubarChange() {
         if UserDefaults.standard.bool(forKey: "closeToMenubar") {
             setupMenuBar()
         } else {
@@ -60,7 +61,8 @@ class MenuBarManager: NSObject {
         print("Menubar setup complete")
     }
 
-    @objc private func updateMenuBarIcon() {
+    @objc
+    private func updateMenuBarIcon() {
         guard let button = statusItem?.button else { return }
 
         // Use play/pause circle icons based on playback state
@@ -83,7 +85,8 @@ class MenuBarManager: NSObject {
         }
     }
 
-    @objc private func updateMenu() {
+    @objc
+    private func updateMenu() {
         guard let statusItem = statusItem else { return }
 
         let menu = NSMenu()
@@ -162,27 +165,32 @@ class MenuBarManager: NSObject {
 
     // MARK: - Actions
 
-    @objc private func togglePlayPause() {
+    @objc
+    private func togglePlayPause() {
         audioPlayerManager.togglePlayPause()
         updateMenu()
     }
 
-    @objc private func playNext() {
+    @objc
+    private func playNext() {
         playlistManager.playNextTrack()
         updateMenu()
     }
 
-    @objc private func playPrevious() {
+    @objc
+    private func playPrevious() {
         playlistManager.playPreviousTrack()
         updateMenu()
     }
 
-    @objc private func toggleShuffle() {
+    @objc
+    private func toggleShuffle() {
         playlistManager.toggleShuffle()
         updateMenu()
     }
 
-    @objc private func showMainWindow() {
+    @objc
+    private func showMainWindow() {
         print("Showing main window from menubar")
 
         // First restore dock icon
@@ -208,7 +216,8 @@ class MenuBarManager: NSObject {
         }
     }
 
-    @objc private func quitApp() {
+    @objc
+    private func quitApp() {
         NSApp.terminate(nil)
     }
 }

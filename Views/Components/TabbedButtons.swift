@@ -133,14 +133,26 @@ private struct TabbedButton<Item: TabbedItem>: View {
                     iconImage(for: isSelected ? item.selectedIcon : item.icon)
                         .font(.system(size: style.iconSize, weight: .medium))
                         .foregroundStyle(foregroundStyle)
-                        .animation(.easeInOut(duration: AnimationConstants.transformDuration).delay(animation == .transform && isSelected ? AnimationConstants.transformTextDelay : 0), value: isSelected)
+                        .animation(
+                            .easeInOut(duration: AnimationConstants.transformDuration)
+                                .delay(animation == .transform && isSelected
+                                    ? AnimationConstants.transformTextDelay
+                                    : 0),
+                            value: isSelected
+                        )
                 }
 
                 if style.showTitle {
                     Text(item.title)
                         .font(.system(size: style.textSize, weight: .medium))
                         .foregroundColor(foregroundColor)
-                        .animation(.easeInOut(duration: AnimationConstants.transformDuration).delay(animation == .transform && isSelected ? AnimationConstants.transformTextDelay : 0), value: isSelected)
+                        .animation(
+                            .easeInOut(duration: AnimationConstants.transformDuration)
+                                .delay(animation == .transform && isSelected
+                                    ? AnimationConstants.transformTextDelay
+                                    : 0),
+                            value: isSelected
+                        )
                 }
             }
             .frame(

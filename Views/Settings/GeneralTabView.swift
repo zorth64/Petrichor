@@ -1,12 +1,23 @@
 import SwiftUI
 
 struct GeneralTabView: View {
-    @AppStorage("startAtLogin") private var startAtLogin = false
-    @AppStorage("closeToMenubar") private var closeToMenubar = true
-    @AppStorage("showNotifications") private var showNotifications = true
-    @AppStorage("autoScanInterval") private var autoScanInterval: AutoScanInterval = .every60Minutes
-    @AppStorage("colorMode") private var colorMode: ColorMode = .auto
-    @AppStorage("showFoldersTab") private var showFoldersTab = false
+    @AppStorage("startAtLogin")
+    private var startAtLogin = false
+
+    @AppStorage("closeToMenubar")
+    private var closeToMenubar = true
+
+    @AppStorage("showNotifications")
+    private var showNotifications = true
+
+    @AppStorage("autoScanInterval")
+    private var autoScanInterval: AutoScanInterval = .every60Minutes
+
+    @AppStorage("colorMode")
+    private var colorMode: ColorMode = .auto
+
+    @AppStorage("showFoldersTab")
+    private var showFoldersTab = false
 
     enum ColorMode: String, CaseIterable, TabbedItem {
         case light = "Light"

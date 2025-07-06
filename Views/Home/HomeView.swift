@@ -4,10 +4,19 @@ struct HomeView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
-    @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
-    @AppStorage("globalViewType") private var viewType: LibraryViewType = .table
-    @AppStorage("entityViewType") private var entityViewType: LibraryViewType = .grid
-    @AppStorage("entitySortAscending") private var entitySortAscending: Bool = true
+    
+    @AppStorage("trackListSortAscending")
+    private var trackListSortAscending: Bool = true
+    
+    @AppStorage("globalViewType")
+    private var viewType: LibraryViewType = .table
+    
+    @AppStorage("entityViewType")
+    private var entityViewType: LibraryViewType = .grid
+    
+    @AppStorage("entitySortAscending")
+    private var entitySortAscending: Bool = true
+    
     @State private var selectedSidebarItem: HomeSidebarItem?
     @State private var selectedTrackID: UUID?
     @State private var sortedTracks: [Track] = []

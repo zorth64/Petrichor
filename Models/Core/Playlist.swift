@@ -3,44 +3,46 @@ import AppKit
 import GRDB
 
 enum PlaylistType: String, Codable {
-    case regular = "regular"
-    case smart = "smart"
+    case regular
+    case smart
 }
 
 // Smart playlist criteria
 struct SmartPlaylistCriteria: Codable {
     enum MatchType: String, Codable {
-        case all = "all"  // AND
-        case any = "any"  // OR
+        case all
+        case any
     }
-
+    
     enum Condition: String, Codable {
-        case contains = "contains"
-        case equals = "equals"
-        case startsWith = "startsWith"
-        case endsWith = "endsWith"
-        case greaterThan = "greaterThan"
-        case lessThan = "lessThan"
+        case contains
+        case equals
+        case startsWith
+        case endsWith
+        case greaterThan
+        case lessThan
     }
-
+    
     struct Rule: Codable {
         let field: String  // "artist", "album", "genre", "year", "playCount", etc.
         let condition: Condition
         let value: String
     }
-
+    
     let matchType: MatchType
     let rules: [Rule]
     let limit: Int?  // Track count limit (e.g., 25 for "Top 25")
     let sortBy: String?  // "dateAdded", "lastPlayed", "playCount", etc.
     let sortAscending: Bool
-
+    
     // Default initializer
-    init(matchType: MatchType = .all,
-         rules: [Rule] = [],
-         limit: Int? = nil,
-         sortBy: String? = nil,
-         sortAscending: Bool = true) {
+    init(
+        matchType: MatchType = .all,
+        rules: [Rule] = [],
+        limit: Int? = nil,
+        sortBy: String? = nil,
+        sortAscending: Bool = true
+    ) {
         self.matchType = matchType
         self.rules = rules
         self.limit = limit
@@ -53,16 +55,16 @@ struct SmartPlaylistCriteria: Codable {
 private class PlaylistArtworkCache {
     static let shared = PlaylistArtworkCache()
     private var cache: [UUID: (artwork: Data, trackIDs: [UUID])] = [:]
-
+    
     func getCachedArtwork(for playlistID: UUID, currentTrackIDs: [UUID]) -> Data? {
         guard let cached = cache[playlistID] else { return nil }
         return cached.trackIDs == currentTrackIDs ? cached.artwork : nil
     }
-
+    
     func setCachedArtwork(_ artwork: Data, for playlistID: UUID, trackIDs: [UUID]) {
         cache[playlistID] = (artwork, trackIDs)
     }
-
+    
     func clearCache(for playlistID: UUID) {
         cache.removeValue(forKey: playlistID)
     }
@@ -80,9 +82,9 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
     var isUserEditable: Bool  // Can user delete/rename this playlist?
     var isContentEditable: Bool  // Can user add/remove tracks?
     var smartCriteria: SmartPlaylistCriteria?  // Criteria for smart playlists
-
+    
     // MARK: - Regular Initializers
-
+    
     // Regular playlist initializer
     init(name: String, tracks: [Track] = [], coverArtworkData: Data? = nil) {
         self.id = UUID()
@@ -96,7 +98,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         self.isContentEditable = true
         self.smartCriteria = nil
     }
-
+    
     // Smart playlist initializer
     init(name: String, criteria: SmartPlaylistCriteria, isUserEditable: Bool = false) {
         self.id = UUID()
@@ -110,11 +112,20 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         self.isContentEditable = false  // Smart playlists auto-manage their content
         self.smartCriteria = criteria
     }
-
+    
     // Database restoration initializer
-    init(id: UUID, name: String, tracks: [Track], dateCreated: Date, dateModified: Date,
-         coverArtworkData: Data?, type: PlaylistType,
-         isUserEditable: Bool, isContentEditable: Bool, smartCriteria: SmartPlaylistCriteria?) {
+    init(
+        id: UUID,
+        name: String,
+        tracks: [Track],
+        dateCreated: Date,
+        dateModified: Date,
+        coverArtworkData: Data?,
+        type: PlaylistType,
+        isUserEditable: Bool,
+        isContentEditable: Bool,
+        smartCriteria: SmartPlaylistCriteria?
+    ) {
         self.id = id
         self.name = name
         self.tracks = tracks
@@ -126,12 +137,12 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         self.isContentEditable = isContentEditable
         self.smartCriteria = smartCriteria
     }
-
+    
     // MARK: - GRDB Support
-
+    
     // DB Configuration
     static let databaseTableName = "playlists"
-
+    
     enum Columns {
         static let id = Column("id")
         static let name = Column("name")
@@ -144,7 +155,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         static let smartCriteria = Column("smart_criteria")
         static let sortOrder = Column("sort_order")
     }
-
+    
     // FetchableRecord initializer - used by GRDB when loading from database
     init(row: Row) throws {
         id = UUID(uuidString: row[Columns.id]) ?? UUID()
@@ -156,7 +167,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         dateModified = row[Columns.dateModified]
         coverArtworkData = row[Columns.coverArtworkData]
         sortOrder = row[Columns.sortOrder]
-
+        
         // Parse smart criteria
         if let criteriaJSON: String = row[Columns.smartCriteria],
            let data = criteriaJSON.data(using: .utf8) {
@@ -164,11 +175,11 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         } else {
             smartCriteria = nil
         }
-
+        
         // Tracks will be loaded separately with associations
         tracks = []
     }
-
+    
     // PersistableRecord
     func encode(to container: inout PersistenceContainer) throws {
         container[Columns.id] = id.uuidString
@@ -180,7 +191,7 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         container[Columns.dateModified] = dateModified
         container[Columns.coverArtworkData] = coverArtworkData
         container[Columns.sortOrder] = sortOrder
-
+        
         // Encode smart criteria as JSON
         if let criteria = smartCriteria {
             let encoder = JSONEncoder()
@@ -189,31 +200,31 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
             }
         }
     }
-
+    
     // Associations
     static let playlistTracks = hasMany(PlaylistTrack.self)
     static let tracks = hasMany(Track.self, through: playlistTracks, using: PlaylistTrack.track)
-
+    
     // MARK: - Business Logic Methods
-
+    
     // Add a track to the playlist (only for regular playlists)
     mutating func addTrack(_ track: Track) {
         guard type == .regular && isContentEditable else { return }
-
+        
         if !tracks.contains(where: { $0.id == track.id }) {
             tracks.append(track)
             dateModified = Date()
             PlaylistArtworkCache.shared.clearCache(for: id)
         }
     }
-
+    
     // Remove a track from the playlist (only for regular playlists)
     mutating func removeTrack(_ track: Track) {
         guard type == .regular && isContentEditable else { return }
-
+        
         print("Playlist: Attempting to remove track: \(track.title) with trackId: \(track.trackId ?? -1)")
         print("Playlist: Current tracks count: \(tracks.count)")
-
+        
         // Remove by comparing database IDs instead of instance IDs
         if let trackId = track.trackId {
             let beforeCount = tracks.count
@@ -224,21 +235,21 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
             // Fallback to UUID comparison if no database ID
             tracks.removeAll { $0.id == track.id }
         }
-
+        
         dateModified = Date()
         PlaylistArtworkCache.shared.clearCache(for: id)
     }
-
+    
     // Move a track within the playlist (only for regular playlists)
     mutating func moveTrack(from sourceIndex: Int, to destinationIndex: Int) {
         guard type == .regular && isContentEditable else { return }
-
+        
         guard sourceIndex >= 0, sourceIndex < tracks.count,
               destinationIndex >= 0, destinationIndex < tracks.count,
               sourceIndex != destinationIndex else {
             return
         }
-
+        
         let track = tracks.remove(at: sourceIndex)
         tracks.insert(track, at: destinationIndex)
         dateModified = Date()
@@ -247,37 +258,37 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
             PlaylistArtworkCache.shared.clearCache(for: id)
         }
     }
-
+    
     // Clear all tracks from the playlist (only for regular playlists)
     mutating func clearTracks() {
         guard type == .regular && isContentEditable else { return }
-
+        
         tracks.removeAll()
         dateModified = Date()
         PlaylistArtworkCache.shared.clearCache(for: id)
     }
-
+    
     // Calculate total duration of the playlist
     var totalDuration: Double {
         tracks.reduce(0) { $0 + $1.duration }
     }
-
+    
     // Get generated album art of the playlist
     var effectiveCoverArtwork: Data? {
         if let customCover = coverArtworkData {
             return customCover
         }
-
+        
         // For playlists, check cache first
         let currentTrackIDs = tracks.prefix(4).map { $0.id }
-
+        
         if let cachedArtwork = PlaylistArtworkCache.shared.getCachedArtwork(
             for: id,
             currentTrackIDs: currentTrackIDs
         ) {
             return cachedArtwork
         }
-
+        
         // Generate new collage and cache it
         if let newCollage = createCollageArtwork() {
             PlaylistArtworkCache.shared.setCachedArtwork(
@@ -287,15 +298,15 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
             )
             return newCollage
         }
-
+        
         return nil
     }
-
+    
     // Get the effective track limit for display
     var trackLimit: Int? {
         smartCriteria?.limit
     }
-
+    
     private func createCollageArtwork() -> Data? {
         // Check if all tracks are from the same album
         let uniqueAlbums = Set(tracks.map { $0.album })
@@ -308,29 +319,29 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
         
         // Get up to 4 tracks with artwork for collage
         let tracksWithArt = tracks.prefix(4).filter { $0.artworkData != nil }
-
+        
         guard !tracksWithArt.isEmpty else { return nil }
-
+        
         let imageSize: CGFloat = 256
         let collageImage = NSImage(size: NSSize(width: imageSize, height: imageSize))
-
+        
         collageImage.lockFocus()
-
+        
         // Clear background
         NSColor.black.setFill()
         NSRect(x: 0, y: 0, width: imageSize, height: imageSize).fill()
-
+        
         let count = tracksWithArt.count
-
+        
         // Special handling based on track count
         if count == 1 {
             // Single track - just draw it full size (this case is already handled above, but keeping for safety)
             if let artworkData = tracksWithArt[0].artworkData,
                let image = NSImage(data: artworkData) {
                 image.draw(in: NSRect(x: 0, y: 0, width: imageSize, height: imageSize),
-                          from: NSRect(origin: .zero, size: image.size),
-                          operation: .copy,
-                          fraction: 1.0)
+                           from: NSRect(origin: .zero, size: image.size),
+                           operation: .copy,
+                           fraction: 1.0)
             }
         } else {
             // 2 or more tracks - always create 2x2 grid
@@ -358,21 +369,21 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
                 )
                 
                 image.draw(in: destRect,
-                          from: NSRect(origin: .zero, size: image.size),
-                          operation: .copy,
-                          fraction: 1.0)
+                           from: NSRect(origin: .zero, size: image.size),
+                           operation: .copy,
+                           fraction: 1.0)
             }
         }
-
+        
         collageImage.unlockFocus()
-
+        
         // Convert to PNG data
         guard let tiffData = collageImage.tiffRepresentation,
               let bitmapRep = NSBitmapImageRep(data: tiffData),
               let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
             return nil
         }
-
+        
         return pngData
     }
 }
@@ -385,7 +396,7 @@ extension Playlist {
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
         let seconds = totalSeconds % 60
-
+        
         if hours > 0 {
             return String(format: StringFormat.hhmmss, hours, minutes, seconds)
         } else {
@@ -402,11 +413,13 @@ extension Playlist {
             Playlist(
                 name: DefaultPlaylists.favorites,
                 criteria: SmartPlaylistCriteria(
-                    rules: [SmartPlaylistCriteria.Rule(
-                        field: "isFavorite",
-                        condition: .equals,
-                        value: "true"
-                    )],
+                    rules: [
+                        SmartPlaylistCriteria.Rule(
+                            field: "isFavorite",
+                            condition: .equals,
+                            value: "true"
+                        )
+                    ],
                     sortBy: nil, // No sorting - will maintain order as added
                     sortAscending: true
                 ),
@@ -417,11 +430,13 @@ extension Playlist {
             Playlist(
                 name: DefaultPlaylists.mostPlayed,
                 criteria: SmartPlaylistCriteria(
-                    rules: [SmartPlaylistCriteria.Rule(
-                        field: "playCount",
-                        condition: .greaterThan,
-                        value: "5"
-                    )],
+                    rules: [
+                        SmartPlaylistCriteria.Rule(
+                            field: "playCount",
+                            condition: .greaterThan,
+                            value: "5"
+                        )
+                    ],
                     limit: 25,
                     sortBy: "playCount",
                     sortAscending: false // Descending - highest play count first
@@ -433,11 +448,13 @@ extension Playlist {
             Playlist(
                 name: DefaultPlaylists.recentlyPlayed,
                 criteria: SmartPlaylistCriteria(
-                    rules: [SmartPlaylistCriteria.Rule(
-                        field: "lastPlayedDate",
-                        condition: .greaterThan,
-                        value: "7days"
-                    )],
+                    rules: [
+                        SmartPlaylistCriteria.Rule(
+                            field: "lastPlayedDate",
+                            condition: .greaterThan,
+                            value: "7days"
+                        )
+                    ],
                     limit: 25,
                     sortBy: "lastPlayedDate",
                     sortAscending: false // Descending - most recent first
@@ -454,7 +471,7 @@ extension Playlist: Equatable, Hashable {
         // Compare by ID since it's unique
         lhs.id == rhs.id
     }
-
+    
     func hash(into hasher: inout Hasher) {
         // Hash by ID since it's unique
         hasher.combine(id)
@@ -464,16 +481,16 @@ extension Playlist: Equatable, Hashable {
 extension Playlist {
     mutating func loadTracks(from db: Database) throws {
         guard type == .regular else { return }
-
+        
         // Get playlist tracks in order
         let playlistTracks = try PlaylistTrack
             .filter(PlaylistTrack.Columns.playlistId == id.uuidString)
             .order(PlaylistTrack.Columns.position)
             .fetchAll(db)
-
+        
         // Get all track IDs
         let trackIds = playlistTracks.map { $0.trackId }
-
+        
         // Fetch all tracks at once
         let tracksByID: [Int64: Track] = try Track
             .filter(trackIds.contains(Track.Columns.trackId))
@@ -483,7 +500,7 @@ extension Playlist {
                     dict[id] = track
                 }
             }
-
+        
         // Reassemble in order
         self.tracks = playlistTracks.compactMap { tracksByID[$0.trackId] }
     }

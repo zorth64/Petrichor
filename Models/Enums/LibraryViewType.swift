@@ -1,9 +1,9 @@
 import Foundation
 
 enum LibraryViewType: String, CaseIterable, Codable {
-    case list = "list"
-    case grid = "grid"
-    case table = "table"
+    case list
+    case grid
+    case table
 
     var displayName: String {
         switch self {

@@ -5,10 +5,18 @@ struct ContentView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
 
-    @AppStorage("globalViewType") private var globalViewType: LibraryViewType = .table
-    @AppStorage("entityViewType") private var entityViewType: LibraryViewType = .grid
-    @AppStorage("rightSidebarSplitPosition") private var splitPosition: Double = 200
-    @AppStorage("showFoldersTab") private var showFoldersTab = false
+    @AppStorage("globalViewType")
+    private var globalViewType: LibraryViewType = .table
+    
+    @AppStorage("entityViewType")
+    private var entityViewType: LibraryViewType = .grid
+    
+    @AppStorage("rightSidebarSplitPosition")
+    private var splitPosition: Double = 200
+    
+    @AppStorage("showFoldersTab")
+    private var showFoldersTab = false
+    
     @State private var selectedTab: MainTab = .home
     @State private var showingSettings = false
     @State private var showingQueue = false
@@ -132,16 +140,20 @@ struct ContentView: View {
     private var sidePanel: some View {
         if showingQueue {
             PlayQueueView(showingQueue: $showingQueue)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing),
-                    removal: .move(edge: .trailing)
-                ))
+                .transition(
+                    .asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .trailing)
+                    )
+                )
         } else if showingTrackDetail, let track = detailTrack {
             TrackDetailView(track: track, onClose: hideTrackDetail)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .trailing),
-                    removal: .move(edge: .trailing)
-                ))
+                .transition(
+                    .asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .trailing)
+                    )
+                )
         }
     }
 

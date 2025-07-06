@@ -265,13 +265,25 @@ extension LibrarySearch {
             let lowercasedTerm = term.lowercased()
 
             // Title matches are most important
-            if track.title.lowercased() == lowercasedTerm { termScore += 100 } else if track.title.lowercased().contains(lowercasedTerm) { termScore += 50 }
+            if track.title.lowercased() == lowercasedTerm {
+                termScore += 100
+            } else if track.title.lowercased().contains(lowercasedTerm) {
+                termScore += 50
+            }
 
             // Then artist matches
-            if track.artist.lowercased() == lowercasedTerm { termScore += 80 } else if track.artist.lowercased().contains(lowercasedTerm) { termScore += 40 }
+            if track.artist.lowercased() == lowercasedTerm {
+                termScore += 80
+            } else if track.artist.lowercased().contains(lowercasedTerm) {
+                termScore += 40
+            }
 
             // Album matches
-            if track.album.lowercased() == lowercasedTerm { termScore += 60 } else if track.album.lowercased().contains(lowercasedTerm) { termScore += 30 }
+            if track.album.lowercased() == lowercasedTerm {
+                termScore += 60
+            } else if track.album.lowercased().contains(lowercasedTerm) {
+                termScore += 30
+            }
 
             // Check other LibraryFilterType fields with lower scores
             for filterType in LibraryFilterType.allCases {

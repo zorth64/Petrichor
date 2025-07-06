@@ -63,8 +63,7 @@ extension DatabaseManager {
             t.column("title", .text).notNull()
             t.column("normalized_title", .text).notNull()
             t.column("sort_title", .text)
-            t.column("artist_id", .integer)
-                .references("artists", onDelete: .setNull)
+            t.column("artist_id", .integer).references("artists", onDelete: .setNull)
             t.column("artwork_data", .blob)
 
             // Album metadata
@@ -110,10 +109,8 @@ extension DatabaseManager {
     func createTracksTable(in db: Database) throws {
         try db.create(table: "tracks", ifNotExists: true) { t in
             t.autoIncrementedPrimaryKey("id")
-            t.column("folder_id", .integer).notNull()
-                .references("folders", onDelete: .cascade)
-            t.column("album_id", .integer)
-                .references("albums", onDelete: .setNull)
+            t.column("folder_id", .integer).notNull().references("folders", onDelete: .cascade)
+            t.column("album_id", .integer).references("albums", onDelete: .setNull)
             t.column("path", .text).notNull().unique()
             t.column("filename", .text).notNull()
             t.column("title", .text)
@@ -182,10 +179,8 @@ extension DatabaseManager {
     // MARK: - Playlist Tracks Table
     func createPlaylistTracksTable(in db: Database) throws {
         try db.create(table: "playlist_tracks", ifNotExists: true) { t in
-            t.column("playlist_id", .text).notNull()
-                .references("playlists", column: "id", onDelete: .cascade)
-            t.column("track_id", .integer).notNull()
-                .references("tracks", column: "id", onDelete: .cascade)
+            t.column("playlist_id", .text).notNull().references("playlists", column: "id", onDelete: .cascade)
+            t.column("track_id", .integer).notNull().references("tracks", column: "id", onDelete: .cascade)
             t.column("position", .integer).notNull()
             t.column("date_added", .datetime).notNull()
             t.primaryKey(["playlist_id", "track_id"])
@@ -195,10 +190,8 @@ extension DatabaseManager {
     // MARK: - Track Artists Junction Table
     func createTrackArtistsTable(in db: Database) throws {
         try db.create(table: "track_artists", ifNotExists: true) { t in
-            t.column("track_id", .integer).notNull()
-                .references("tracks", onDelete: .cascade)
-            t.column("artist_id", .integer).notNull()
-                .references("artists", onDelete: .cascade)
+            t.column("track_id", .integer).notNull().references("tracks", onDelete: .cascade)
+            t.column("artist_id", .integer).notNull().references("artists", onDelete: .cascade)
             t.column("role", .text).notNull().defaults(to: "artist")
             t.column("position", .integer).notNull().defaults(to: 0)
             t.primaryKey(["track_id", "artist_id", "role"])
@@ -208,10 +201,8 @@ extension DatabaseManager {
     // MARK: - Track Genres Junction Table
     func createTrackGenresTable(in db: Database) throws {
         try db.create(table: "track_genres", ifNotExists: true) { t in
-            t.column("track_id", .integer).notNull()
-                .references("tracks", onDelete: .cascade)
-            t.column("genre_id", .integer).notNull()
-                .references("genres", onDelete: .cascade)
+            t.column("track_id", .integer).notNull().references("tracks", onDelete: .cascade)
+            t.column("genre_id", .integer).notNull().references("genres", onDelete: .cascade)
             t.primaryKey(["track_id", "genre_id"])
         }
     }

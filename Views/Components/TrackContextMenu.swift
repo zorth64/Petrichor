@@ -4,7 +4,7 @@ extension Notification.Name {
     static let goToLibraryFilter = Notification.Name("GoToLibraryFilter")
 }
 
-struct TrackContextMenu {
+enum TrackContextMenu {
     static func createMenuItems(
         for track: Track,
         audioPlayerManager: AudioPlayerManager,
@@ -12,15 +12,56 @@ struct TrackContextMenu {
         currentContext: MenuContext
     ) -> [ContextMenuItem] {
         var items: [ContextMenuItem] = []
-
+        
+        // Add playback items
+        items.append(contentsOf: createPlaybackItems(
+            for: track,
+            playlistManager: playlistManager,
+            currentContext: currentContext
+        ))
+        
+        // Add info item
+        items.append(createShowInfoItem(for: track))
+        
+        items.append(.divider)
+        
+        // Add "Go to" submenu
+        items.append(createGoToMenu(for: track))
+        
+        items.append(.divider)
+        
+        // Add playlist items
+        items.append(contentsOf: createPlaylistItems(
+            for: track,
+            playlistManager: playlistManager,
+            existingItems: &items
+        ))
+        
+        // Add context-specific items
+        items.append(contentsOf: createContextSpecificItems(
+            for: track,
+            playlistManager: playlistManager,
+            currentContext: currentContext
+        ))
+        
+        return items
+    }
+    
+    // MARK: - Helper Methods
+    
+    private static func createPlaybackItems(
+        for track: Track,
+        playlistManager: PlaylistManager,
+        currentContext: MenuContext
+    ) -> [ContextMenuItem] {
+        var items: [ContextMenuItem] = []
+        
         // Play
         items.append(.button(title: "Play") {
             switch currentContext {
             case .library:
-                // We don't have the filtered tracks here, so just play the single track
                 playlistManager.playTrack(track, fromTracks: [track])
             case .folder(let folder):
-                // For context menu, we create a minimal queue
                 playlistManager.playTrackFromFolder(track, folder: folder, folderTracks: [track])
             case .playlist(let playlist):
                 if let index = playlist.tracks.firstIndex(of: track) {
@@ -28,149 +69,186 @@ struct TrackContextMenu {
                 }
             }
         })
-
+        
         // Play Next
         items.append(.button(title: "Play Next") {
             playlistManager.playNext(track)
         })
-
+        
         // Add to Queue
         items.append(.button(title: "Add to Queue") {
             playlistManager.addToQueue(track)
         })
-
-        // Show Info
-        items.append(.button(title: "Show Info") {
+        
+        return items
+    }
+    
+    private static func createShowInfoItem(for track: Track) -> ContextMenuItem {
+        .button(title: "Show Info") {
             NotificationCenter.default.post(
                 name: NSNotification.Name("ShowTrackInfo"),
                 object: nil,
                 userInfo: ["track": track]
             )
-        })
-
-        items.append(.divider)
-
-        // Go to submenu
+        }
+    }
+    
+    private static func createGoToMenu(for track: Track) -> ContextMenuItem {
         var goToItems: [ContextMenuItem] = []
-
+        
         for filterType in LibraryFilterType.allCases {
             if filterType.usesMultiArtistParsing {
-                // Parse the multi-value field
-                let value = filterType.getValue(from: track)
-                let parsedValues = ArtistParser.parse(value, unknownPlaceholder: filterType.unknownPlaceholder)
-
-                if parsedValues.count > 1 {
-                    // Multiple values - create submenu
-                    var subItems: [ContextMenuItem] = []
-                    for parsedValue in parsedValues {
-                        subItems.append(.button(title: parsedValue) {
-                            NotificationCenter.default.post(
-                                name: .goToLibraryFilter,
-                                object: nil,
-                                userInfo: [
-                                    "filterType": filterType,
-                                    "filterValue": parsedValue
-                                ]
-                            )
-                        })
-                    }
-                    goToItems.append(.menu(title: filterType.rawValue, items: subItems))
-                } else {
-                    // Single value - create direct menu item
-                    let displayValue = parsedValues.first ?? filterType.unknownPlaceholder
-                    goToItems.append(.button(title: "\(filterType.singularDisplayName): \(displayValue)") {
-                        NotificationCenter.default.post(
-                            name: .goToLibraryFilter,
-                            object: nil,
-                            userInfo: [
-                                "filterType": filterType,
-                                "filterValue": displayValue
-                            ]
-                        )
-                    })
-                }
+                goToItems.append(contentsOf: createMultiValueFilterItems(
+                    for: track,
+                    filterType: filterType
+                ))
             } else {
-                // Non-parsed fields - direct menu item
-                let value = filterType.getValue(from: track)
-                goToItems.append(.button(title: "\(filterType.singularDisplayName): \(value)") {
-                    NotificationCenter.default.post(
-                        name: .goToLibraryFilter,
-                        object: nil,
-                        userInfo: [
-                            "filterType": filterType,
-                            "filterValue": value
-                        ]
+                goToItems.append(createSingleValueFilterItem(
+                    for: track,
+                    filterType: filterType
+                ))
+            }
+        }
+        
+        return .menu(title: "Go to", items: goToItems)
+    }
+    
+    private static func createMultiValueFilterItems(
+        for track: Track,
+        filterType: LibraryFilterType
+    ) -> [ContextMenuItem] {
+        let value = filterType.getValue(from: track)
+        let parsedValues = ArtistParser.parse(value, unknownPlaceholder: filterType.unknownPlaceholder)
+        
+        if parsedValues.count > 1 {
+            var subItems: [ContextMenuItem] = []
+            for parsedValue in parsedValues {
+                subItems.append(.button(title: parsedValue) {
+                    postGoToNotification(filterType: filterType, filterValue: parsedValue)
+                })
+            }
+            return [
+                .menu(title: filterType.rawValue, items: subItems)
+            ]
+        } else {
+            let displayValue = parsedValues.first ?? filterType.unknownPlaceholder
+            return [
+                .button(title: "\(filterType.rawValue): \(displayValue)") {
+                    postGoToNotification(filterType: filterType, filterValue: displayValue)
+                }
+            ]
+        }
+    }
+    
+    private static func createSingleValueFilterItem(
+        for track: Track,
+        filterType: LibraryFilterType
+    ) -> ContextMenuItem {
+        let value = filterType.getValue(from: track)
+        let displayValue = value.isEmpty ? filterType.unknownPlaceholder : value
+        
+        return .button(title: "\(filterType.rawValue): \(displayValue)") {
+            postGoToNotification(filterType: filterType, filterValue: displayValue)
+        }
+    }
+    
+    private static func postGoToNotification(filterType: LibraryFilterType, filterValue: String) {
+        NotificationCenter.default.post(
+            name: .goToLibraryFilter,
+            object: nil,
+            userInfo: [
+                "filterType": filterType,
+                "filterValue": filterValue
+            ]
+        )
+    }
+    
+    private static func createPlaylistItems(
+        for track: Track,
+        playlistManager: PlaylistManager,
+        existingItems: inout [ContextMenuItem]
+    ) -> [ContextMenuItem] {
+        var items: [ContextMenuItem] = []
+        
+        // Get regular playlists
+        let playlists = playlistManager.playlists.filter { $0.type == .regular }
+        
+        // Playlists submenu
+        var playlistItems: [ContextMenuItem] = []
+        
+        // Create new playlist item
+        playlistItems.append(.button(title: "New Playlist...") {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("CreatePlaylistWithTrack"),
+                object: nil,
+                userInfo: ["track": track]
+            )
+        })
+        
+        // Add to existing playlists
+        if !playlists.isEmpty {
+            playlistItems.append(.divider)
+            for playlist in playlists {
+                let isInPlaylist = playlist.tracks.contains { $0.trackId == track.trackId }
+                let title = isInPlaylist ? "✓ \(playlist.name)" : playlist.name
+                
+                playlistItems.append(.button(title: title) {
+                    // Use updateTrackInPlaylist with the playlist object
+                    playlistManager.updateTrackInPlaylist(
+                        track: track,
+                        playlist: playlist,
+                        add: !isInPlaylist
                     )
                 })
             }
         }
-
-        items.append(.menu(title: "Go to", items: goToItems))
-
-        items.append(.divider)
-
-        // Add to Playlist submenu
-        let regularPlaylists = playlistManager.playlists.filter { $0.type == .regular }
-        if !regularPlaylists.isEmpty {
-            var playlistItems: [ContextMenuItem] = []
-
-            for playlist in regularPlaylists {
-                // Don't show current playlist in the menu if we're in playlist context
-                if case .playlist(let currentPlaylist) = currentContext,
-                   currentPlaylist.id == playlist.id {
-                    continue
-                }
-
-                playlistItems.append(.button(title: playlist.name) {
-                    playlistManager.addTrackToPlaylist(track: track, playlistID: playlist.id)
-                })
-            }
-
-            if !playlistItems.isEmpty {
-                playlistItems.append(.divider)
-            }
-
-            playlistItems.append(.button(title: "New Playlist...") {
-                // This will be handled by the view that uses this menu
-                NotificationCenter.default.post(
-                    name: NSNotification.Name("CreatePlaylistWithTrack"),
-                    object: nil,
-                    userInfo: ["track": track]
-                )
-            })
-
-            items.append(.menu(title: "Add to Playlist", items: playlistItems))
-        }
-
-        // Add/Remove from Favorites
-        items.append(.divider)
-        items.append(.button(title: track.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
+        
+        items.append(.menu(title: "Add to Playlist", items: playlistItems))
+        
+        // Favorites toggle
+        let isFavorite = track.isFavorite
+        items.append(.button(title: isFavorite ? "Remove from Favorites" : "Add to Favorites") {
             playlistManager.toggleFavorite(for: track)
         })
-
-        // Context-specific items
+        
+        return items
+    }
+    
+    private static func createContextSpecificItems(
+        for track: Track,
+        playlistManager: PlaylistManager,
+        currentContext: MenuContext
+    ) -> [ContextMenuItem] {
+        var items: [ContextMenuItem] = []
+        
         switch currentContext {
         case .folder:
             items.append(.divider)
             items.append(.button(title: "Show in Finder") {
-                NSWorkspace.shared.selectFile(track.url.path, inFileViewerRootedAtPath: track.url.deletingLastPathComponent().path)
+                NSWorkspace.shared.selectFile(
+                    track.url.path,
+                    inFileViewerRootedAtPath: track.url.deletingLastPathComponent().path
+                )
             })
-
+            
         case .playlist(let playlist):
             if playlist.type == .regular {
                 items.append(.divider)
                 items.append(.button(title: "Remove from Playlist", role: .destructive) {
-                    playlistManager.removeTrackFromPlaylist(track: track, playlistID: playlist.id)
+                    playlistManager.removeTrackFromPlaylist(
+                        track: track,
+                        playlistID: playlist.id
+                    )
                 })
             }
-
+            
         case .library:
             break
         }
-
+        
         return items
     }
-
+    
     enum MenuContext {
         case library
         case folder(Folder)

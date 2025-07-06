@@ -1,10 +1,10 @@
 import Foundation
 
 enum AutoScanInterval: String, CaseIterable, Codable {
-    case every15Minutes = "every15Minutes"
-    case every30Minutes = "every30Minutes"
-    case every60Minutes = "every60Minutes"
-    case onlyOnLaunch = "onlyOnLaunch"
+    case every15Minutes
+    case every30Minutes
+    case every60Minutes
+    case onlyOnLaunch
 
     var displayName: String {
         switch self {

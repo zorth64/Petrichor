@@ -7,7 +7,9 @@ struct PlaylistsView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var selectedPlaylist: Playlist?
-    @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
+
+    @AppStorage("sidebarSplitPosition")
+    private var splitPosition: Double = 200
 
     var body: some View {
         if libraryManager.tracks.isEmpty {

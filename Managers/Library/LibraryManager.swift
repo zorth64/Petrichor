@@ -152,7 +152,8 @@ class LibraryManager: ObservableObject {
         }
     }
 
-    @objc private func autoScanIntervalDidChange(_ notification: Notification) {
+    @objc
+    private func autoScanIntervalDidChange(_ notification: Notification) {
         let newInterval = autoScanInterval
 
         // Store the current interval to compare

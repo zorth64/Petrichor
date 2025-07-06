@@ -5,9 +5,9 @@ class PlaylistSortManager: ObservableObject {
     static let shared = PlaylistSortManager()
     
     enum SortCriteria: String, CaseIterable {
-        case dateAdded = "dateAdded"
-        case title = "title"
-        case custom = "custom"
+        case dateAdded
+        case title
+        case custom
         
         var displayName: String {
             switch self {
@@ -19,8 +19,11 @@ class PlaylistSortManager: ObservableObject {
     }
     
     // Store sort preferences per playlist
-    @AppStorage("playlistSortCriteria") private var sortCriteriaData: Data = Data()
-    @AppStorage("playlistSortAscending") private var sortAscendingData: Data = Data()
+    @AppStorage("playlistSortCriteria")
+    private var sortCriteriaData: Data = Data()
+    
+    @AppStorage("playlistSortAscending")
+    private var sortAscendingData: Data = Data()
     
     // Cache for current table sort column (when custom is selected)
     private var customSortColumns: [UUID: String] = [:]

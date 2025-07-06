@@ -195,9 +195,14 @@ struct PlayerView: View {
         .hoverEffect(scale: 1.1)
         .scaleEffect(playButtonPressed ? 0.95 : 1.0)
         .animation(.easeInOut(duration: AnimationDuration.quickDuration), value: playButtonPressed)
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            playButtonPressed = pressing
-        }, perform: {})
+        .onLongPressGesture(
+            minimumDuration: 0,
+            maximumDistance: .infinity,
+            pressing: { pressing in
+                playButtonPressed = pressing
+            },
+            perform: {}
+        )
         .disabled(audioPlayerManager.currentTrack == nil)
         .help(audioPlayerManager.isPlaying ? "Pause" : "Play")
         .id("playPause")

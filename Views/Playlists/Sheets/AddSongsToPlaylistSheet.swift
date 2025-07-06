@@ -2,7 +2,8 @@ import SwiftUI
 
 struct AddSongsToPlaylistSheet: View {
     let playlist: Playlist
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismiss)
+    private var dismiss
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
 

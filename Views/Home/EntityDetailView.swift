@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct EntityDetailView: View {
-    @AppStorage("trackListSortAscending") private var trackListSortAscending = true
+    @AppStorage("trackListSortAscending")
+    private var trackListSortAscending = true
 
     let entity: any Entity
     let viewType: LibraryViewType

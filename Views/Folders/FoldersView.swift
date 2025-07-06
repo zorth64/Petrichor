@@ -14,7 +14,8 @@ struct FoldersView: View {
     @State private var trackToAddToNewPlaylist: Track?
     @State private var newPlaylistName = ""
 
-    @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
+    @AppStorage("trackListSortAscending")
+    private var trackListSortAscending: Bool = true
 
     let viewType: LibraryViewType
 

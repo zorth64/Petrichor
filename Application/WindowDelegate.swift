@@ -46,7 +46,8 @@ class WindowDelegate: NSObject, NSWindowDelegate {
 
         // Check if the window is in a suspicious position (like preview pane)
         let frame = window.frame
-        if frame.width < 800 || frame.height < 600 || frame.origin.x > NSScreen.main!.frame.width - 700 {
+        guard let mainScreen = NSScreen.main else { return }
+        if frame.width < 800 || frame.height < 600 || frame.origin.x > mainScreen.frame.width - 700 {
             // Don't save this frame
             window.setFrameAutosaveName("")
 

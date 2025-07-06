@@ -4,8 +4,17 @@ struct LibraryView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var libraryManager: LibraryManager
     @EnvironmentObject var playlistManager: PlaylistManager
+
+    @AppStorage("librarySelectedFilterType")
+    private var selectedFilterType: LibraryFilterType = .artists
+    
+    @AppStorage("sidebarSplitPosition")
+    private var splitPosition: Double = 200
+    
+    @AppStorage("trackListSortAscending")
+    private var trackListSortAscending: Bool = true
+    
     @State private var selectedTrackID: UUID?
-    @AppStorage("librarySelectedFilterType") private var selectedFilterType: LibraryFilterType = .artists
     @State private var selectedFilterItem: LibraryFilterItem?
     @State private var showingCreatePlaylistWithTrack = false
     @State private var trackToAddToNewPlaylist: Track?
@@ -13,10 +22,6 @@ struct LibraryView: View {
     @State private var cachedFilteredTracks: [Track] = []
     @State private var pendingSearchText: String?
     @State private var isViewReady = false
-
-    @AppStorage("sidebarSplitPosition") private var splitPosition: Double = 200
-    @AppStorage("trackListSortAscending") private var trackListSortAscending: Bool = true
-
     @Binding var pendingFilter: LibraryFilterRequest?
 
     let viewType: LibraryViewType

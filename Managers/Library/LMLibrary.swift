@@ -19,10 +19,12 @@ extension LibraryManager {
             if let bookmarkData = folder.bookmarkData {
                 do {
                     var isStale = false
-                    let resolvedURL = try URL(resolvingBookmarkData: bookmarkData,
-                                             options: [.withSecurityScope],
-                                             relativeTo: nil,
-                                             bookmarkDataIsStale: &isStale)
+                    let resolvedURL = try URL(
+                        resolvingBookmarkData: bookmarkData,
+                        options: [.withSecurityScope],
+                        relativeTo: nil,
+                        bookmarkDataIsStale: &isStale
+                    )
 
                     // Start accessing the security scoped resource
                     if resolvedURL.startAccessingSecurityScopedResource() {

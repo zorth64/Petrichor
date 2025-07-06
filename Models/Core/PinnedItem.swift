@@ -17,8 +17,8 @@ struct PinnedItem: Identifiable, FetchableRecord, PersistableRecord {
     let dateAdded: Date
     
     enum ItemType: String, Codable {
-        case library = "library"
-        case playlist = "playlist"
+        case library
+        case playlist
     }
     
     // MARK: - Initialization
@@ -50,7 +50,7 @@ struct PinnedItem: Identifiable, FetchableRecord, PersistableRecord {
         self.playlistId = nil
         self.displayName = artistEntity.name
         self.subtitle = artistEntity.subtitle
-        self.iconName = "person.fill"
+        self.iconName = Icons.personFill
         self.sortOrder = 0
         self.dateAdded = Date()
     }
@@ -66,7 +66,7 @@ struct PinnedItem: Identifiable, FetchableRecord, PersistableRecord {
         self.playlistId = nil
         self.displayName = albumEntity.name
         self.subtitle = albumEntity.artist
-        self.iconName = "opticaldisc.fill"
+        self.iconName = Icons.opticalDiscFill
         self.sortOrder = 0
         self.dateAdded = Date()
     }

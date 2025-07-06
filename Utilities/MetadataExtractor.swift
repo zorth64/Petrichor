@@ -252,7 +252,7 @@ class MetadataExtractor {
             
             // Special handling for track/disc numbers which might be stored as binary data
             if keyString == "trkn" || keyString.lowercased() == "track" ||
-               identifier.contains("iTunesMetadataKeyTrackNumber") {
+                identifier.contains("iTunesMetadataKeyTrackNumber") {
                 if let data = item.dataValue, data.count >= 8 {
                     // M4A stores track numbers as binary:
                     // bytes 2-3: track number (big endian)
@@ -272,7 +272,7 @@ class MetadataExtractor {
             
             // Similar handling for disc numbers
             if keyString == "disk" || keyString.lowercased() == "disc" ||
-               identifier.contains("iTunesMetadataKeyDiscNumber") {
+                identifier.contains("iTunesMetadataKeyDiscNumber") {
                 if let data = item.dataValue, data.count >= 6 {
                     let discNumber = Int(data[2]) << 8 | Int(data[3])
                     let totalDiscs = Int(data[4]) << 8 | Int(data[5])
@@ -293,8 +293,13 @@ class MetadataExtractor {
                 processCommonKey(item.commonKey, value: stringValue, into: &metadata)
                 
                 // Process core metadata
-                processCoreMetadata(keyString: keyString, identifier: identifier,
-                                  commonKey: commonKey, value: stringValue, into: &metadata)
+                processCoreMetadata(
+                    keyString: keyString,
+                    identifier: identifier,
+                    commonKey: commonKey,
+                    value: stringValue,
+                    into: &metadata
+                )
                 
                 // Process extended fields
                 extractExtendedFields(keyString, identifier, stringValue, into: &metadata)
@@ -324,9 +329,13 @@ class MetadataExtractor {
         }
     }
     
-    private static func processCoreMetadata(keyString: String, identifier: String,
-                                           commonKey: String, value: String,
-                                           into metadata: inout TrackMetadata) {
+    private static func processCoreMetadata(
+        keyString: String,
+        identifier: String,
+        commonKey: String,
+        value: String,
+        into metadata: inout TrackMetadata
+    ) {
         // Composer
         if metadata.composer == nil && isKeyOfType(.composer, keyString, identifier, commonKey) {
             metadata.composer = value
@@ -339,7 +348,7 @@ class MetadataExtractor {
         
         // Year
         if (metadata.year == nil || metadata.year?.isEmpty == true) &&
-           isKeyOfType(.year, keyString, identifier, commonKey) {
+            isKeyOfType(.year, keyString, identifier, commonKey) {
             metadata.year = extractYear(from: value)
         }
         
@@ -351,9 +360,9 @@ class MetadataExtractor {
         // Track Number - Add special handling for simple "track" key
         if metadata.trackNumber == nil {
             let isTrackField = isKeyOfType(.trackNumber, keyString, identifier, commonKey) ||
-                              keyString.lowercased() == "track" ||
-                              keyString.lowercased() == "trkn" ||
-                              (commonKey.lowercased().contains("track") && !commonKey.lowercased().contains("artist"))
+            keyString.lowercased() == "track" ||
+            keyString.lowercased() == "trkn" ||
+            (commonKey.lowercased().contains("track") && !commonKey.lowercased().contains("artist"))
             
             if isTrackField {
                 let (track, total) = parseNumbering(value)
@@ -365,8 +374,8 @@ class MetadataExtractor {
         // Disc Number - Add special handling for simple "disc" key
         if metadata.discNumber == nil {
             let isDiscField = isKeyOfType(.discNumber, keyString, identifier, commonKey) ||
-                             keyString.lowercased() == "disc" ||
-                             keyString.lowercased() == "disk"
+            keyString.lowercased() == "disc" ||
+            keyString.lowercased() == "disk"
             
             if isDiscField {
                 let (disc, total) = parseNumbering(value)
@@ -391,8 +400,12 @@ class MetadataExtractor {
         }
     }
     
-    private static func extractExtendedFields(_ keyString: String, _ identifier: String,
-                                            _ value: String, into metadata: inout TrackMetadata) {
+    private static func extractExtendedFields(
+        _ keyString: String,
+        _ identifier: String,
+        _ value: String,
+        into metadata: inout TrackMetadata
+    ) {
         let lowercaseKey = keyString.lowercased()
         let lowercaseIdentifier = identifier.lowercased()
         
@@ -443,8 +456,12 @@ class MetadataExtractor {
     
     // MARK: - Helper Methods
     
-    private static func isKeyOfType(_ type: MetadataKeyType, _ key: String,
-                                   _ identifier: String, _ commonKey: String) -> Bool {
+    private static func isKeyOfType(
+        _ type: MetadataKeyType,
+        _ key: String,
+        _ identifier: String,
+        _ commonKey: String
+    ) -> Bool {
         // Special handling for year - exclude TDAT
         if type == .year && key.lowercased() == "tdat" {
             return false
@@ -631,10 +648,10 @@ class MetadataExtractor {
             
             // Convert ID3 numeric keys to string
             let id3Key = String(format: "%c%c%c%c",
-                (intValue >> 24) & 0xFF,
-                (intValue >> 16) & 0xFF,
-                (intValue >> 8) & 0xFF,
-                intValue & 0xFF)
+                                (intValue >> 24) & 0xFF,
+                                (intValue >> 16) & 0xFF,
+                                (intValue >> 8) & 0xFF,
+                                intValue & 0xFF)
             return id3Key
         } else {
             return String(describing: key)

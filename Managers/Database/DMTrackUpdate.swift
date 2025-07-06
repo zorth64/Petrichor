@@ -16,7 +16,8 @@ extension DatabaseManager {
         _ = try await dbQueue.write { db in
             try Track
                 .filter(Track.Columns.trackId == trackId)
-                .updateAll(db,
+                .updateAll(
+                    db,
                     Track.Columns.playCount.set(to: playCount),
                     Track.Columns.lastPlayedDate.set(to: lastPlayedDate)
                 )

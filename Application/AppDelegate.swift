@@ -100,7 +100,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Dock Menu
     
-    @objc private func trackChanged() {
+    @objc
+    private func trackChanged() {
         // Force dock menu to update by invalidating the dock tile
         NSApp.dockTile.display()
     }
@@ -232,38 +233,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Dock Menu Actions
     
-    @objc private func toggleFavorite() {
+    @objc
+    private func toggleFavorite() {
         guard let coordinator = AppCoordinator.shared,
               let track = coordinator.audioPlayerManager.currentTrack else { return }
         
         coordinator.playlistManager.toggleFavorite(for: track)
     }
     
-    @objc private func setRepeatOff() {
+    @objc
+    private func setRepeatOff() {
         AppCoordinator.shared?.playlistManager.repeatMode = .off
     }
     
-    @objc private func setRepeatOne() {
+    @objc
+    private func setRepeatOne() {
         AppCoordinator.shared?.playlistManager.repeatMode = .one
     }
     
-    @objc private func setRepeatAll() {
+    @objc
+    private func setRepeatAll() {
         AppCoordinator.shared?.playlistManager.repeatMode = .all
     }
     
-    @objc private func toggleShuffle() {
+    @objc
+    private func toggleShuffle() {
         AppCoordinator.shared?.playlistManager.toggleShuffle()
     }
     
-    @objc private func togglePlayPause() {
+    @objc
+    private func togglePlayPause() {
         AppCoordinator.shared?.audioPlayerManager.togglePlayPause()
     }
     
-    @objc private func playNext() {
+    @objc
+    private func playNext() {
         AppCoordinator.shared?.playlistManager.playNextTrack()
     }
     
-    @objc private func playPrevious() {
+    @objc
+    private func playPrevious() {
         AppCoordinator.shared?.playlistManager.playPreviousTrack()
     }
     

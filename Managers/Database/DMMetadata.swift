@@ -89,17 +89,23 @@ extension DatabaseManager {
             hasChanges = true
         }
 
-        if let newGenre = metadata.genre, !newGenre.isEmpty && (track.genre == "Unknown Genre" || track.genre != newGenre) {
+        if let newGenre = metadata.genre,
+           !newGenre.isEmpty,
+           track.genre == "Unknown Genre" || track.genre != newGenre {
             track.genre = newGenre
             hasChanges = true
         }
 
-        if let newComposer = metadata.composer, !newComposer.isEmpty && (track.composer == "Unknown Composer" || track.composer.isEmpty || track.composer != newComposer) {
+        if let newComposer = metadata.composer,
+           !newComposer.isEmpty,
+           track.composer == "Unknown Composer" || track.composer.isEmpty || track.composer != newComposer {
             track.composer = newComposer
             hasChanges = true
         }
 
-        if let newYear = metadata.year, !newYear.isEmpty && (track.year.isEmpty || track.year == "Unknown Year" || track.year != newYear) {
+        if let newYear = metadata.year,
+           !newYear.isEmpty,
+           track.year.isEmpty || track.year == "Unknown Year" || track.year != newYear {
             track.year = newYear
             hasChanges = true
         }
@@ -163,7 +169,9 @@ extension DatabaseManager {
             hasChanges = true
         }
 
-        if let newOriginalReleaseDate = metadata.originalReleaseDate, !newOriginalReleaseDate.isEmpty && newOriginalReleaseDate != track.originalReleaseDate {
+        if let newOriginalReleaseDate = metadata.originalReleaseDate,
+           !newOriginalReleaseDate.isEmpty,
+           newOriginalReleaseDate != track.originalReleaseDate {
             track.originalReleaseDate = newOriginalReleaseDate
             hasChanges = true
         }

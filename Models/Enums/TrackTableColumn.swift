@@ -1,9 +1,9 @@
 import Foundation
 
 enum SpecialTableColumn: String, Codable {
-    case title = "title"
-    case duration = "duration"
-    case trackNumber = "trackNumber"
+    case title
+    case duration
+    case trackNumber
 
     var displayName: String {
         switch self {

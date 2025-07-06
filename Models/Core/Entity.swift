@@ -100,12 +100,14 @@ extension UUID {
         // In a real implementation, you'd use proper UUID v5 generation
         let combined = "\(namespace.uuidString)-\(name)"
         let hash = combined.hashValue
-        let uuidString = String(format: "%08X-%04X-%04X-%04X-%012X",
-                               UInt32(hash & 0xFFFFFFFF),
-                               UInt16((hash >> 32) & 0xFFFF),
-                               UInt16((hash >> 48) & 0x0FFF) | 0x5000, // Version 5
-                               UInt16((hash >> 60) & 0x3FFF) | 0x8000, // Variant
-                               UInt64(abs(hash)) & 0xFFFFFFFFFFFF)
+        let uuidString = String(
+            format: "%08X-%04X-%04X-%04X-%012X",
+            UInt32(hash & 0xFFFFFFFF),
+            UInt16((hash >> 32) & 0xFFFF),
+            UInt16((hash >> 48) & 0x0FFF) | 0x5000, // Version 5
+            UInt16((hash >> 60) & 0x3FFF) | 0x8000, // Variant
+            UInt64(abs(hash)) & 0xFFFFFFFFFFFF
+        )
         self = UUID(uuidString: uuidString)!
     }
 }

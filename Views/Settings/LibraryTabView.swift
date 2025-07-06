@@ -316,7 +316,8 @@ struct LibraryTabView: View {
 
         let alert = NSAlert()
         alert.messageText = "Remove Selected Folders"
-        alert.informativeText = "Are you sure you want to remove \(selectedFolders.count) folders? This will remove all tracks from these folders from your library."
+        alert.informativeText = "Are you sure you want to remove \(selectedFolders.count) folders? " +
+                               "This will remove all tracks from these folders from your library."
         alert.addButton(withTitle: "Remove")
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning

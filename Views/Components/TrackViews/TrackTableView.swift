@@ -32,7 +32,9 @@ struct TrackTableView: NSViewRepresentable {
     @StateObject private var columnManager = ColumnVisibilityManager.shared
 
     @State private var sortOrder: [NSSortDescriptor] = []
-    @AppStorage("trackTableSortOrder") private var sortOrderData = Data()
+
+    @AppStorage("trackTableSortOrder")
+    private var sortOrderData = Data()
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
@@ -315,7 +317,7 @@ struct TrackTableView: NSViewRepresentable {
             let additionalWidthPerColumn = difference / CGFloat(visibleColumns.count)
 
             for column in visibleColumns {
-                column.width = column.width + additionalWidthPerColumn
+                column.width += additionalWidthPerColumn
             }
         }
     }
@@ -344,12 +346,14 @@ struct TrackTableView: NSViewRepresentable {
         private var cancellables = Set<AnyCancellable>()
         private weak var hostTableView: NSTableView?
 
-        init(tracks: [Track],
-             playlistID: UUID?,
-             onPlayTrack: @escaping (Track) -> Void,
-             audioPlayerManager: AudioPlayerManager,
-             contextMenuItems: @escaping (Track) -> [ContextMenuItem],
-             columnVisibility: TrackTableColumnVisibility) {
+        init(
+            tracks: [Track],
+            playlistID: UUID?,
+            onPlayTrack: @escaping (Track) -> Void,
+            audioPlayerManager: AudioPlayerManager,
+            contextMenuItems: @escaping (Track) -> [ContextMenuItem],
+            columnVisibility: TrackTableColumnVisibility
+        ) {
             self.tracks = tracks
             self.sortedTracks = tracks
             self.playlistID = playlistID
@@ -653,7 +657,8 @@ struct TrackTableView: NSViewRepresentable {
             return menu
         }
 
-        @objc private func toggleColumnVisibility(_ sender: NSMenuItem) {
+        @objc
+        private func toggleColumnVisibility(_ sender: NSMenuItem) {
             guard let column = sender.representedObject as? TrackTableColumn else { return }
             
             if !column.isRequired {
@@ -665,7 +670,8 @@ struct TrackTableView: NSViewRepresentable {
             }
         }
 
-        @objc private func scrollViewDidScroll(_ notification: Notification) {
+        @objc
+        private func scrollViewDidScroll(_ notification: Notification) {
             // Clear hover state immediately when scrolling starts
             if let previousHoveredRow = hoveredRow {
                 hoveredRow = nil
@@ -688,7 +694,8 @@ struct TrackTableView: NSViewRepresentable {
             }
         }
 
-        @objc func doubleClick(_ sender: NSTableView) {
+        @objc
+        func doubleClick(_ sender: NSTableView) {
             let clickedRow = sender.clickedRow
             guard clickedRow >= 0, clickedRow < tracks.count else { return }
 
@@ -766,7 +773,8 @@ struct TrackTableView: NSViewRepresentable {
             return String(format: StringFormat.mmss, minutes, remainingSeconds)
         }
 
-        @objc private func contextMenuAction(_ sender: NSMenuItem) {
+        @objc
+        private func contextMenuAction(_ sender: NSMenuItem) {
             guard let action = sender.representedObject as? ContextMenuAction else { return }
             action.action()
         }
@@ -790,7 +798,15 @@ struct TrackTableView: NSViewRepresentable {
             }
         }
 
-        private func makeOrReuseTextCell(in tableView: NSTableView, column: NSTableColumn?, row: Int, text: String, font: NSFont, color: NSColor, alignment: NSTextAlignment = .left) -> NSTableCellView {
+        private func makeOrReuseTextCell(
+            in tableView: NSTableView,
+            column: NSTableColumn?,
+            row: Int,
+            text: String,
+            font: NSFont,
+            color: NSColor,
+            alignment: NSTextAlignment = .left
+        ) -> NSTableCellView {
             let identifier = NSUserInterfaceItemIdentifier("TextCell")
 
             let cellView: NSTableCellView
@@ -899,7 +915,9 @@ struct TrackTableView: NSViewRepresentable {
 
             if animated {
                 CATransaction.begin()
-                CATransaction.setAnimationDuration(coordinator?.hoveredRow == row ? AnimationDuration.quickDuration : AnimationDuration.standardDuration)
+                CATransaction.setAnimationDuration(
+                    coordinator?.hoveredRow == row ? AnimationDuration.quickDuration : AnimationDuration.standardDuration
+                )
                 CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
                 backgroundLayer?.backgroundColor = color.cgColor
                 CATransaction.commit()
