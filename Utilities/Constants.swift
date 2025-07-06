@@ -41,6 +41,7 @@ enum Icons {
     static let square = "square"
     static let infoCircle = "info.circle"
     static let plusCircle = "plus.circle"
+    static let chartUptrendFill = "chart.line.uptrend.xyaxis.circle.fill"
     static let infoCircleFill = "info.circle.fill"
     static let plusCircleFill = "plus.circle.fill"
     static let minusSquareFill = "minus.square.fill"
@@ -191,7 +192,7 @@ extension Icons {
             case DefaultPlaylists.favorites:
                 return Icons.starFill
             case DefaultPlaylists.mostPlayed:
-                return Icons.playCircleFill
+                return Icons.chartUptrendFill
             case DefaultPlaylists.recentlyPlayed:
                 return Icons.clockFill
             default:
