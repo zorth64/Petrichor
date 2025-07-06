@@ -13,16 +13,16 @@ extension DatabaseManager {
                 .deleteAll(db)
             
             let deletedCount = db.changesCount
-            print("DatabaseManager: Deleted \(deletedCount) existing track associations")
+            Logger.info("Deleted \(deletedCount) existing track associations")
             
             // Batch insert track associations for regular playlists
             if playlist.type == .regular && !playlist.tracks.isEmpty {
-                print("DatabaseManager: Saving \(playlist.tracks.count) tracks for playlist '\(playlist.name)'")
+                Logger.info("Saving \(playlist.tracks.count) tracks for playlist '\(playlist.name)'")
                 
                 // Create all PlaylistTrack objects at once
                 let playlistTracks = playlist.tracks.enumerated().compactMap { index, track -> PlaylistTrack? in
                     guard let trackId = track.trackId else {
-                        print("DatabaseManager: WARNING - Track '\(track.title)' has no database ID, skipping")
+                        Logger.warning("Track '\(track.title)' has no database ID, skipping")
                         return nil
                     }
                     
@@ -37,7 +37,7 @@ extension DatabaseManager {
                 // Batch insert all tracks at once
                 if !playlistTracks.isEmpty {
                     try PlaylistTrack.insertMany(playlistTracks, db: db)
-                    print("DatabaseManager: Batch inserted \(playlistTracks.count) tracks to playlist")
+                    Logger.info("Batch inserted \(playlistTracks.count) tracks to playlist")
                 }
                 
                 // Verify the save
@@ -45,7 +45,7 @@ extension DatabaseManager {
                     .filter(PlaylistTrack.Columns.playlistId == playlist.id.uuidString)
                     .fetchCount(db)
                 
-                print("DatabaseManager: Verified \(savedCount) tracks saved for playlist in database")
+                Logger.info("Verified \(savedCount) tracks saved for playlist in database")
             }
         }
     }
@@ -61,16 +61,16 @@ extension DatabaseManager {
                 .deleteAll(db)
             
             let deletedCount = db.changesCount
-            print("DatabaseManager: Deleted \(deletedCount) existing track associations")
+            Logger.info("Deleted \(deletedCount) existing track associations")
             
             // Batch insert track associations for regular playlists
             if playlist.type == .regular && !playlist.tracks.isEmpty {
-                print("DatabaseManager: Saving \(playlist.tracks.count) tracks for playlist '\(playlist.name)'")
+                Logger.info("Saving \(playlist.tracks.count) tracks for playlist '\(playlist.name)'")
                 
                 // Create all PlaylistTrack objects at once
                 let playlistTracks = playlist.tracks.enumerated().compactMap { index, track -> PlaylistTrack? in
                     guard let trackId = track.trackId else {
-                        print("DatabaseManager: WARNING - Track '\(track.title)' has no database ID, skipping")
+                        Logger.warning("Track '\(track.title)' has no database ID, skipping")
                         return nil
                     }
                     
@@ -85,7 +85,7 @@ extension DatabaseManager {
                 // Batch insert all tracks at once
                 if !playlistTracks.isEmpty {
                     try PlaylistTrack.insertMany(playlistTracks, db: db)
-                    print("DatabaseManager: Batch inserted \(playlistTracks.count) tracks to playlist")
+                    Logger.info("Batch inserted \(playlistTracks.count) tracks to playlist")
                 }
                 
                 // Verify the save
@@ -93,7 +93,7 @@ extension DatabaseManager {
                     .filter(PlaylistTrack.Columns.playlistId == playlist.id.uuidString)
                     .fetchCount(db)
                 
-                print("DatabaseManager: Verified \(savedCount) tracks saved for playlist in database")
+                Logger.info("Verified \(savedCount) tracks saved for playlist in database")
             }
         }
     }
@@ -153,7 +153,7 @@ extension DatabaseManager {
                 return playlists
             }
         } catch {
-            print("DatabaseManager: Failed to load playlists: \(error)")
+            Logger.error("Failed to load playlists: \(error)")
             return []
         }
     }
@@ -172,7 +172,7 @@ extension DatabaseManager {
     /// Add a single track to a playlist without rebuilding entire playlist
     func addTrackToPlaylist(playlistId: UUID, track: Track) async -> Bool {
         guard let trackId = track.trackId else {
-            print("DatabaseManager: Cannot add track - no database ID")
+            Logger.error("Cannot add track - no database ID")
             return false
         }
         
@@ -193,11 +193,11 @@ extension DatabaseManager {
                 )
                 
                 try playlistTrack.insert(db)
-                print("DatabaseManager: Added single track to playlist")
+                Logger.info("Added single track to playlist")
             }
             return true
         } catch {
-            print("DatabaseManager: Failed to add track to playlist: \(error)")
+            Logger.error("Failed to add track to playlist: \(error)")
             return false
         }
     }
@@ -211,7 +211,7 @@ extension DatabaseManager {
                     .filter(PlaylistTrack.Columns.trackId == trackId)
                     .deleteAll(db)
                 
-                print("DatabaseManager: Removed \(deleted) track from playlist")
+                Logger.info("Removed \(deleted) track from playlist")
                 
                 // Reorder remaining tracks to close the gap
                 let remainingTracks = try PlaylistTrack
@@ -229,7 +229,7 @@ extension DatabaseManager {
             }
             return true
         } catch {
-            print("DatabaseManager: Failed to remove track from playlist: \(error)")
+            Logger.error("Failed to remove track from playlist: \(error)")
             return false
         }
     }

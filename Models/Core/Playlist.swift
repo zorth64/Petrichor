@@ -222,15 +222,15 @@ struct Playlist: Identifiable, FetchableRecord, PersistableRecord {
     mutating func removeTrack(_ track: Track) {
         guard type == .regular && isContentEditable else { return }
         
-        print("Playlist: Attempting to remove track: \(track.title) with trackId: \(track.trackId ?? -1)")
-        print("Playlist: Current tracks count: \(tracks.count)")
+        Logger.info("Attempting to remove track: \(track.title) with trackId: \(track.trackId ?? -1)")
+        Logger.info("Current tracks count: \(tracks.count)")
         
         // Remove by comparing database IDs instead of instance IDs
         if let trackId = track.trackId {
             let beforeCount = tracks.count
             tracks.removeAll { $0.trackId == trackId }
             let afterCount = tracks.count
-            print("Playlist: Removed \(beforeCount - afterCount) tracks")
+            Logger.info("Removed \(beforeCount - afterCount) tracks")
         } else {
             // Fallback to UUID comparison if no database ID
             tracks.removeAll { $0.id == track.id }

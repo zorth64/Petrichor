@@ -9,7 +9,7 @@ extension DatabaseManager {
         try await dbQueue.write { db in
             // Check if item already exists to prevent duplicates
             if let existingItem = try self.findExistingPinnedItem(item, in: db) {
-                print("DatabaseManager: Item already pinned: \(existingItem.displayName)")
+                Logger.info("Item already pinned: \(existingItem.displayName)")
                 return
             }
             
@@ -21,6 +21,7 @@ extension DatabaseManager {
             newItem.sortOrder = maxSortOrder + 1
             
             try newItem.save(db)
+            Logger.info(String(format: "Pinned item added: %@", newItem.displayName))
         }
     }
     
@@ -162,7 +163,7 @@ extension DatabaseManager {
                     }
                 }
             } catch {
-                print("DatabaseManager: Failed to get tracks for pinned playlist: \(error)")
+                Logger.error("Failed to get tracks for pinned playlist \(item.displayName): \(error)")
                 return []
             }
         }

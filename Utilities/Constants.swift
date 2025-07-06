@@ -89,6 +89,7 @@ enum AudioFormat {
 enum StringFormat {
     static let hhmmss: String = "%d:%02d:%02d"
     static let mmss: String = "%d:%02d"
+    static let logEntryFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"
 }
 
 // MARK: - Animation Durations

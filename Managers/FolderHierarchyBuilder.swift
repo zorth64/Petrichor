@@ -65,7 +65,7 @@ class FolderHierarchyBuilder {
                 node.immediateTrackCount = finalTrackCount
             }
         } catch {
-            print("FolderHierarchyBuilder: Error scanning folder \(node.url.path): \(error)")
+            Logger.error("Failed to scan folder \(node.url.path): \(error)")
         }
     }
 

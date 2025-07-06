@@ -15,7 +15,7 @@ extension PlaylistManager {
                     try await dbManager.savePlaylistAsync(newPlaylist)
                 }
             } catch {
-                print("PlaylistManager: Failed to save new playlist: \(error)")
+                Logger.error("Failed to save new playlist: \(error)")
             }
         }
         
@@ -26,7 +26,7 @@ extension PlaylistManager {
     func deletePlaylist(_ playlist: Playlist) {
         // Only allow deletion of user-editable playlists
         guard playlist.isUserEditable else {
-            print("PlaylistManager: Cannot delete system playlist: \(playlist.name)")
+            Logger.warning("Cannot delete system playlist: \(playlist.name)")
             return
         }
         
@@ -44,7 +44,7 @@ extension PlaylistManager {
                     try await dbManager.deletePlaylist(playlist.id)
                 }
             } catch {
-                print("PlaylistManager: Failed to delete playlist from database: \(error)")
+                Logger.error("Failed to delete playlist from database: \(error)")
             }
         }
     }
@@ -52,7 +52,7 @@ extension PlaylistManager {
     /// Rename a playlist
     func renamePlaylist(_ playlist: Playlist, newName: String) {
         guard playlist.isUserEditable else {
-            print("PlaylistManager: Cannot rename system playlist: \(playlist.name)")
+            Logger.warning("Cannot rename system playlist: \(playlist.name)")
             return
         }
         
@@ -69,7 +69,7 @@ extension PlaylistManager {
                         try await dbManager.savePlaylistAsync(updatedPlaylist)
                     }
                 } catch {
-                    print("PlaylistManager: Failed to save renamed playlist: \(error)")
+                    Logger.error("Failed to save renamed playlist: \(error)")
                 }
             }
         }
@@ -79,7 +79,7 @@ extension PlaylistManager {
         guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
               playlists[index].type == .regular,
               playlists[index].isContentEditable else {
-            print("PlaylistManager: Cannot add to this playlist")
+            Logger.warning("Cannot add to this playlist")
             return
         }
 
@@ -89,7 +89,7 @@ extension PlaylistManager {
         }
         
         if alreadyExists {
-            print("PlaylistManager: Track already in playlist")
+            Logger.info("Track already in playlist")
             return
         }
 
@@ -114,7 +114,7 @@ extension PlaylistManager {
         guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
               playlists[index].type == .regular,
               playlists[index].isContentEditable else {
-            print("PlaylistManager: Cannot remove from this playlist")
+            Logger.warning("Cannot remove from this playlist")
             return
         }
 
@@ -129,10 +129,10 @@ extension PlaylistManager {
                 // Get the updated playlist from main thread
                 let updatedPlaylist = await MainActor.run { self.playlists[index] }
                 try await dbManager.savePlaylistAsync(updatedPlaylist)
-                print("PlaylistManager: Removed track from playlist")
+                Logger.info("Removed track from playlist")
             }
         } catch {
-            print("PlaylistManager: Failed to save playlist: \(error)")
+            Logger.error("Failed to save playlist: \(error)")
             // Revert change on main thread
             await MainActor.run {
                 self.playlists[index].addTrack(track)
@@ -145,7 +145,7 @@ extension PlaylistManager {
         guard let index = playlists.firstIndex(where: { $0.id == playlistID }),
               playlists[index].type == .regular,
               playlists[index].isContentEditable else {
-            print("PlaylistManager: Cannot add tracks to this playlist")
+            Logger.warning("Cannot add tracks to this playlist")
             return
         }
         
@@ -162,7 +162,7 @@ extension PlaylistManager {
                 try await dbManager.savePlaylistAsync(playlists[index])
             }
         } catch {
-            print("PlaylistManager: Failed to save playlist after adding tracks: \(error)")
+            Logger.error("Failed to save playlist after adding tracks: \(error)")
         }
     }
     
@@ -187,7 +187,7 @@ extension PlaylistManager {
                                 try await dbManager.savePlaylistAsync(playlists[index])
                             }
                         } catch {
-                            print("PlaylistManager: Failed to update playlist after folder removal: \(error)")
+                            Logger.error("Failed to update playlist after folder removal: \(error)")
                         }
                     }
                 }

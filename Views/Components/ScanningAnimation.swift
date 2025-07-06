@@ -30,6 +30,7 @@ struct ScanningAnimation: View {
                             Color.accentColor.opacity(0.5)
                         ]),
                         startPoint: .leading,
+                        
                         endPoint: .trailing
                     ),
                     style: StrokeStyle(

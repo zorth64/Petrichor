@@ -3,7 +3,7 @@ import Foundation
 extension LibraryManager {
     func getTracksInFolder(_ folder: Folder) -> [Track] {
         guard let folderId = folder.id else {
-            print("LibraryManager: Folder has no ID")
+            Logger.error("Folder has no ID")
             return []
         }
 

@@ -172,7 +172,7 @@ private struct EntityListRow<T: Entity>: View {
     EntityListView(
         entities: artists,
         onSelectEntity: { artist in
-            print("Selected: \(artist.name)")
+            Logger.debugPrint("Selected: \(artist.name)")
         },
         contextMenuItems: { _ in [] }
     )
@@ -190,7 +190,7 @@ private struct EntityListRow<T: Entity>: View {
     EntityListView(
         entities: albums,
         onSelectEntity: { album in
-            print("Selected: \(album.name)")
+            Logger.debugPrint("Selected: \(album.name)")
         },
         contextMenuItems: { _ in [] }
     )

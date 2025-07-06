@@ -26,7 +26,7 @@ extension DatabaseManager {
         ) else { return }
 
         guard let folderId = folder.id else {
-            print("ERROR: Folder has no ID")
+            Logger.error("Folder has no ID")
             return
         }
 
@@ -71,7 +71,7 @@ extension DatabaseManager {
                 if !foundPaths.contains(url) {
                     // File no longer exists, remove from database
                     try track.delete(db)
-                    print("Removed track that no longer exists: \(url.lastPathComponent)")
+                    Logger.info("Removed track that no longer exists: \(url.lastPathComponent)")
                 }
             }
         }

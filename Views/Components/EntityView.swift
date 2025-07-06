@@ -74,7 +74,7 @@ extension NSImage {
         entities: artists,
         viewType: .list,
         onSelectEntity: { artist in
-            print("Selected: \(artist.name)")
+            Logger.debugPrint("Selected: \(artist.name)")
         },
         contextMenuItems: { _ in [] }
     )
@@ -93,7 +93,7 @@ extension NSImage {
         entities: albums,
         viewType: .grid,
         onSelectEntity: { album in
-            print("Selected: \(album.name)")
+            Logger.debugPrint("Selected: \(album.name)")
         },
         contextMenuItems: { _ in [] }
     )

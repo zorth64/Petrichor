@@ -8,7 +8,7 @@ extension PlaylistManager {
         guard let libraryManager = libraryManager else { return }
         let allTracks = libraryManager.tracks
         
-        print("PlaylistManager: Updating smart playlists with \(allTracks.count) tracks")
+        Logger.info("Updating smart playlists with \(allTracks.count) tracks")
         
         // Ensure we're on the main thread since we're updating @Published property
         if Thread.isMainThread {
@@ -19,7 +19,7 @@ extension PlaylistManager {
                 let matchingTracks = evaluateSmartPlaylist(playlists[index], allTracks: allTracks)
                 playlists[index].tracks = matchingTracks
                 
-                print("PlaylistManager: Updated '\(playlists[index].name)' with \(matchingTracks.count) tracks")
+                Logger.info("Updated '\(playlists[index].name)' with \(matchingTracks.count) tracks")
             }
         } else {
             // Not on main thread, dispatch to main
@@ -30,7 +30,7 @@ extension PlaylistManager {
                     let matchingTracks = self.evaluateSmartPlaylist(self.playlists[index], allTracks: allTracks)
                     self.playlists[index].tracks = matchingTracks
                     
-                    print("PlaylistManager: Updated '\(self.playlists[index].name)' with \(matchingTracks.count) tracks")
+                    Logger.info("Updated '\(self.playlists[index].name)' with \(matchingTracks.count) tracks")
                 }
             }
         }
@@ -40,7 +40,7 @@ extension PlaylistManager {
     func updateSmartPlaylistsForTrack(_ track: Track) {
         guard libraryManager != nil else { return }
         
-        print("PlaylistManager: Updating smart playlists for track: \(track.title)")
+        Logger.info("Updating smart playlists for track: \(track.title)")
         
         // Check each smart playlist to see if this track should be added/removed
         for index in playlists.indices {
@@ -64,11 +64,11 @@ extension PlaylistManager {
                 }
                 
                 playlists[index].tracks = updatedTracks
-                print("PlaylistManager: Added track to '\(playlists[index].name)'")
+                Logger.info("Added track to '\(playlists[index].name)'")
             } else if !trackBelongs && currentlyInPlaylist {
                 // Track shouldn't be in playlist but is - remove it
                 playlists[index].tracks.removeAll { $0.trackId == track.trackId }
-                print("PlaylistManager: Removed track from '\(playlists[index].name)'")
+                Logger.info("Removed track from '\(playlists[index].name)'")
             }
         }
     }

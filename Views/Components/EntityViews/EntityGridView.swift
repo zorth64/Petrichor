@@ -191,7 +191,7 @@ private struct EntityGridItem<T: Entity>: View {
     EntityGridView(
         entities: artists,
         onSelectEntity: { artist in
-            print("Selected: \(artist.name)")
+            Logger.debugPrint("Selected: \(artist.name)")
         },
         contextMenuItems: { _ in [] }
     )
@@ -209,7 +209,7 @@ private struct EntityGridItem<T: Entity>: View {
     EntityGridView(
         entities: albums,
         onSelectEntity: { album in
-            print("Selected: \(album.name)")
+            Logger.debugPrint("Selected: \(album.name)")
         },
         contextMenuItems: { _ in [] }
     )

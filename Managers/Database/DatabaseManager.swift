@@ -71,9 +71,9 @@ class DatabaseManager: ObservableObject {
             try dbQueue.writeWithoutTransaction { db in
                 try db.execute(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
             }
-            print("DatabaseManager: WAL checkpoint completed")
+            Logger.info("WAL checkpoint completed")
         } catch {
-            print("DatabaseManager: WAL checkpoint failed: \(error)")
+            Logger.error("WAL checkpoint failed: \(error)")
         }
     }
 
@@ -83,6 +83,7 @@ class DatabaseManager: ObservableObject {
     func resetDatabase() throws {
         try dbQueue.erase()
         try setupDatabase()
+        Logger.info("Database reset completed")
     }
 }
 

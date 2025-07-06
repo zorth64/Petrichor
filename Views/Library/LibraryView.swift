@@ -87,7 +87,7 @@ struct LibraryView: View {
                 }
                 .onChange(of: pendingFilter) { _, newValue in
                     if let request = newValue, isViewReady {
-                        print("LibraryView: View is ready, applying filter type: \(request.filterType)")
+                        Logger.info("View is ready, applying filter type: \(request.filterType)")
                         selectedFilterType = request.filterType
                         pendingSearchText = request.value
                         pendingFilter = nil

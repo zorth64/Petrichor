@@ -87,7 +87,7 @@ extension PlaylistManager {
             return evaluateNumericRule(Double(track.rating ?? 0), condition: rule.condition, value: rule.value)
             
         default:
-            print("PlaylistManager: Unknown field for smart playlist rule: \(rule.field)")
+            Logger.warning("Unknown field for smart playlist rule: \(rule.field)")
             return false
         }
     }

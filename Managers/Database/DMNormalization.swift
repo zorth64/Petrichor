@@ -200,21 +200,11 @@ extension DatabaseManager {
     func updateAlbumArtwork(_ albumId: Int64, artworkData: Data?, in db: Database) throws {
         guard let artworkData = artworkData, !artworkData.isEmpty else { return }
 
-        // Check current state
-        if let album = try Album.fetchOne(db, key: albumId) {
-            print("DatabaseManager: Before update - Album '\(album.title)' has \(album.artworkData?.count ?? 0) bytes")
-        }
-
         // Direct update using SQL
         try db.execute(
             sql: "UPDATE albums SET artwork_data = ?, updated_at = ? WHERE id = ?",
             arguments: [artworkData, Date(), albumId]
         )
-
-        // Verify update
-        if let album = try Album.fetchOne(db, key: albumId) {
-            print("DatabaseManager: After update - Album '\(album.title)' has \(album.artworkData?.count ?? 0) bytes")
-        }
     }
 
     // MARK: - Genre Management

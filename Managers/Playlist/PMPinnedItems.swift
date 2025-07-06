@@ -14,7 +14,7 @@ extension PlaylistManager {
             try await manager.databaseManager.savePinnedItem(pinnedItem)
             await manager.loadPinnedItems()
         } catch {
-            print("PlaylistManager: Failed to pin playlist: \(error)")
+            Logger.error("Failed to pin playlist: \(error)")
         }
     }
     
@@ -30,7 +30,7 @@ extension PlaylistManager {
             )
             await manager.loadPinnedItems()
         } catch {
-            print("PlaylistManager: Failed to unpin playlist: \(error)")
+            Logger.error("Failed to unpin playlist: \(error)")
         }
     }
     
@@ -100,7 +100,7 @@ extension PlaylistManager {
             )
             await manager.loadPinnedItems()
         } catch {
-            print("PlaylistManager: Failed to remove deleted playlist from pinned items: \(error)")
+            Logger.error("Failed to remove deleted playlist from pinned items: \(error)")
         }
     }
 

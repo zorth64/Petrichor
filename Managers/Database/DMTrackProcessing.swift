@@ -88,7 +88,7 @@ extension DatabaseManager {
             }
 
             let r = processResults
-            print("Batch processing complete: \(r.new.count) new, \(r.update.count) updated, \(r.skipped) skipped")
+            Logger.info("Batch processing complete: \(r.new.count) new, \(r.update.count) updated, \(r.skipped) skipped")
         }
 
         await MainActor.run {
@@ -116,7 +116,7 @@ extension DatabaseManager {
             throw DatabaseError.invalidTrackId
         }
 
-        print("Added new track: \(mutableTrack.title) (ID: \(trackId))")
+        Logger.info("Added new track: \(mutableTrack.title) (ID: \(trackId))")
 
         // Process normalized relationships
         try processTrackArtists(mutableTrack, metadata: metadata, in: db)
@@ -142,7 +142,9 @@ extension DatabaseManager {
         }
 
         // Log interesting metadata
+        #if DEBUG
         logTrackMetadata(mutableTrack)
+        #endif
     }
 
     /// Process an updated track with normalized data
@@ -162,7 +164,7 @@ extension DatabaseManager {
             throw DatabaseError.invalidTrackId
         }
 
-        print("Updated track: \(mutableTrack.title) (ID: \(trackId))")
+        Logger.info("Updated track: \(mutableTrack.title) (ID: \(trackId))")
 
         // Clear existing relationships
         try TrackArtist
@@ -198,18 +200,18 @@ extension DatabaseManager {
             if let producer = extendedMetadata.producer { interestingFields.append("Producer: \(producer)") }
 
             if !interestingFields.isEmpty {
-                print("  Extended metadata: \(interestingFields.joined(separator: ", "))")
+                Logger.info("Extended metadata: \(interestingFields.joined(separator: ", "))")
             }
         }
 
         // Log multi-artist info
         if track.artist.contains(";") || track.artist.contains(",") || track.artist.contains("&") {
-            print("  Multi-artist track: \(track.artist)")
+            Logger.info("Multi-artist track: \(track.artist)")
         }
 
         // Log album artist if different from artist
         if let albumArtist = track.albumArtist, albumArtist != track.artist {
-            print("  Album artist differs: \(albumArtist)")
+            Logger.info("Album artist differs: \(albumArtist)")
         }
     }
 }

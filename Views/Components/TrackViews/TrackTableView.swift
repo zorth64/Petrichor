@@ -590,19 +590,19 @@ struct TrackTableView: NSViewRepresentable {
         }
 
         func tableView(_ tableView: NSTableView, menuFor event: NSEvent) -> NSMenu? {
-            print("Context menu requested") // Debug
+            Logger.info("Context menu requested")
 
             let point = tableView.convert(event.locationInWindow, from: nil)
             let row = tableView.row(at: point)
 
-            print("Row clicked: \(row)") // Debug
+            Logger.info("Row clicked: \(row)")
 
             guard row >= 0, row < sortedTracks.count else { return nil }
 
             let track = sortedTracks[row]
             let menuItems = contextMenuItems(track)
 
-            print("Menu items count: \(menuItems.count)") // Debug
+            Logger.info("Menu items count: \(menuItems.count)")
 
             // If the clicked row isn't selected, select it
             if !tableView.selectedRowIndexes.contains(row) {

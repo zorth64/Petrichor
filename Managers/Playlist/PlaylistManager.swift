@@ -34,7 +34,7 @@ class PlaylistManager: ObservableObject {
 
     func setLibraryManager(_ manager: LibraryManager) {
         self.libraryManager = manager
-        print("PlaylistManager: Library manager set, loading playlists...")
+        Logger.info("Library manager set, loading playlists...")
         loadPlaylists()
     }
 

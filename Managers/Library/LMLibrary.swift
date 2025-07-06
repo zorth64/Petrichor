@@ -2,7 +2,7 @@ import Foundation
 
 extension LibraryManager {
     func loadMusicLibrary() {
-        print("LibraryManager: Loading music library from database...")
+        Logger.info("Loading music library from database...")
 
         // Clear caches
         folderTrackCounts.removeAll()
@@ -30,25 +30,25 @@ extension LibraryManager {
                     if resolvedURL.startAccessingSecurityScopedResource() {
                         folderAccessible = true
                         resolvedFolders.append(folder)
-                        print("LibraryManager: Successfully resolved bookmark for \(folder.name)")
+                        Logger.info("Successfully resolved bookmark for \(folder.name)")
 
                         if isStale {
-                            print("LibraryManager: Bookmark for \(folder.name) is stale, queuing for refresh")
+                            Logger.info("Bookmark for \(folder.name) is stale, queuing for refresh")
                             foldersNeedingRefresh.append(folder)
                         }
                     } else {
-                        print("LibraryManager: Failed to start accessing security scoped resource for \(folder.name)")
+                        Logger.error("Failed to start accessing security scoped resource for \(folder.name)")
                     }
                 } catch {
-                    print("LibraryManager: Failed to resolve bookmark for \(folder.name): \(error)")
+                    Logger.error("Failed to resolve bookmark for \(folder.name): \(error)")
                 }
             } else {
-                print("LibraryManager: No bookmark data for \(folder.name)")
+                Logger.error("No bookmark data for \(folder.name)")
             }
 
             // If bookmark resolution failed but folder exists, try to create new bookmark
             if !folderAccessible && FileManager.default.fileExists(atPath: folder.url.path) {
-                print("LibraryManager: Attempting to create new bookmark for accessible folder \(folder.name)")
+                Logger.info("Attempting to create new bookmark for accessible folder \(folder.name)")
 
                 // Check if we already have permission to access this path
                 if folder.url.startAccessingSecurityScopedResource() {
@@ -65,9 +65,9 @@ extension LibraryManager {
                         resolvedFolders.append(updatedFolder)
                         foldersNeedingRefresh.append(updatedFolder)
 
-                        print("LibraryManager: Created new bookmark for \(folder.name)")
+                        Logger.info("Created new bookmark for \(folder.name)")
                     } catch {
-                        print("LibraryManager: Failed to create new bookmark for \(folder.name): \(error)")
+                        Logger.error("Failed to create new bookmark for \(folder.name): \(error)")
                         resolvedFolders.append(folder) // Add anyway
                     }
                 } else {
@@ -84,7 +84,7 @@ extension LibraryManager {
         tracks = databaseManager.getAllTracks()
         updateSearchResults()
 
-        print("LibraryManager: Loaded \(folders.count) folders and \(tracks.count) tracks from database")
+        Logger.info("Loaded \(folders.count) folders and \(tracks.count) tracks from database")
 
         // Refresh stale bookmarks in background
         if !foldersNeedingRefresh.isEmpty {
@@ -115,7 +115,7 @@ extension LibraryManager {
     }
 
     func refreshLibrary() {
-        print("LibraryManager: Refreshing library...")
+        Logger.info("Refreshing library...")
 
         // Set background scanning flag instead of regular scanning
         isBackgroundScanning = true
@@ -158,9 +158,9 @@ extension LibraryManager {
                         Task {
                             switch result {
                             case .success:
-                                print("LibraryManager: Successfully refreshed folder \(folder.name)")
+                                Logger.info("Successfully refreshed folder \(folder.name)")
                             case .failure(let error):
-                                print("LibraryManager: Failed to refresh folder \(folder.name): \(error)")
+                                Logger.error("Failed to refresh folder \(folder.name): \(error)")
                                 await errorTracker.setError()
                             }
                             group.leave()
@@ -181,9 +181,9 @@ extension LibraryManager {
 
                         let hasErrors = await errorTracker.getHasErrors()
                         if hasErrors {
-                            print("LibraryManager: Library refresh completed with some errors")
+                            Logger.warning("Library refresh completed with some errors")
                         } else {
-                            print("LibraryManager: Library refresh completed successfully")
+                            Logger.info("Library refresh completed successfully")
                         }
                     }
                 }

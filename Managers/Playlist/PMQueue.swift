@@ -6,8 +6,10 @@ extension PlaylistManager {
         currentQueue = library.tracks
         currentPlaylist = nil
         currentQueueSource = .library
+        Logger.info("Created playback queue from library")
         if isShuffleEnabled {
             shuffleCurrentQueue()
+            Logger.info("Shuffled the playback queue")
         }
     }
 
@@ -15,8 +17,10 @@ extension PlaylistManager {
         currentPlaylist = playlist
         currentQueue = playlist.tracks
         currentQueueSource = .playlist
+        Logger.info("Created playback queue from playlist")
         if isShuffleEnabled {
             shuffleCurrentQueue()
+            Logger.info("Shuffled the playback queue")
         }
     }
 
@@ -26,8 +30,10 @@ extension PlaylistManager {
         currentQueue = folderTracks
         currentPlaylist = nil
         currentQueueSource = .folder
+        Logger.info("Created playback queue from folder")
         if isShuffleEnabled {
             shuffleCurrentQueue()
+            Logger.info("Shuffled the playback queue")
         }
     }
 
@@ -37,6 +43,7 @@ extension PlaylistManager {
         currentPlaylist = nil
         audioPlayer?.stop()
         audioPlayer?.currentTrack = nil
+        Logger.info("Cleared playback queue")
     }
 
     func playNext(_ track: Track) {
@@ -58,6 +65,7 @@ extension PlaylistManager {
         }
 
         currentQueue.insert(track, at: min(insertIndex, currentQueue.count))
+        Logger.info("Added track to playback queue to play up next")
     }
 
     func addToQueue(_ track: Track) {
@@ -71,6 +79,7 @@ extension PlaylistManager {
 
         if !currentQueue.contains(where: { $0.id == track.id }) {
             currentQueue.append(track)
+            Logger.info("Added track to playback queue")
         }
     }
 
@@ -82,6 +91,7 @@ extension PlaylistManager {
         }
 
         currentQueue.remove(at: index)
+        Logger.info("Remove track from playback queue")
 
         if index < currentQueueIndex {
             currentQueueIndex -= 1
@@ -103,6 +113,7 @@ extension PlaylistManager {
         } else if sourceIndex > currentQueueIndex && destinationIndex <= currentQueueIndex {
             currentQueueIndex += 1
         }
+        Logger.info("Moved track in playback queue")
     }
 
     func playFromQueue(at index: Int) {
@@ -129,5 +140,6 @@ extension PlaylistManager {
             currentQueue.shuffle()
             currentQueueIndex = 0
         }
+        Logger.info("Shuffled the playback queue")
     }
 }

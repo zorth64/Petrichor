@@ -369,7 +369,7 @@ struct EntityDetailView: View {
     return EntityDetailView(
         entity: artist,
         viewType: .list
-    ) { print("Back tapped") }
+    ) { Logger.debugPrint("Back tapped") }
     .environmentObject(LibraryManager())
     .environmentObject(AudioPlayerManager(libraryManager: LibraryManager(), playlistManager: PlaylistManager()))
     .environmentObject(PlaylistManager())
@@ -382,7 +382,7 @@ struct EntityDetailView: View {
     return EntityDetailView(
         entity: album,
         viewType: .grid
-    ) { print("Back tapped") }
+    ) { Logger.debugPrint("Back tapped") }
     .environmentObject(LibraryManager())
     .environmentObject(AudioPlayerManager(libraryManager: LibraryManager(), playlistManager: PlaylistManager()))
     .environmentObject(PlaylistManager())
