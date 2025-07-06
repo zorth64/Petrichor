@@ -147,14 +147,13 @@ type_name:
 
 # Custom rules
 custom_rules:
-  # TODO uncomment this once logging is implemented
-#  no_print_statements:
-#    included: ".*\\.swift"
-#    excluded: ".*Tests?\\.swift"
-#    name: "Print Statement"
-#    regex: '^\s*print\('
-#    message: "Use proper logging instead of print statements"
-#    severity: warning
+  no_print_statements:
+    included: ".*\\.swift"
+    excluded: ".*Tests?\\.swift"
+    name: "Print Statement"
+    regex: '^\s*print\('
+    message: "Use proper logging instead of print statements"
+    severity: warning
   
   no_force_cast:
     included: ".*\\.swift"
