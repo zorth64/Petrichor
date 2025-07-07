@@ -104,7 +104,7 @@ struct HomeSidebarItem: SidebarItem {
         self.type = nil
         self.source = .pinned(pinnedItem)
         self.title = pinnedItem.displayName
-        self.subtitle = trackCount > 0 ? "\(trackCount) songs" : nil
+        self.subtitle = "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
         self.icon = pinnedItem.iconName
     }
 }
