@@ -63,6 +63,9 @@ class DatabaseManager: ObservableObject {
             
             // Seed default data
             try seedDefaultPlaylists(in: db)
+            try seedDefaultPinnedItems(in: db)
+            
+            Logger.info("Database schema setup completed")
         }
     }
 

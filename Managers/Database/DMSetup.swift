@@ -274,7 +274,7 @@ extension DatabaseManager {
         Logger.info("Created column indices")
     }
     
-    // MARK: - Seed Default Data
+    // MARK: - Seed Default Playlists
     func seedDefaultPlaylists(in db: Database) throws {
         // Check if playlists table is empty (first time setup)
         let playlistCount = try Playlist.fetchCount(db)
@@ -287,6 +287,42 @@ extension DatabaseManager {
             for playlist in defaultPlaylists {
                 try playlist.insert(db)
                 Logger.info("Created default smart playlist: \(playlist.name)")
+            }
+        }
+    }
+    
+    // MARK: - Seed Default Pinned Items
+    func seedDefaultPinnedItems(in db: Database) throws {
+        // Check if pinned_items table is empty (first time setup)
+        let pinnedCount = try PinnedItem.fetchCount(db)
+        
+        if pinnedCount == 0 {
+            Logger.info("Seeding default pinned items")
+            
+            // Get the default playlists that were just created
+            let favoritesPlaylist = try Playlist
+                .filter(Playlist.Columns.name == DefaultPlaylists.favorites)
+                .fetchOne(db)
+            
+            let mostPlayedPlaylist = try Playlist
+                .filter(Playlist.Columns.name == DefaultPlaylists.mostPlayed)
+                .fetchOne(db)
+            
+            // Create pinned items for these playlists
+            if let favorites = favoritesPlaylist {
+                let pinnedFavorites = PinnedItem(playlist: favorites)
+                var savedItem = pinnedFavorites
+                savedItem.sortOrder = 0
+                try savedItem.insert(db)
+                Logger.info("Pinned default playlist: \(favorites.name)")
+            }
+            
+            if let mostPlayed = mostPlayedPlaylist {
+                let pinnedMostPlayed = PinnedItem(playlist: mostPlayed)
+                var savedItem = pinnedMostPlayed
+                savedItem.sortOrder = 1
+                try savedItem.insert(db)
+                Logger.info("Pinned default playlist: \(mostPlayed.name)")
             }
         }
     }
