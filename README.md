@@ -1,116 +1,102 @@
-# Petrichor
+<img width="200" src="./Resources/Assets.xcassets/AppIcon.appiconset/1024-mac.png" alt="Petrichor App Icon" align="left"/>
 
-<div align="center">
-  <img width="20%" src="./Resources/Assets.xcassets/AppIcon.appiconset/1024-mac.png" alt="Petrichor App Icon"/>
+<div>
+<h3>Petrichor</h3>
+<p>An offline music player for macOS</p>
+<a href="https://github.com/kushalpandya/Petrichor/releases"><img src=".github/assets/macos_download.png" width="140" alt="Download for macOS"/></a>
 </div>
 
-_a pleasant smell that frequently accompanies the first rain after a long period of warm, dry weather._ 🌧️
+<br/><br/>
 
-A beautiful, native music player for macOS built with Swift, SwiftUI, and Claude.
+<div align="center">
+<a href="https://github.com/kushalpandya/Petrichor/releases">
+    <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/kushalpandya/Petrichor/total">
+</a>
+<a href="https://github.com/kushalpandya/Petrichor/actions/workflows/ci.yml">
+    <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/kushalpandya/Petrichor/ci.yml">
+</a>
+<a href="https://github.com/kushalpandya/Petrichor/blob/main/LICENSE">
+    <img alt="GitHub License" src="https://img.shields.io/github/license/kushalpandya/Petrichor">
+</a>
+<a href="https://github.com/kushalpandya/Petrichor/releases">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/kushalpandya/Petrichor">
+</a>
+<a href="https://github.com/kushalpandya/Petrichor/">
+    <img src="https://img.shields.io/badge/platform-macOS-blue.svg?style=flat" alt="platform"/>
+</a>
 
-[![CI/CD Pipeline](https://github.com/kushalpandya/Petrichor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kushalpandya/Petrichor/actions/workflows/ci.yml)
+<br/>
+<br/>
 
-## ✨ Features
+<img src=".github/assets/hero_screenshot.png" width="824" alt="Screenshot"/><br/>
 
-### 🎵 Music Management
+</div>
 
-- **Folder-based Library**: Add folders containing your music files
-- **Automatic Scanning**: Periodic scanning for new music files
-- **Metadata Extraction**: Automatic extraction of title, artist, album, genre, and artwork
-- **Multiple Audio Formats**: Support for MP3, M4A, WAV, AAC, AIFF, and FLAC
+<hr>
 
-### 🎛️ Playback Controls
+## Summary
 
-- **Full Playback Control**: Play, pause, skip, and seek
-- **Volume Control**: Integrated volume slider
-- **Repeat Modes**: Off, repeat one, repeat all
-- **Shuffle**: Random track playback
-- **Media Keys**: Integration with macOS media keys and Now Playing
+### ✨ Features
 
-### 📚 Organization
+- Everything you'd expect from an offline music player!
+- Map your music folders and browse your library in an organized view.
+- Create playlists and manage the play queue interactively.
+- Browse music using folder view when needed.
+- Pin _anything_ (almost!) to the sidebar for quick access to your favorite music.
+- Navigate easily: right-click a track to go to its album, artist, year, etc.
+- Native macOS integration with menubar and dock playback controls, plus dark mode support.
+- Fast and performant, even with large libraries containing thousands of songs.
 
-- **Library View**: Browse all your music in one place
-- **Folder View**: Navigate music by folder structure
-- **Playlist Support**: Create and manage custom playlists (in development)
-- **Smart Search**: Find tracks quickly (planned)
+### ⌛ Planned features
 
-### ⚙️ Native macOS Integration
+- Smart playlists with user-configurable conditional filters
+- AirPlay 2 casting support
+- Miniplayer and full-screen modes
+- Automatic in-app updates
+- Online album & artist information fetching
+- ... and much more!
 
-- **System Audio**: Uses AVFoundation for high-quality audio playback
-- **Security Bookmarks**: Secure access to user-selected folders
-- **Now Playing Integration**: Shows current track in Control Center and Lock Screen
-- **Native UI**: Follows macOS design guidelines with proper system colors and spacing
+###  Requirements
 
-## 🚀 Getting Started
+- macOS 14 or later
 
-### Requirements
+### ⚙️ Installation
 
-- macOS 15.4 or later
-- Xcode 16.3 or later
-- Swift 5.0
+- Go to [Releases](https://github.com/kushalpandya/Petrichor/releases) and download the latest `.dmg`.
+- Open the `.dmg` and drag the app icon into the Applications folder.
+- In Applications, right-click **Petrichor > Open**.
 
-### Installation
+_P.S. I plan publish it on Homebrew soon._
 
-1. Clone this repository
-2. Open `Petrichor.xcodeproj` in Xcode
-3. Build and run the project
+### 📷 Screenshots
 
-### First Time Setup
+<div align="center">
+<img src=".github/assets/screenshot_1-min.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_2-min.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_3-min.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_4-min.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_5-min.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_6-min.png" width="392" alt="Screenshot"/>
+</div>
 
-1. Launch Petrichor
-2. Go to **Folders** tab
-3. Click **Add Folder** to select directories containing your music
-4. The app will automatically scan and import your music files
+## 🏗️ Development
 
-## 🏗️ Architecture
+### Motivation
 
-Petrichor follows a clean, modular architecture:
+I have a large collection of music files that I’ve gathered over the years, and I missed having a good offline
+music player on macOS. I used [Swinsian](https://swinsian.com/) (great app, by the way!), but it hasn't been
+updated in years. I also missed features commonly found in streaming apps; so I built Petrichor to scratch that
+itch and learn Swift and macOS app development along the way!
 
-### Core Components
+### Implementation Overview
 
-- **Models**: `Track`, `Playlist`, `Folder` - Data structures
-- **Managers**: Business logic and state management
-  - `LibraryManager` - Music library and folder management
-  - `AudioPlayerManager` - Audio playback control
-  - `PlaylistManager` - Playlist operations and playback queue
-  - `NowPlayingManager` - macOS Now Playing integration
-- **Views**: SwiftUI views organized by feature
-- **Application**: App coordination and lifecycle management
-
-### Key Design Patterns
-
-- **MVVM Architecture**: Clear separation of concerns
-- **ObservableObject**: Reactive state management
-- **Dependency Injection**: Managers are injected through environment objects
-- **Composition over Inheritance**: Modular, reusable components
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-Petrichor/
-├── Application/           # App entry point and coordination
-├── Models/               # Data models
-├── Managers/             # Business logic
-├── Views/                # SwiftUI views
-└── Assets.xcassets/      # App icons and resources
-```
-
-### SQLite Schema
-
-- **folders** - Stores music folders with security-scoped bookmarks
-- **tracks** - Comprehensive music metadata with 35+ fields including extended metadata as JSON
-- **playlists** - Both regular and smart playlists with criteria
-- **playlist_tracks** - Junction table for many-to-many relationship between playlists and tracks
-
-Key relationships:
-
-- Each folder can contain multiple tracks (one-to-many)
-- Playlists and tracks have a many-to-many relationship through `playlist_tracks`
-- All foreign keys have CASCADE delete to maintain referential integrity
+- Built entirely with Swift and SwiftUI for the best macOS integration.
+- Once folders are added, the app scans them and populates a SQLite database using [GRDB](https://github.com/groue/GRDB.swift/).
+- Petrichor does **not** alter your music files, it only reads from the directories you add.
+- Playback is powered entirely by [AVFoundation](https://developer.apple.com/av-foundation/).
 
 <details>
+<summary>View Database Schema</summary>
 
 ```mermaid
 erDiagram
@@ -291,42 +277,20 @@ erDiagram
 
 </details>
 
-### Built With
+### Setup
 
-- **Swift 5.0** - Modern, safe programming language
-- **SwiftUI** - Declarative UI framework
-- **AVFoundation** - Audio playback and metadata extraction
-- **AppKit** - macOS system integration
-
-## 🎯 Roadmap
-
-### Current Status
-
-- ✅ Basic music playback
-- ✅ Library management
-- ✅ Folder scanning
-- ✅ Native macOS integration
-- ✅ Settings and preferences
-
-### Planned Features
-
-- 🔄 Complete playlist functionality
-- 🔄 Advanced search and filtering
-- 🔄 Music visualizations
-- 🔄 Keyboard shortcuts
-- 🔄 Import/export playlists
-- 🔄 Audio effects and equalizer
-
-## 🤖 Built with AI
-
-This entire project was created exclusively using **Claude** (Anthropic's AI assistant). From initial concept to final implementation, every line of code, architectural decision, and feature was developed through AI-assisted programming. This showcases the potential of AI-powered development tools in creating complete, functional applications.
+- Make sure you’re running macOS 14 or later.
+- Install [Xcode](https://developer.apple.com/xcode/).
+- To build the `.dmg` installer using the [`build-installer.sh`](Scripts/build-installer.sh) script, install:
+  - [xcpretty](https://github.com/xcpretty/xcpretty)
+  - [create-dmg](https://github.com/sindresorhus/create-dmg)
 
 ## 📝 License
 
-This project is open source and available under the [MIT License](LICENSE).
+[MIT](LICENSE)
 
-## 🙏 Acknowledgments
+## 🙏 Credits
 
-- **Anthropic's Claude** - For being an exceptional development partner
-- **Apple** - For the excellent development tools and frameworks
-- **The Swift Community** - For continuous innovation in iOS/macOS development
+- [Paul Hudson](https://www.youtube.com/@twostraws) for creating all those Swift tutorials!
+- [create-dmg](https://github.com/sindresorhus/create-dmg) by awesome [Sindre Sorhus](https://sindresorhus.com/)!
+- [Claude by Anthropic](https://claude.ai/) for being a peer-programmer for this project!
