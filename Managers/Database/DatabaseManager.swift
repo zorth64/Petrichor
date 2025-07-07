@@ -58,6 +58,7 @@ class DatabaseManager: ObservableObject {
             try createFoldersTable(in: db)
             try createArtistsTable(in: db)
             try createAlbumsTable(in: db)
+            try createAlbumArtistsTable(in: db)
             try createGenresTable(in: db)
             try createTracksTable(in: db)
             try createPlaylistsTable(in: db)

@@ -282,17 +282,41 @@ extension DatabaseManager {
                     .fetchAll(db)
 
                 return albums.map { album in
-                    // Fetch artist name if artistId exists
-                    var artistName: String?
-                    if let artistId = album.artistId {
-                        artistName = try? Artist
-                            .filter(Artist.Columns.id == artistId)
-                            .fetchOne(db)?.name
+                    // Fetch all artist names from album_artists table
+                    var artistNames: [String] = []
+                    if let albumId = album.id {
+                        // Get all artists for this album, ordered by position
+                        let albumArtists = try? AlbumArtist
+                            .filter(AlbumArtist.Columns.albumId == albumId)
+                            .order(AlbumArtist.Columns.position)
+                            .fetchAll(db)
+                        
+                        if let albumArtists = albumArtists {
+                            for albumArtist in albumArtists {
+                                if let artist = try? Artist.fetchOne(db, key: albumArtist.artistId) {
+                                    artistNames.append(artist.name)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Join artist names with appropriate separators
+                    let artistString: String?
+                    if artistNames.isEmpty {
+                        artistString = nil
+                    } else if artistNames.count == 1 {
+                        artistString = artistNames[0]
+                    } else if artistNames.count == 2 {
+                        artistString = artistNames.joined(separator: " & ")
+                    } else {
+                        // For 3+ artists, use commas and & for the last one
+                        let lastArtist = artistNames.removeLast()
+                        artistString = artistNames.joined(separator: ", ") + " & " + lastArtist
                     }
 
                     return AlbumEntity(
                         name: album.title,
-                        artist: artistName,
+                        artist: artistString,
                         trackCount: album.totalTracks ?? 0,
                         artworkData: album.artworkData,
                         albumId: album.id
@@ -353,21 +377,10 @@ extension DatabaseManager {
                     .replacingOccurrences(of: "the ", with: "")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 
-                var query = Album
+                // Find album by normalized title only (not by artist anymore)
+                guard let album = try Album
                     .filter(Album.Columns.normalizedTitle == normalizedTitle)
-                
-                // If artist is provided, use it to narrow down the search
-                if let artistName = albumEntity.artist {
-                    let normalizedArtistName = ArtistParser.normalizeArtistName(artistName)
-                    if let artist = try Artist
-                        .filter((Artist.Columns.name == artistName) || (Artist.Columns.normalizedName == normalizedArtistName))
-                        .fetchOne(db),
-                        let artistId = artist.id {
-                        query = query.filter(Album.Columns.artistId == artistId)
-                    }
-                }
-                
-                guard let album = try query.fetchOne(db),
+                    .fetchOne(db),
                       let albumId = album.id else {
                     Logger.warning("No album found for entity: \(albumEntity.name)")
                     return []

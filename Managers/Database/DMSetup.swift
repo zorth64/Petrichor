@@ -70,7 +70,6 @@ extension DatabaseManager {
             t.column("title", .text).notNull()
             t.column("normalized_title", .text).notNull()
             t.column("sort_title", .text)
-            t.column("artist_id", .integer).references("artists", onDelete: .setNull)
             t.column("artwork_data", .blob)
 
             // Album metadata
@@ -103,6 +102,18 @@ extension DatabaseManager {
             t.column("updated_at", .datetime).notNull()
         }
         Logger.info("Created `albums` table")
+    }
+    
+    // MARK: - Album Artists Junction Table
+    func createAlbumArtistsTable(in db: Database) throws {
+        try db.create(table: "album_artists", ifNotExists: true) { t in
+            t.column("album_id", .integer).notNull().references("albums", onDelete: .cascade)
+            t.column("artist_id", .integer).notNull().references("artists", onDelete: .cascade)
+            t.column("role", .text).notNull().defaults(to: "primary")
+            t.column("position", .integer).notNull().defaults(to: 0)
+            t.primaryKey(["album_id", "artist_id", "role"])
+        }
+        Logger.info("Created `album_artists` table")
     }
 
     // MARK: - Genres Table
@@ -261,8 +272,11 @@ extension DatabaseManager {
 
         // Albums table indices
         try db.create(index: "idx_albums_normalized_title", on: "albums", columns: ["normalized_title"], ifNotExists: true)
-        try db.create(index: "idx_albums_artist_id", on: "albums", columns: ["artist_id"], ifNotExists: true)
         try db.create(index: "idx_albums_release_year", on: "albums", columns: ["release_year"], ifNotExists: true)
+        
+        // Album artists junction table indices
+        try db.create(index: "idx_album_artists_album_id", on: "album_artists", columns: ["album_id"], ifNotExists: true)
+        try db.create(index: "idx_album_artists_artist_id", on: "album_artists", columns: ["artist_id"], ifNotExists: true)
 
         // Playlist tracks index
         try db.create(index: "idx_playlist_tracks_playlist_id", on: "playlist_tracks", columns: ["playlist_id"], ifNotExists: true)

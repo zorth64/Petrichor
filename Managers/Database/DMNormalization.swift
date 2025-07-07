@@ -101,44 +101,37 @@ extension DatabaseManager {
     // MARK: - Album Management
 
     /// Find or create an album with better duplicate prevention
-    func findOrCreateAlbum(_ title: String, artistName: String?, in db: Database) throws -> Album {
+    func findOrCreateAlbum(_ title: String, albumArtist: String?, in db: Database) throws -> Album {
         let normalizedTitle = title.lowercased()
             .replacingOccurrences(of: " - ", with: " ")
             .replacingOccurrences(of: "  ", with: " ")
             .replacingOccurrences(of: "the ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // First, get or create the artist if we have one
-        var artistId: Int64?
-        if let artistName = artistName, !artistName.isEmpty, artistName != "Unknown Artist" {
-            let artist = try findOrCreateArtist(artistName, in: db)
-            artistId = artist.id
-        }
         
-        // Try to find existing album with same normalized title and artist
-        if let artistId = artistId {
-            // Look for album with specific artist
-            if let existingAlbum = try Album
-                .filter(Album.Columns.normalizedTitle == normalizedTitle)
-                .filter(Album.Columns.artistId == artistId)
-                .fetchOne(db) {
-                return existingAlbum
-            }
-        } else {
-            // Look for album with no artist
-            if let existingAlbum = try Album
-                .filter(Album.Columns.normalizedTitle == normalizedTitle)
-                .filter(Album.Columns.artistId == nil)
-                .fetchOne(db) {
-                return existingAlbum
-            }
+        // Try to find existing album with same normalized title
+        if let existingAlbum = try Album
+            .filter(Album.Columns.normalizedTitle == normalizedTitle)
+            .fetchOne(db) {
+            return existingAlbum
         }
         
         // No existing album found, create new one
         let album = Album(title: title)
-        album.artistId = artistId
-        
         try album.insert(db)
+        
+        // If we have an album artist, create the relationship
+        if let albumArtist = albumArtist, !albumArtist.isEmpty, albumArtist != "Unknown Artist" {
+            let artist = try findOrCreateArtist(albumArtist, in: db)
+            if let artistId = artist.id, let albumId = album.id {
+                let albumArtist = AlbumArtist(
+                    albumId: albumId,
+                    artistId: artistId,
+                    role: AlbumArtist.Role.primary,
+                    position: 0
+                )
+                try albumArtist.insert(db)
+            }
+        }
         
         return album
     }
@@ -146,16 +139,76 @@ extension DatabaseManager {
     /// Process album for a track
     func processTrackAlbum(_ track: inout Track, in db: Database) throws {
         guard !track.album.isEmpty && track.album != "Unknown Album" else { return }
-
-        // Determine the album artist (prefer albumArtist field, fallback to artist)
-        let albumArtistName = track.albumArtist ?? track.artist
-
-        let album = try findOrCreateAlbum(track.album, artistName: albumArtistName, in: db)
+        
+        // Determine the album artist (prefer albumArtist field, fallback to first artist from multi-artist string)
+        let albumArtistName: String?
+        if let albumArtist = track.albumArtist, !albumArtist.isEmpty {
+            albumArtistName = albumArtist
+        } else if !track.artist.isEmpty && track.artist != "Unknown Artist" {
+            // Parse the artist field and use the first artist as the album artist
+            let artists = ArtistParser.parse(track.artist)
+            albumArtistName = artists.first
+        } else {
+            albumArtistName = nil
+        }
+        
+        let album = try findOrCreateAlbum(track.album, albumArtist: albumArtistName, in: db)
         track.albumId = album.id
-
+        
         // Update album metadata if we have more info
         if let albumId = album.id {
             try updateAlbumMetadata(albumId: albumId, from: track, in: db)
+            
+            // Process all artists from the track as album artists
+            if !track.artist.isEmpty && track.artist != "Unknown Artist" {
+                try processAlbumArtists(albumId, artistString: track.artist, in: db)
+            }
+        }
+    }
+    
+    /// Process all artists for an album
+    private func processAlbumArtists(_ albumId: Int64, artistString: String, in db: Database) throws {
+        // Parse all artists from the string
+        let artistNames = ArtistParser.parse(artistString)
+        
+        // Get existing album artists
+        let existingAlbumArtists = try AlbumArtist
+            .filter(AlbumArtist.Columns.albumId == albumId)
+            .fetchAll(db)
+        
+        // Create a set of existing artist IDs for this album
+        let existingArtistIds = Set(existingAlbumArtists.map { $0.artistId })
+        
+        for (index, artistName) in artistNames.enumerated() {
+            let artist = try findOrCreateArtist(artistName, in: db)
+            
+            guard let artistId = artist.id else { continue }
+            
+            // Skip if this artist is already associated with the album
+            if existingArtistIds.contains(artistId) {
+                continue
+            }
+            
+            // Determine role - primary for first artist if no artists exist yet
+            let role: String
+            if existingAlbumArtists.isEmpty && index == 0 {
+                role = AlbumArtist.Role.primary
+            } else {
+                role = AlbumArtist.Role.featured
+            }
+            
+            // Calculate position
+            let position = existingAlbumArtists.count + index
+            
+            // Create album-artist relationship
+            let albumArtist = AlbumArtist(
+                albumId: albumId,
+                artistId: artistId,
+                role: role,
+                position: position
+            )
+            
+            try albumArtist.insert(db)
         }
     }
 
@@ -286,8 +339,10 @@ extension DatabaseManager {
                 .distinct()
                 .fetchCount(db)
 
-            let albumCount = try Album
-                .filter(Album.Columns.artistId == artistId)
+            let albumCount = try AlbumArtist
+                .filter(AlbumArtist.Columns.artistId == artistId)
+                .select(AlbumArtist.Columns.albumId, as: Int64.self)
+                .distinct()
                 .fetchCount(db)
 
             statsToUpdate.append(ArtistStats(
@@ -329,7 +384,7 @@ extension DatabaseManager {
         }
     }
 
-    /// Alternative: Update stats for a single artist (more efficient for incremental updates)
+    /// Update stats for a single artist (more efficient for incremental updates)
     func updateStatsForArtist(_ artistId: Int64, in db: Database) throws {
         guard let artist = try Artist.fetchOne(db, key: artistId) else { return }
 
@@ -339,8 +394,11 @@ extension DatabaseManager {
             .distinct()
             .fetchCount(db)
 
-        artist.totalAlbums = try Album
-            .filter(Album.Columns.artistId == artistId)
+        // Count albums through album_artists table
+        artist.totalAlbums = try AlbumArtist
+            .filter(AlbumArtist.Columns.artistId == artistId)
+            .select(AlbumArtist.Columns.albumId, as: Int64.self)
+            .distinct()
             .fetchCount(db)
 
         artist.updatedAt = Date()
@@ -374,7 +432,6 @@ extension DatabaseManager {
     func getAllAlbums() throws -> [Album] {
         try dbQueue.read { db in
             try Album
-                .including(optional: Album.artist)
                 .order(Album.Columns.sortTitle)
                 .fetchAll(db)
         }

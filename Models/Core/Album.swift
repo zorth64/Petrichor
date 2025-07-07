@@ -8,9 +8,6 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
     var sortTitle: String?
     var artworkData: Data?
 
-    // Artist relationship
-    var artistId: Int64?
-
     // Album metadata
     @Published var releaseDate: String?
     var releaseYear: Int?
@@ -46,7 +43,7 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
 
     // MARK: - Initialization
 
-    init(title: String, artistId: Int64? = nil) {
+    init(title: String) {
         self.title = title
         self.normalizedTitle = title.lowercased()
             .replacingOccurrences(of: " - ", with: " ")
@@ -54,7 +51,6 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
             .replacingOccurrences(of: "the ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         self.sortTitle = title
-        self.artistId = artistId
     }
 
     // MARK: - GRDB Configuration
@@ -67,7 +63,6 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         static let normalizedTitle = Column("normalized_title")
         static let sortTitle = Column("sort_title")
         static let artworkData = Column("artwork_data")
-        static let artistId = Column("artist_id")
         static let releaseDate = Column("release_date")
         static let releaseYear = Column("release_year")
         static let albumType = Column("album_type")
@@ -98,7 +93,6 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         normalizedTitle = row[Columns.normalizedTitle]
         sortTitle = row[Columns.sortTitle]
         artworkData = row[Columns.artworkData]
-        artistId = row[Columns.artistId]
         releaseDate = row[Columns.releaseDate]
         releaseYear = row[Columns.releaseYear]
         albumType = row[Columns.albumType]
@@ -134,7 +128,6 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
         container[Columns.title] = title
         container[Columns.normalizedTitle] = normalizedTitle
         container[Columns.sortTitle] = sortTitle
-        container[Columns.artistId] = artistId
         container[Columns.releaseDate] = releaseDate
         container[Columns.releaseYear] = releaseYear
         container[Columns.albumType] = albumType
@@ -168,8 +161,9 @@ class Album: Identifiable, ObservableObject, FetchableRecord, PersistableRecord 
 
     // MARK: - Associations
 
-    static let artist = belongsTo(Artist.self)
     static let tracks = hasMany(Track.self, using: ForeignKey(["album_id"]))
+    static let albumArtists = hasMany(AlbumArtist.self)
+    static let artists = hasMany(Artist.self, through: albumArtists, using: AlbumArtist.artist)
 
     // Helper to extract year from release date
     func extractReleaseYear() -> Int? {
