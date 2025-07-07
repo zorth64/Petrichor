@@ -127,11 +127,11 @@ struct AboutTabView: View {
             FooterLink(
                 title: "Visit website",
                 systemImage: "globe"
-            )                {
+            ) {
                     if let url = URL(string: About.appWebsite) {
                         NSWorkspace.shared.open(url)
                     }
-                }
+            }
             
             FooterLink(
                 title: "Show app data in Finder",

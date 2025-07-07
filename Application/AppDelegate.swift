@@ -30,10 +30,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Stop audio playback gracefully to prevent clicks/pops
         if let coordinator = AppCoordinator.shared {
-            coordinator.audioPlayerManager.stopGracefully()
-            
             // Save playback state before terminating
             coordinator.savePlaybackState()
+
+            // Stop the playback
+            coordinator.audioPlayerManager.stopGracefully()
             
             // Force a database checkpoint to ensure all data is persisted
             coordinator.libraryManager.databaseManager.checkpoint()

@@ -5,6 +5,9 @@ struct PlayerView: View {
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @Binding var showingQueue: Bool
+    
+    @Environment(\.scenePhase)
+    var scenePhase
 
     @State private var isDraggingProgress = false
     @State private var tempProgressValue: Double = 0
@@ -14,6 +17,12 @@ struct PlayerView: View {
     @State private var playButtonPressed = false
     @State private var isMuted = false
     @State private var previousVolume: Float = 0.7
+    
+    // UI Timer state
+    @State private var displayTime: Double = 0
+    @State private var uiTimer: Timer?
+    @State private var playbackStartTime: Date?
+    @State private var playbackStartOffset: Double = 0
 
     var body: some View {
         HStack(spacing: 20) {
@@ -35,8 +44,92 @@ struct PlayerView: View {
         .frame(maxWidth: .infinity)
         .onAppear {
             setupInitialState()
+            syncDisplayTime()
+        }
+        .onChange(of: audioPlayerManager.isPlaying) { _, isPlaying in
+            // Only start timer if scene is active
+            if isPlaying && scenePhase == .active {
+                startUITimer()
+            } else {
+                stopUITimer()
+            }
+        }
+        .onChange(of: audioPlayerManager.currentTrack) { _, _ in
+            syncDisplayTime()
+            // Only start timer if scene is active
+            if audioPlayerManager.isPlaying && scenePhase == .active {
+                startUITimer()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PlayerDidSeek"))) { notification in
+            if let time = notification.userInfo?["time"] as? Double {
+                displayTime = time
+                playbackStartTime = Date()
+                playbackStartOffset = time
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                // Window is visible and active
+                if audioPlayerManager.isPlaying {
+                    syncDisplayTime() // Sync time when becoming active
+                    startUITimer()
+                }
+            case .inactive, .background:
+                // Window is minimized, hidden, or app is in background
+                stopUITimer()
+            @unknown default:
+                break
+            }
         }
         .background(Color.clear)
+    }
+    
+    // MARK: - UI Timer Management
+    
+    private func startUITimer() {
+        guard scenePhase == .active else { return }
+
+        stopUITimer()
+        
+        // Capture the current playback position
+        playbackStartTime = Date()
+        playbackStartOffset = audioPlayerManager.actualCurrentTime
+        displayTime = playbackStartOffset
+        
+        // Create a timer that updates the UI every second for accurate display
+        uiTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            updateDisplayTime()
+        }
+        uiTimer?.tolerance = 0.1 // Small tolerance for consistent updates
+    }
+    
+    private func stopUITimer() {
+        uiTimer?.invalidate()
+        uiTimer = nil
+        syncDisplayTime() // Sync with actual player time when stopping
+    }
+    
+    private func updateDisplayTime() {
+        guard let startTime = playbackStartTime,
+              audioPlayerManager.isPlaying,
+              !isDraggingProgress else { return }
+        
+        // Calculate elapsed time since playback started
+        let elapsed = Date().timeIntervalSince(startTime)
+        let newTime = playbackStartOffset + elapsed
+        
+        // Clamp to track duration
+        if let duration = audioPlayerManager.currentTrack?.duration {
+            displayTime = min(newTime, duration)
+        } else {
+            displayTime = newTime
+        }
+    }
+    
+    private func syncDisplayTime() {
+        displayTime = audioPlayerManager.actualCurrentTime
     }
 
     // MARK: - View Sections
@@ -240,8 +333,8 @@ struct PlayerView: View {
 
     private var progressBar: some View {
         HStack(spacing: 8) {
-            // Current time
-            Text(formatDuration(isDraggingProgress ? tempProgressValue : audioPlayerManager.currentTime))
+            // Current time - updated to use displayTime
+            Text(formatDuration(isDraggingProgress ? tempProgressValue : displayTime))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
                 .monospacedDigit()
@@ -368,7 +461,7 @@ struct PlayerView: View {
         if isDraggingProgress {
             return min(1, max(0, tempProgressValue / duration))
         } else {
-            return min(1, max(0, audioPlayerManager.currentTime / duration))
+            return min(1, max(0, displayTime / duration))  // Updated to use displayTime
         }
     }
 
@@ -410,6 +503,7 @@ struct PlayerView: View {
                 }
                 let percentage = max(0, min(1, value.location.x / geometry.size.width))
                 tempProgressValue = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
+                displayTime = tempProgressValue  // Update displayTime while dragging
             }
             .onEnded { value in
                 let percentage = max(0, min(1, value.location.x / geometry.size.width))
@@ -426,6 +520,7 @@ struct PlayerView: View {
         let percentage = x / width
         let newTime = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
         audioPlayerManager.seekTo(time: newTime)
+        displayTime = newTime  // Update displayTime immediately
     }
 
     private func formatDuration(_ seconds: Double) -> String {

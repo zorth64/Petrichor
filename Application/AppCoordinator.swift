@@ -74,7 +74,7 @@ class AppCoordinator: ObservableObject {
         audioPlayerManager.currentTrack = nil
     }
     
-    func savePlaybackState() {
+    func savePlaybackState(for calledFromStateTimer: Bool = false) {
         // Only save if we have a current track
         guard let currentTrack = audioPlayerManager.currentTrack else {
             clearAllSavedState()
@@ -97,7 +97,7 @@ class AppCoordinator: ObservableObject {
         
         let state = PlaybackState(
             currentTrack: currentTrack,
-            playbackPosition: audioPlayerManager.effectiveCurrentTime,
+            playbackPosition: audioPlayerManager.actualCurrentTime,
             queueVisible: isQueueVisible,
             queue: playlistManager.currentQueue,
             currentQueueIndex: playlistManager.currentQueueIndex,
@@ -119,6 +119,7 @@ class AppCoordinator: ObservableObject {
             let encoder = JSONEncoder()
             let data = try encoder.encode(state)
             UserDefaults.standard.set(data, forKey: playbackStateKey)
+            Logger.info(calledFromStateTimer ? "Playback state saved during active playback" : "Playback state saved")
         } catch {
             Logger.warning("Failed to save playback state: \(error)")
         }
@@ -308,9 +309,8 @@ class AppCoordinator: ObservableObject {
             
             // Clear the temporary UI track before setting the real one
             audioPlayerManager.restoredUITrack = nil
-            
-            // Use the new method to prepare track without immediate playback
             audioPlayerManager.prepareTrackForRestoration(currentTrack, at: state.playbackPosition)
+            Logger.info("Playback state restored")
         }
     }
     

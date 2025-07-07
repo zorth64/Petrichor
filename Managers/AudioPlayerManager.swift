@@ -16,10 +16,14 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var restoredUITrack: Track?
 
     var player: AVAudioPlayer?
+    
+    var actualCurrentTime: Double {
+        player?.currentTime ?? currentTime
+    }
 
     // MARK: - Private Properties
-    private var timer: Timer?
-    private var stateTimer: Timer?
+    private var playbackProgressTimer: Timer?
+    private var stateSaveTimer: Timer?
     private var restoredPosition: Double = 0
     private var lastReportedTime: Double = 0  // Track last reported time to reduce updates
 
@@ -42,10 +46,8 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     deinit {
         stop()
-        timer?.invalidate()
-        timer = nil
-        stateTimer?.invalidate()
-        stateTimer = nil
+        stopPlaybackProgressTimer()
+        stopStateSaveTimer()
     }
 
     // MARK: - Audio Session Configuration
@@ -109,33 +111,7 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             restoredPosition = 0
             lastReportedTime = 0
             startStateSaveTimer()
-
-            // Setup optimized timer to update currentTime
-            timer?.invalidate()
-            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                guard let self = self, let player = self.player else { return }
-
-                // Only update if playing and time has changed significantly
-                if self.isPlaying {
-                    let newTime = player.currentTime
-                    // Only update if time has changed by at least 0.5 seconds
-                    if abs(newTime - self.lastReportedTime) >= 0.5 {
-                        self.currentTime = newTime
-                        self.lastReportedTime = newTime
-
-                        // Update Now Playing less frequently
-                        if let track = self.currentTrack {
-                            self.nowPlayingManager.updateNowPlayingInfo(
-                                track: track,
-                                currentTime: newTime,
-                                isPlaying: self.isPlaying
-                            )
-                        }
-                    }
-                }
-            }
-            timer?.tolerance = 0.5  // Increase tolerance for better system efficiency
-
+            startPlaybackProgressTimer()
         } catch {
             Logger.error("Failed to play track: \(error)")
         }
@@ -143,17 +119,19 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     func togglePlayPause() {
         guard let player = player else { return }
-
+        
         if isPlaying {
-            // Simple pause without fade
             player.pause()
+            stopPlaybackProgressTimer()
+            stopStateSaveTimer()
         } else {
-            // Simple play without fade
             player.play()
+            startPlaybackProgressTimer()
+            startStateSaveTimer()
         }
-
+        
         isPlaying.toggle()
-
+        
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(
                 track: track, currentTime: currentTime, isPlaying: isPlaying)
@@ -165,20 +143,19 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             // Reset time tracking
             lastReportedTime = 0
             currentTime = 0
-
+            
             // First, mark as not playing since the track has ended
             isPlaying = false
-
+            
             // Update Now Playing to show paused state
             if let track = currentTrack {
                 nowPlayingManager.updateNowPlayingInfo(
                     track: track, currentTime: 0, isPlaying: false)
             }
-
+            
             // Stop the timer since playback has ended
-            timer?.invalidate()
-            timer = nil
-
+            stopPlaybackProgressTimer()
+            
             // Add a small delay to prevent clicks between tracks
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.playlistManager.handleTrackCompletion()
@@ -188,18 +165,17 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     func stop() {
         player?.stop()
-        player = nil  // Release the player to free resources
+        player = nil
         isPlaying = false
         currentTime = 0
         lastReportedTime = 0
-        timer?.invalidate()
-        timer = nil
-        stateTimer?.invalidate()
-        stateTimer = nil
-
+        stopPlaybackProgressTimer()
+        stopStateSaveTimer()
+        
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(track: track, currentTime: 0, isPlaying: false)
         }
+        Logger.info("Playback stopped")
     }
 
     // Graceful stop with fade out for app termination
@@ -208,24 +184,22 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             isPlaying = false
             currentTime = 0
             lastReportedTime = 0
-            timer?.invalidate()
-            timer = nil
-            stateTimer?.invalidate()
-            stateTimer = nil
+            stopPlaybackProgressTimer()
+            stopStateSaveTimer()
+            Logger.info("Playback stopped")
             return
         }
-
+        
         // For app termination, just stop immediately
         player.stop()
         self.player = nil
-
+        
         isPlaying = false
         currentTime = 0
         lastReportedTime = 0
-        timer?.invalidate()
-        timer = nil
-        stateTimer?.invalidate()
-        stateTimer = nil
+        stopPlaybackProgressTimer()
+        stopStateSaveTimer()
+        Logger.info("Playback stopped")
     }
 
     func seekTo(time: Double) {
@@ -233,7 +207,13 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         currentTime = time
         lastReportedTime = time
         restoredPosition = time
-
+    
+        NotificationCenter.default.post(
+            name: NSNotification.Name("PlayerDidSeek"),
+            object: nil,
+            userInfo: ["time": time]
+        )
+        
         if let track = currentTrack {
             nowPlayingManager.updateNowPlayingInfo(
                 track: track, currentTime: time, isPlaying: isPlaying)
@@ -289,13 +269,52 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
 
     private func startStateSaveTimer() {
-        stateTimer?.invalidate()
+        stateSaveTimer?.invalidate()
         // Save state every 30 seconds during playback (increased from 10)
-        stateTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+        stateSaveTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             if self?.isPlaying == true {
-                AppCoordinator.shared?.savePlaybackState()
+                AppCoordinator.shared?.savePlaybackState(for: true)
             }
         }
-        stateTimer?.tolerance = 5.0  // Allow significant tolerance for state saving
+        stateSaveTimer?.tolerance = 5.0
+        Logger.info("State save timer started")
+    }
+    
+    // MARK: - Progress Timer Management
+
+    private func startPlaybackProgressTimer() {
+        playbackProgressTimer?.invalidate()
+        
+        // Efficient timer for state saving and Now Playing updates only
+        playbackProgressTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            guard let self = self, let player = self.player else { return }
+            
+            if self.isPlaying && player.isPlaying {
+                // Update current time for state saving
+                self.currentTime = player.currentTime
+                
+                // Update Now Playing info
+                if let track = self.currentTrack {
+                    self.nowPlayingManager.updateNowPlayingInfo(
+                        track: track,
+                        currentTime: self.currentTime,
+                        isPlaying: self.isPlaying
+                    )
+                }
+            }
+        }
+        playbackProgressTimer?.tolerance = 1.0
+    }
+
+    private func stopPlaybackProgressTimer() {
+        playbackProgressTimer?.invalidate()
+        playbackProgressTimer = nil
+        Logger.info("Track playback progress timer stopped")
+    }
+    
+    private func stopStateSaveTimer() {
+        stateSaveTimer?.invalidate()
+        stateSaveTimer = nil
+        Logger.info("State save timer stopped")
     }
 }
