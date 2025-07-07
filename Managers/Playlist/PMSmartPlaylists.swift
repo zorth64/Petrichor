@@ -1,8 +1,13 @@
+//
+// PlaylistManager class extension
+//
+// This extension contains methods for doing CRUD operations on regular playlists,
+// the methods internally also use DatabaseManager methods to work with database.
+//
+
 import Foundation
 
 extension PlaylistManager {
-    // MARK: - Smart Playlist Management
-
     /// Update all smart playlists with current track data
     func updateSmartPlaylists() {
         guard let libraryManager = libraryManager else { return }

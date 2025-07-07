@@ -15,7 +15,7 @@ struct ArtistEntity: Entity {
     let name: String
     let tracks: [Track]
     let trackCount: Int
-    let artworkData: Data?  // This should be a stored property, not computed
+    let artworkData: Data?
 
     var subtitle: String? {
         "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
@@ -104,8 +104,8 @@ extension UUID {
             format: "%08X-%04X-%04X-%04X-%012X",
             UInt32(hash & 0xFFFFFFFF),
             UInt16((hash >> 32) & 0xFFFF),
-            UInt16((hash >> 48) & 0x0FFF) | 0x5000, // Version 5
-            UInt16((hash >> 60) & 0x3FFF) | 0x8000, // Variant
+            UInt16((hash >> 48) & 0x0FFF) | 0x5000,
+            UInt16((hash >> 60) & 0x3FFF) | 0x8000,
             UInt64(abs(hash)) & 0xFFFFFFFFFFFF
         )
         self = UUID(uuidString: uuidString)!

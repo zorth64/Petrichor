@@ -1,3 +1,9 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains all the methods for managing pinned items in the Home tab sidebar view.
+//
+
 import Foundation
 import GRDB
 

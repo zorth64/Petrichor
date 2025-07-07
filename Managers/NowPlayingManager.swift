@@ -1,10 +1,14 @@
+//
+// NowPlayingManager class
+//
+// This class handles the track playback from NowPlaying UI.
+//
+
 import Foundation
 import AppKit
 import MediaPlayer
 
 class NowPlayingManager {
-    // MARK: - Initialization
-
     init() {
         setupRemoteCommandCenter()
     }
@@ -52,9 +56,6 @@ class NowPlayingManager {
         commandCenter.nextTrackCommand.removeTarget(nil)
         commandCenter.previousTrackCommand.removeTarget(nil)
         commandCenter.changePlaybackPositionCommand.removeTarget(nil)
-
-        // These command handlers will be connected to the app's AudioPlayerManager and PlaylistManager
-        // in the AppDelegate or main coordinator
     }
 
     func connectRemoteCommandCenter(audioPlayer: AudioPlayerManager, playlistManager: PlaylistManager) {

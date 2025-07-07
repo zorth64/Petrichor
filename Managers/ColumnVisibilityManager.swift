@@ -1,3 +1,9 @@
+//
+// ColumnVisibilityManager class
+//
+// This class handles the column visibility for TrackTableView.
+//
+
 import Foundation
 import Combine
 

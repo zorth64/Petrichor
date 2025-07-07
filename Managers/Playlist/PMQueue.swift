@@ -1,3 +1,9 @@
+//
+// PlaylistManager class extension
+//
+// This extension contains methods managing playback queue.
+//
+
 import Foundation
 
 extension PlaylistManager {

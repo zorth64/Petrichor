@@ -1,3 +1,9 @@
+//
+// AppDelegate class
+//
+// This class handles app launch and termination pre/post tasks as well as Dock icon controls setup.
+//
+
 import Foundation
 import AppKit
 

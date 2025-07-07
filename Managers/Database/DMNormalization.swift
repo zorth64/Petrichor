@@ -1,3 +1,11 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains the data normalization methods which clean up any missing details in tracks,
+// isolate duplicate album names as well as update track metadata across different db tables for album,
+// artist, etc.
+//
+
 import Foundation
 import GRDB
 

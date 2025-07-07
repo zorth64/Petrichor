@@ -1,3 +1,10 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains all the methods for querying records from the database based on
+// various criteria.
+//
+
 import Foundation
 import GRDB
 

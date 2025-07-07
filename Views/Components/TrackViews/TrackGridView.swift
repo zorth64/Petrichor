@@ -43,9 +43,6 @@ struct TrackGridView: View {
                             .onAppear {
                                 updateVisibleRange(index: index)
                             }
-                            .onDisappear {
-                                // Could use this to track items going off screen
-                            }
                         }
                     }
                     .padding()

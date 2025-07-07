@@ -1,3 +1,10 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains methods for updating individual tracks based on user
+// interaction events like marking as favorite, play count, last played, etc.
+//
+
 import Foundation
 import GRDB
 

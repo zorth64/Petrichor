@@ -82,7 +82,7 @@ struct ContextualToolbar: View {
             .padding(.vertical, 4)
             .background(Color(NSColor.textBackgroundColor))
             .cornerRadius(6)
-            .frame(width: 280) // Fixed total width
+            .frame(width: 280)
         }
     }
 }

@@ -1,3 +1,10 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains track metadata management methods which allow for setting up parsed
+// track information into track table.
+//
+
 import Foundation
 
 extension DatabaseManager {

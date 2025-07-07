@@ -1,3 +1,10 @@
+//
+// MenuBarManager class
+//
+// This class handles the menu bar options and interactions for the app.
+//
+
+
 import AppKit
 import SwiftUI
 

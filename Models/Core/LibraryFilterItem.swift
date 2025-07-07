@@ -12,7 +12,6 @@ struct LibraryFilterItem: Identifiable, Hashable {
         self.filterType = filterType
     }
 
-    // For "All" items
     static func allItem(for filterType: LibraryFilterType, totalCount: Int) -> LibraryFilterItem {
         LibraryFilterItem(name: "All \(filterType.rawValue)", count: totalCount, filterType: filterType)
     }

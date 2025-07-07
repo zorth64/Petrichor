@@ -1,3 +1,10 @@
+//
+// LibraryManager class extension
+//
+// This extension contains methods querying tracks across Library,
+// the methods internally use DatabaseManager methods to work with database.
+//
+
 import Foundation
 
 extension LibraryManager {

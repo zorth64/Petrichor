@@ -1,3 +1,9 @@
+//
+// PlaylistSortManager class
+//
+// This class handles playlist sorting.
+//
+
 import SwiftUI
 
 /// Manages playlist-specific sorting preferences

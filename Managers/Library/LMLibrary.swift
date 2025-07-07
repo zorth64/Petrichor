@@ -1,3 +1,10 @@
+//
+// LibraryManager class extension
+//
+// This extension contains methods for loading music files in the library,
+// the methods internally also use DatabaseManager methods to work with database.
+//
+
 import Foundation
 
 extension LibraryManager {

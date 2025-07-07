@@ -1,3 +1,11 @@
+//
+// DatabaseManager class
+//
+// This class handles all the Database operations done by the app, note that this file only
+// contains core methods, the domain-specific logic is spread across extension files within this
+// directory where each file is prefixed with `DM`.
+//
+
 import Foundation
 import GRDB
 

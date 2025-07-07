@@ -60,11 +60,11 @@ struct TabbedButtons<Item: TabbedItem>: View {
                     animation: animation,
                     isDisabled: isDisabled
                 ) {
-                        if !isDisabled {
-                            withAnimation(.easeInOut(duration: AnimationConstants.transformDuration)) {
-                                selection = item
-                            }
+                    if !isDisabled {
+                        withAnimation(.easeInOut(duration: AnimationConstants.transformDuration)) {
+                            selection = item
                         }
+                    }
                 }
             }
         }

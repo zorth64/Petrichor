@@ -1,8 +1,14 @@
+//
+// AudioPlayerManager class
+//
+// This class handles the track playback, including progression update,
+// seeking, and playback state management.
+//
+
 import AVFoundation
 import Foundation
 
 class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
-    // MARK: - Published Properties
     @Published var currentTrack: Track?
     @Published var isPlaying: Bool = false {
         didSet {

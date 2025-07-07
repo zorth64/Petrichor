@@ -1,3 +1,9 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains methods for track processing as found from folders added.
+//
+
 import Foundation
 import GRDB
 

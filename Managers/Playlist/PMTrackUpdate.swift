@@ -1,9 +1,15 @@
+//
+// PlaylistManager class extension
+//
+// This extension contains methods for updating individual tracks based on user
+// interaction events like marking as favorite, play count, last played, etc.
+// The methods internally also use DatabaseManager methods to work with database.
+//
+
 import Foundation
 import GRDB
 
 extension PlaylistManager {
-    // MARK: - Track Updates
-    
     func updateTrackFavoriteStatus(track: Track, isFavorite: Bool) async {
         guard let trackId = track.trackId else {
             Logger.error("Cannot update favorite - track has no database ID")

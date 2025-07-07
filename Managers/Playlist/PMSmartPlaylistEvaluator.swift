@@ -1,8 +1,12 @@
+//
+// PlaylistManager class extension
+//
+// This extension contains methods for computing smart playlists with custom matching criteria.
+//
+
 import Foundation
 
 extension PlaylistManager {
-    // MARK: - Smart Playlist Evaluation
-    
     /// Evaluate tracks for a smart playlist based on its criteria
     func evaluateSmartPlaylist(_ playlist: Playlist, allTracks: [Track]) -> [Track] {
         guard playlist.type == .smart,

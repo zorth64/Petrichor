@@ -1,9 +1,14 @@
+//
+// PlaylistManager class extension
+//
+// This extension contains methods for doing pin/unpin and related interactions on playlists,
+// the methods internally also use DatabaseManager methods to work with database.
+//
+
 import Foundation
 import SwiftUI
 
 extension PlaylistManager {
-    // MARK: - Pinned Items Management
-    
     /// Pin a playlist
     func pinPlaylist(_ playlist: Playlist) async {
         guard let manager = libraryManager else { return }

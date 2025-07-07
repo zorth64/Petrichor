@@ -1,3 +1,10 @@
+//
+// LibraryManager class extension
+//
+// This extension contains methods managing pinned items in the library,
+// the methods internally also use DatabaseManager methods to work with database.
+//
+
 import Foundation
 import SwiftUI
 

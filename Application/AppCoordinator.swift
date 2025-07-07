@@ -1,3 +1,9 @@
+//
+// AppCoordinator class
+//
+// This class handles playback initialization & state saving and restoration based on library updates.
+//
+
 import SwiftUI
 
 class AppCoordinator: ObservableObject {
@@ -145,10 +151,8 @@ class AppCoordinator: ObservableObject {
         
         isRestoringPlayback = true
         
-        // Don't restore immediately - wait for library to be fully loaded
-        // Check if we have tracks loaded
+        // Don't restore immediately, wait for library to be fully loaded
         if libraryManager.tracks.isEmpty {
-            // Check if we have any folders - if not, this is likely a fresh start
             if libraryManager.folders.isEmpty {
                 clearAllSavedState()
                 isRestoringPlayback = false
@@ -166,13 +170,12 @@ class AppCoordinator: ObservableObject {
             return
         }
         
-        // If library is already loaded, proceed with restoration
+        // Proceed with restoration
         performActualRestoration()
     }
     
     @objc
     private func libraryDidLoad() {
-        // Remove observer
         if let observer = libraryObserver {
             NotificationCenter.default.removeObserver(observer)
             libraryObserver = nil
@@ -184,7 +187,7 @@ class AppCoordinator: ObservableObject {
             return
         }
         
-        // Check again if library is actually loaded with content
+        // Check if library is loaded with content
         if libraryManager.tracks.isEmpty || libraryManager.folders.isEmpty {
             clearAllSavedState()
             isRestoringPlayback = false
@@ -205,15 +208,15 @@ class AppCoordinator: ObservableObject {
         do {
             let decoder = JSONDecoder()
             let state = try decoder.decode(PlaybackState.self, from: data)
-            
-            // Validate state age - don't restore very old states
             let stateAge = Date().timeIntervalSince(state.savedDate)
-            if stateAge > 7 * 24 * 60 * 60 { // 7 days
+            
+            // Clear saved state if older than 7 days
+            if stateAge > 7 * 24 * 60 * 60 {
                 clearAllSavedState()
                 return
             }
             
-            // Now perform restoration immediately since library is loaded
+            // Perform state restoration
             performStateRestoration(state)
         } catch {
             Logger.warning("Failed to restore playback state: \(error)")
@@ -230,14 +233,14 @@ class AppCoordinator: ObservableObject {
             }
         ) { first, _ in first }
         
-        // Also create a path to track map as fallback
+        // Create a path to track map as fallback
         let trackPathMap: [String: Track] = Dictionary(
             libraryManager.tracks.map { track in
                 (track.url.path, track)
             }
         ) { first, _ in first }
         
-        // Restore the queue efficiently
+        // Restore the play queue
         var restoredQueue: [Track] = []
         restoredQueue.reserveCapacity(state.queueTrackIds.count)
         
@@ -253,7 +256,7 @@ class AppCoordinator: ObservableObject {
             }
         }
         
-        // Check if we restored enough of the queue
+        // Check if we restored at least 50% queue (songs may have been removed)
         let restorationRatio = Double(restoredQueue.count) / Double(state.queueTrackPaths.count)
         if restorationRatio < 0.5 {
             clearAllSavedState()

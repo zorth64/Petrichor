@@ -98,7 +98,7 @@ struct GeneralTabView: View {
         case .dark:
             NSApp.appearance = NSAppearance(named: .darkAqua)
         case .auto:
-            NSApp.appearance = nil // Follow system
+            NSApp.appearance = nil
         }
     }
 }

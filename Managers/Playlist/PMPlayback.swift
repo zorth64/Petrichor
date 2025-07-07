@@ -1,3 +1,11 @@
+//
+// PlaylistManager class extension
+//
+// This extension contains methods for handling track playback,
+// the methods internally also use AudioPlayerManager methods to work with AVFoundation along
+// with DatabaseManager methods.
+//
+
 import Foundation
 
 extension PlaylistManager {

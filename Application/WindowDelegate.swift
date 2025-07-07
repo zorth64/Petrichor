@@ -1,3 +1,9 @@
+//
+// WindowDelegate class
+//
+// This class handles app window management around its default size and positioning on launch.
+//
+
 import AppKit
 
 class WindowDelegate: NSObject, NSWindowDelegate {

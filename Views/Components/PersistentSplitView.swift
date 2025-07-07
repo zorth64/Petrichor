@@ -246,7 +246,7 @@ private struct SplitDivider: View {
                             }
                     )
             )
-            .zIndex(SplitViewSizes.dividerZIndex) // Ensure divider is always on top
+            .zIndex(SplitViewSizes.dividerZIndex)
     }
 }
 

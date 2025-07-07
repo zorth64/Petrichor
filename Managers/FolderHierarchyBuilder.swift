@@ -1,3 +1,9 @@
+//
+// FolderHierarchyBuilder class
+//
+// This class handles the Folders tree view within the sidebar in Folders tab.
+//
+
 import Foundation
 
 class FolderHierarchyBuilder {

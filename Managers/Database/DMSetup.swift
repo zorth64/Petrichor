@@ -1,7 +1,12 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains methods for setting up database schema and seed initial data.
+//
+
 import Foundation
 import GRDB
 
-// MARK: - Database Setup Extension
 extension DatabaseManager {
     // MARK: - Folders Table
     func createFoldersTable(in db: Database) throws {

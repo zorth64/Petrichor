@@ -1,3 +1,9 @@
+//
+// DatabaseManager class extension
+//
+// This extension contains all the methods for managing playlists in the Playlist tab view.
+//
+
 import Foundation
 import GRDB
 

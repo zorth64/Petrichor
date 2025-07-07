@@ -1,7 +1,14 @@
+//
+// PlaylistManager class
+//
+// This class handles all the Playlist operations done by the app, note that this file only
+// contains core methods, the domain-specific logic is spread across extension files within this
+// directory where each file is prefixed with `PM`.
+//
+
 import Foundation
 
 class PlaylistManager: ObservableObject {
-    // MARK: - Published Properties
     @Published var playlists: [Playlist] = []
     @Published var currentPlaylist: Playlist?
     @Published var isShuffleEnabled: Bool = false
@@ -60,5 +67,41 @@ class PlaylistManager: ObservableObject {
         if let playlist = playlists.first(where: { $0.id == playlistID }) {
             updateTrackInPlaylist(track: track, playlist: playlist, add: false)
         }
+    }
+    
+    /// Load all playlists from database
+    func loadPlaylists() {
+        guard let dbManager = libraryManager?.databaseManager else {
+            return
+        }
+        
+        let savedPlaylists = dbManager.loadAllPlaylists()
+        
+        let savedSmartPlaylists = savedPlaylists.filter { $0.type == .smart }
+        let savedRegularPlaylists = savedPlaylists.filter { $0.type == .regular }
+        
+        playlists = sortPlaylists(smart: savedSmartPlaylists, regular: savedRegularPlaylists)
+        
+        // Update smart playlists with current track data
+        updateSmartPlaylists()
+    }
+    
+    /// Sort playlists according to type and predefined order
+    func sortPlaylists(smart: [Playlist], regular: [Playlist]) -> [Playlist] {
+        // Combine all playlists and sort by creation date (oldest first)
+        let allPlaylists = smart + regular
+        return allPlaylists.sorted { $0.dateCreated < $1.dateCreated }
+    }
+    
+    /// Get all playlists that a track belongs to
+    func getPlaylistsContainingTrack(_ track: Track) -> [Playlist] {
+        playlists.filter { playlist in
+            playlist.tracks.contains { $0.id == track.id }
+        }
+    }
+    
+    /// Check if a playlist name already exists
+    func playlistExists(withName name: String) -> Bool {
+        playlists.contains { $0.name.lowercased() == name.lowercased() }
     }
 }

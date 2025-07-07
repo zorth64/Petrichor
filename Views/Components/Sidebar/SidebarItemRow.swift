@@ -58,7 +58,7 @@ struct SidebarItemRow<Item: SidebarItem>: View {
     
     private func checkIfTruncated(text: String, width: CGFloat, font: Font) -> Bool {
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13) // Adjust size based on the font
+            .font: NSFont.systemFont(ofSize: 13)
         ]
         let size = (text as NSString).size(withAttributes: attributes)
         return size.width > width

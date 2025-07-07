@@ -1,6 +1,5 @@
 import Foundation
 
-// This structure holds all the specialized metadata fields that don't need dedicated columns
 struct ExtendedMetadata: Codable {
     // Additional identifiers
     var isrc: String?
@@ -26,7 +25,7 @@ struct ExtendedMetadata: Codable {
     var lyricist: String?
     var conductor: String?
     var remixer: String?
-    var performer: [String: String]? // instrument: performer name
+    var performer: [String: String]?
 
     // Publishing/Label info
     var label: String?
