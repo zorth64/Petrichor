@@ -21,6 +21,17 @@ struct PetrichorApp: App {
             // Remove the default Preferences menu item
             CommandGroup(replacing: .appSettings) {}
             
+            // Replace the default About menu item
+            CommandGroup(replacing: .appInfo) {
+                Button("About Petrichor") {
+                    // Post notification to open Settings with About tab selected
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("OpenSettingsAboutTab"),
+                        object: nil
+                    )
+                }
+            }
+            
             // Add custom menu items under Petrichor menu
             CommandGroup(after: .appInfo) {
                 Button("Settings") {

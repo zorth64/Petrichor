@@ -51,7 +51,7 @@ struct AboutTabView: View {
 
     private var appDetails: some View {
         VStack(spacing: 8) {
-            Text("Petrichor Music Player")
+            Text(About.appTitle)
                 .font(.title)
                 .fontWeight(.bold)
 
@@ -59,7 +59,7 @@ struct AboutTabView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
-            Text("A beautiful music player for macOS")
+            Text(About.appSubtitle)
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -123,20 +123,57 @@ struct AboutTabView: View {
     // MARK: - Footer Section
 
     private var footerSection: some View {
-        VStack(spacing: 8) {
-            Text("Built with Swift and SwiftUI")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Text("Named after the pleasant smell of earth after rain")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .italic()
-                .multilineTextAlignment(.center)
+        HStack(spacing: 20) {
+            FooterLink(
+                title: "Visit website",
+                systemImage: "globe"
+            )                {
+                    if let url = URL(string: About.appWebsite) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            
+            FooterLink(
+                title: "Show app data in Finder",
+                systemImage: "folder",
+                action: openAppDataInFinder
+            )
+        }
+    }
+    
+    private struct FooterLink: View {
+        let title: String
+        let systemImage: String
+        let action: () -> Void
+        
+        @State private var isHovered = false
+        
+        var body: some View {
+            Button(action: action) {
+                Label(title, systemImage: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(isHovered ? .accentColor : .secondary)
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: AnimationDuration.standardDuration)) {
+                    isHovered = hovering
+                }
+            }
         }
     }
 
     // MARK: - Helper Methods
+    
+    private func openAppDataInFinder() {
+        let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first!
+        let appDirectory = appSupport.appendingPathComponent("Petrichor", isDirectory: true)
+        
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: appDirectory.path)
+    }
 
     private func formatTotalDuration() -> String {
         let totalSeconds = libraryManager.tracks.reduce(0) { $0 + $1.duration }

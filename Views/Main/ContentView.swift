@@ -19,6 +19,7 @@ struct ContentView: View {
     
     @State private var selectedTab: MainTab = .home
     @State private var showingSettings = false
+    @State private var settingsInitialTab: SettingsView.SettingsTab = .general
     @State private var showingQueue = false
     @State private var showingTrackDetail = false
     @State private var detailTrack: Track?
@@ -61,11 +62,13 @@ struct ContentView: View {
         }
         .frame(minWidth: 1000, minHeight: 600)
         .onAppear(perform: handleOnAppear)
-        .onReceive(NotificationCenter.default.publisher(for: .goToLibraryFilter), perform: handleLibraryFilter)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowTrackInfo")), perform: handleShowTrackInfo)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenSettings"))) { _ in
-            showingSettings = true
-        }
+        .contentViewNotificationHandlers(
+            showingSettings: $showingSettings,
+            selectedTab: $selectedTab,
+            libraryManager: libraryManager,
+            pendingLibraryFilter: $pendingLibraryFilter,
+            showTrackDetail: showTrackDetail
+        )
         .onChange(of: libraryManager.globalSearchText) { _, newValue in
             if !newValue.isEmpty && selectedTab != .library {
                 withAnimation(.easeInOut(duration: 0.25)) {
@@ -274,6 +277,43 @@ struct ContentView: View {
     }
 }
 
+extension View {
+    func contentViewNotificationHandlers(
+        showingSettings: Binding<Bool>,
+        selectedTab: Binding<MainTab>,
+        libraryManager: LibraryManager,
+        pendingLibraryFilter: Binding<LibraryFilterRequest?>,
+        showTrackDetail: @escaping (Track) -> Void
+    ) -> some View {
+        self
+            .onReceive(NotificationCenter.default.publisher(for: .goToLibraryFilter)) { notification in
+                if let filterType = notification.userInfo?["filterType"] as? LibraryFilterType,
+                   let filterValue = notification.userInfo?["filterValue"] as? String {
+                    withAnimation(.easeInOut(duration: AnimationDuration.standardDuration)) {
+                        selectedTab.wrappedValue = .library
+                        pendingLibraryFilter.wrappedValue = LibraryFilterRequest(filterType: filterType, value: filterValue)
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowTrackInfo"))) { notification in
+                if let track = notification.userInfo?["track"] as? Track {
+                    showTrackDetail(track)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenSettings"))) { _ in
+                showingSettings.wrappedValue = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenSettingsAboutTab"))) { _ in
+                showingSettings.wrappedValue = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("SettingsSelectTab"),
+                        object: SettingsView.SettingsTab.about
+                    )
+                }
+            }
+    }
+}
 // MARK: - Window Accessor
 
 struct WindowAccessor: NSViewRepresentable {
