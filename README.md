@@ -9,21 +9,11 @@
 <br/><br/>
 
 <div align="center">
-<a href="https://github.com/kushalpandya/Petrichor/releases">
-    <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/kushalpandya/Petrichor/total">
-</a>
-<a href="https://github.com/kushalpandya/Petrichor/actions/workflows/ci.yml">
-    <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/kushalpandya/Petrichor/ci.yml">
-</a>
-<a href="https://github.com/kushalpandya/Petrichor/blob/main/LICENSE">
-    <img alt="GitHub License" src="https://img.shields.io/github/license/kushalpandya/Petrichor">
-</a>
-<a href="https://github.com/kushalpandya/Petrichor/releases">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/kushalpandya/Petrichor">
-</a>
-<a href="https://github.com/kushalpandya/Petrichor/">
-    <img src="https://img.shields.io/badge/platform-macOS-blue.svg?style=flat" alt="platform"/>
-</a>
+<a href="https://github.com/kushalpandya/Petrichor/releases"><img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/kushalpandya/Petrichor/total?style=flat"></a>
+<a href="https://github.com/kushalpandya/Petrichor/actions/workflows/ci.yml"><img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/kushalpandya/Petrichor/ci.yml?style=flat"></a>
+<a href="https://github.com/kushalpandya/Petrichor/blob/main/LICENSE"><img alt="GitHub License" src="https://img.shields.io/github/license/kushalpandya/Petrichor?style=flat"></a>
+<a href="https://github.com/kushalpandya/Petrichor/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/kushalpandya/Petrichor?style=flat"></a>
+<a href="https://github.com/kushalpandya/Petrichor/"><img src="https://img.shields.io/badge/platform-macOS-blue.svg?style=flat&logo=apple" alt="platform"/></a>
 
 <br/>
 <br/>
