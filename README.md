@@ -143,7 +143,6 @@ erDiagram
         TEXT title "NOT NULL"
         TEXT normalized_title "NOT NULL"
         TEXT sort_title
-        INTEGER artist_id FK
         BLOB artwork_data
         TEXT release_date
         INTEGER release_year
@@ -165,6 +164,13 @@ erDiagram
         TEXT genres "JSON array"
         DATETIME created_at "NOT NULL"
         DATETIME updated_at "NOT NULL"
+    }
+
+    album_artists {
+        INTEGER album_id FK "NOT NULL"
+        INTEGER artist_id FK "NOT NULL"
+        TEXT role "NOT NULL DEFAULT 'primary'"
+        INTEGER position "NOT NULL DEFAULT 0"
     }
 
     genres {
@@ -193,6 +199,9 @@ erDiagram
         BOOLEAN is_favorite "NOT NULL DEFAULT false"
         INTEGER play_count "NOT NULL DEFAULT 0"
         DATETIME last_played_date
+        BOOLEAN is_duplicate "NOT NULL DEFAULT false"
+        INTEGER primary_track_id FK
+        TEXT duplicate_group_id
         TEXT album_artist
         INTEGER track_number
         INTEGER total_tracks
@@ -265,10 +274,12 @@ erDiagram
     }
 
     folders ||--o{ tracks : contains
-    artists ||--o{ albums : "has albums"
+    albums ||--o{ album_artists : "has artists"
+    artists ||--o{ album_artists : "appears on"
     albums ||--o{ tracks : contains
     artists ||--o{ track_artists : "appears in"
     tracks ||--o{ track_artists : "has artists"
+    tracks ||--o| tracks : "duplicate of"
     genres ||--o{ track_genres : "categorizes"
     tracks ||--o{ track_genres : "has genres"
     playlists ||--o{ playlist_tracks : contains
