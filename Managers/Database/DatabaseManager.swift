@@ -23,14 +23,17 @@ class DatabaseManager: ObservableObject {
         // Create database in app support directory
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory,
                                                   in: .userDomainMask).first!
-        let appDirectory = appSupport.appendingPathComponent("Petrichor", isDirectory: true)
+        // Use bundle identifier as the folder name
+        let bundleID = Bundle.main.bundleIdentifier ?? About.bundleIdentifier
+        let appDirectory = appSupport.appendingPathComponent(bundleID, isDirectory: true)
 
         // Create directory if it doesn't exist
         try FileManager.default.createDirectory(at: appDirectory,
                                                 withIntermediateDirectories: true,
                                                 attributes: nil)
 
-        dbPath = appDirectory.appendingPathComponent("petrichor.db").path
+        let dbFilename = bundleID.hasSuffix(".debug") ? "petrichor-debug.db" : "petrichor.db"
+        dbPath = appDirectory.appendingPathComponent(dbFilename).path
 
         // Configure database before creating the queue
         var config = Configuration()

@@ -73,6 +73,7 @@ enum Icons {
 // MARK: - About View
 
 enum About {
+    static let bundleIdentifier = "org.Petrichor"
     static let appTitle = "Petrichor"
     static let appSubtitle = "An offline macOS music player"
     static let appWebsite = "https://github.com/kushalpandya/Petrichor"

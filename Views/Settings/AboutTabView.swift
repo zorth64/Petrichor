@@ -170,7 +170,9 @@ struct AboutTabView: View {
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first!
-        let appDirectory = appSupport.appendingPathComponent("Petrichor", isDirectory: true)
+
+        let bundleID = Bundle.main.bundleIdentifier ?? About.bundleIdentifier
+        let appDirectory = appSupport.appendingPathComponent(bundleID, isDirectory: true)
         
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: appDirectory.path)
     }

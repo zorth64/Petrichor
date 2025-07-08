@@ -103,7 +103,7 @@ final class Logger {
     private let enableFileLogging = true
     
     private init() {
-        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "org.Petrichor"
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? About.bundleIdentifier
         
         // Initialize properties that depend on bundle identifier
         self.osLog = OSLog(subsystem: bundleIdentifier, category: "music")
@@ -281,8 +281,11 @@ final class Logger {
 // MARK: - Log File Manager
 
 private final class LogFileManager {
-    private let logFileName = "petrichor.log"
     private let maxLogAge: TimeInterval = 7 * 24 * 60 * 60 // 7 days
+    private let logFileName: String = {
+        let bundleID = Bundle.main.bundleIdentifier ?? About.bundleIdentifier
+        return bundleID.hasSuffix(".debug") ? "petrichor-debug.log" : "petrichor.log"
+    }()
     
     private var logFileURL: URL? {
         guard let supportDirectory = FileManager.default.urls(
@@ -290,7 +293,8 @@ private final class LogFileManager {
             in: .userDomainMask
         ).first else { return nil }
         
-        let appDirectory = supportDirectory.appendingPathComponent("Petrichor")
+        let bundleID = Bundle.main.bundleIdentifier ?? About.bundleIdentifier
+        let appDirectory = supportDirectory.appendingPathComponent(bundleID)
         let logsDirectory = appDirectory.appendingPathComponent("Logs")
         
         return logsDirectory.appendingPathComponent(logFileName)
