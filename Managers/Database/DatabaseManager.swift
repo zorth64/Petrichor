@@ -70,6 +70,9 @@ class DatabaseManager: ObservableObject {
             // Create all indices
             try createIndices(in: db)
             
+            // Create FTS5 search index
+            try createFTSTable(in: db)
+            
             // Seed default data
             try seedDefaultPlaylists(in: db)
             try seedDefaultPinnedItems(in: db)

@@ -256,6 +256,98 @@ extension DatabaseManager {
         }
         Logger.info("Created `pinned_items` table")
     }
+    
+    // MARK: - FTS5 Search Table
+    func createFTSTable(in db: Database) throws {
+        // Create FTS5 virtual table for tracks
+        try db.create(virtualTable: "tracks_fts", ifNotExists: true, using: FTS5()) { t in
+            t.column("track_id").notIndexed()
+            t.column("title")
+            t.column("artist")
+            t.column("album")
+            t.column("album_artist")
+            t.column("composer")
+            t.column("genre")
+            t.column("year")
+            
+            t.tokenizer = .porter(wrapping: .unicode61())
+        }
+        
+        // Create triggers to keep FTS index in sync
+        try createFTSTriggers(in: db)
+        
+        // Populate FTS table with existing data (it checks internally if needed)
+        try populateFTSTable(in: db)
+        
+        Logger.info("Created FTS5 `tracks_fts` table")
+    }
+
+    // MARK: - FTS5 Triggers
+    private func createFTSTriggers(in db: Database) throws {
+        // Trigger for new tracks
+        try db.execute(sql: """
+            CREATE TRIGGER IF NOT EXISTS tracks_fts_insert
+            AFTER INSERT ON tracks
+            BEGIN
+                INSERT INTO tracks_fts(
+                    rowid, track_id, title, artist, album, album_artist, composer, genre, year
+                ) VALUES (
+                    NEW.id, NEW.id, NEW.title, NEW.artist, NEW.album, NEW.album_artist, NEW.composer, NEW.genre, NEW.year
+                );
+            END
+        """)
+        
+        // Trigger for updated tracks
+        try db.execute(sql: """
+            CREATE TRIGGER IF NOT EXISTS tracks_fts_update
+            AFTER UPDATE ON tracks
+            BEGIN
+                UPDATE tracks_fts SET
+                    title = NEW.title,
+                    artist = NEW.artist,
+                    album = NEW.album,
+                    album_artist = NEW.album_artist,
+                    composer = NEW.composer,
+                    genre = NEW.genre,
+                    year = NEW.year
+                WHERE rowid = NEW.id;
+            END
+        """)
+        
+        // Trigger for deleted tracks
+        try db.execute(sql: """
+            CREATE TRIGGER IF NOT EXISTS tracks_fts_delete
+            AFTER DELETE ON tracks
+            BEGIN
+                DELETE FROM tracks_fts WHERE rowid = OLD.id;
+            END
+        """)
+        
+        Logger.info("Created FTS5 `tracks_fts` triggers")
+    }
+
+    // MARK: - Populate FTS Table
+    private func populateFTSTable(in db: Database) throws {
+        // Check if FTS table already has data
+        let ftsCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM tracks_fts") ?? 0
+        
+        if ftsCount > 0 {
+            Logger.info("FTS table already populated with \(ftsCount) entries, skipping population")
+            return
+        }
+        
+        // Only populate if empty
+        try db.execute(sql: """
+            INSERT INTO tracks_fts(
+                rowid, track_id, title, artist, album, album_artist, composer, genre, year
+            )
+            SELECT
+                id, id, title, artist, album, album_artist, composer, genre, year
+            FROM tracks
+        """)
+        
+        Logger.info("Populated FTS5 `tracks_fts` table with tracks")
+    }
 
     // MARK: - Create All Indices
     func createIndices(in db: Database) throws {

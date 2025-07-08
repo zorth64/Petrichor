@@ -12,6 +12,15 @@ struct LibrarySearch {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return tracks }
 
+        // Try FTS5 search first for performance
+        if let coordinator = AppCoordinator.shared {
+            let ftsResults = coordinator.libraryManager.databaseManager.searchTracksUsingFTS(trimmedQuery)
+            if !ftsResults.isEmpty {
+                return ftsResults
+            }
+        }
+
+        // Fallback to sophisticated in-memory search
         let searchTerms = parseSearchTerms(from: trimmedQuery)
 
         return tracks.filter { track in
@@ -244,6 +253,15 @@ extension LibrarySearch {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return tracks }
 
+        // Try FTS5 search first (already returns ranked results)
+        if let coordinator = AppCoordinator.shared {
+            let ftsResults = coordinator.libraryManager.databaseManager.searchTracksUsingFTS(trimmedQuery)
+            if !ftsResults.isEmpty {
+                return ftsResults
+            }
+        }
+
+        // Fallback to in-memory search with ranking
         let searchTerms = parseSearchTerms(from: trimmedQuery)
 
         let results = tracks.compactMap { track -> SearchResult? in
@@ -251,63 +269,56 @@ extension LibrarySearch {
             return score > 0 ? SearchResult(track: track, relevanceScore: score) : nil
         }
 
-        // Sort by relevance score (highest first)
         return results
             .sorted { $0.relevanceScore > $1.relevanceScore }
             .map { $0.track }
     }
 
+    /// Calculates relevance score for a track based on search terms
     private static func calculateRelevanceScore(for track: Track, searchTerms: [String]) -> Int {
-        var totalScore = 0
+        var score = 0
 
         for term in searchTerms {
-            var termScore = 0
             let lowercasedTerm = term.lowercased()
 
-            // Title matches are most important
-            if track.title.lowercased() == lowercasedTerm {
-                termScore += 100
-            } else if track.title.lowercased().contains(lowercasedTerm) {
-                termScore += 50
-            }
-
-            // Then artist matches
-            if track.artist.lowercased() == lowercasedTerm {
-                termScore += 80
-            } else if track.artist.lowercased().contains(lowercasedTerm) {
-                termScore += 40
-            }
-
-            // Album matches
-            if track.album.lowercased() == lowercasedTerm {
-                termScore += 60
-            } else if track.album.lowercased().contains(lowercasedTerm) {
-                termScore += 30
-            }
-
-            // Check other LibraryFilterType fields with lower scores
-            for filterType in LibraryFilterType.allCases {
-                let fieldValue = filterType.getValue(from: track)
-                if fieldValue.lowercased().contains(lowercasedTerm) {
-                    switch filterType {
-                    case .artists, .albumArtists: termScore += 25
-                    case .albums: break // Already handled above
-                    case .genres: termScore += 20
-                    case .composers: termScore += 20
-                    case .decades: termScore += 15
-                    case .years: termScore += 15
-                    }
+            // Title matches score highest
+            if track.title.lowercased().contains(lowercasedTerm) {
+                score += 10
+                if track.title.lowercased() == lowercasedTerm {
+                    score += 5  // Exact match bonus
                 }
             }
 
-            // If no match for this term, the track doesn't match
-            if termScore == 0 {
-                return 0
+            // Artist matches score high
+            if track.artist.lowercased().contains(lowercasedTerm) {
+                score += 8
+                if track.artist.lowercased() == lowercasedTerm {
+                    score += 3
+                }
             }
 
-            totalScore += termScore
+            // Album matches
+            if track.album.lowercased().contains(lowercasedTerm) {
+                score += 5
+            }
+
+            // Other field matches
+            if track.genre.lowercased().contains(lowercasedTerm) {
+                score += 3
+            }
+
+            if track.year.contains(lowercasedTerm) {
+                score += 2
+            }
+
+            // Extended metadata matches score lower
+            if let extended = track.extendedMetadata {
+                if matchesExtendedMetadata(extended, searchTerm: lowercasedTerm) {
+                    score += 1
+                }
+            }
         }
 
-        return totalScore
+        return score
     }
 }
