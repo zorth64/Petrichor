@@ -271,17 +271,42 @@ fi
 
 log "App copied successfully"
 
-# Step 3: Optional - Ad-hoc sign the app to prevent "damaged" warnings
+# Step 3: Apply ad-hoc signature with proper entitlements
 log "Applying ad-hoc signature..."
 if [ -d "$EXPORT_PATH/$APP_NAME.app" ]; then
+    # First, remove any existing signatures
+    log "Removing existing signatures..."
+    codesign --remove-signature "$EXPORT_PATH/$APP_NAME.app" 2>/dev/null || true
+    
+    # Sign with entitlements and timestamp
+    log "Signing app with entitlements..."
     if [ "$VERBOSE" = true ]; then
-        codesign --force --deep -s - "$EXPORT_PATH/$APP_NAME.app" 2>&1 || {
-            warning "Could not apply ad-hoc signature, continuing anyway..."
+        codesign --force --deep --strict --timestamp \
+            --options runtime \
+            --entitlements "Configuration/Petrichor.entitlements" \
+            -s - \
+            "$EXPORT_PATH/$APP_NAME.app" 2>&1 || {
+            error "Failed to apply ad-hoc signature"
+            exit 1
         }
     else
-        codesign --force --deep -s - "$EXPORT_PATH/$APP_NAME.app" >/dev/null 2>&1 || {
-            warning "Could not apply ad-hoc signature, continuing anyway..."
+        codesign --force --deep --strict --timestamp \
+            --options runtime \
+            --entitlements "Configuration/Petrichor.entitlements" \
+            -s - \
+            "$EXPORT_PATH/$APP_NAME.app" >/dev/null 2>&1 || {
+            error "Failed to apply ad-hoc signature"
+            exit 1
         }
+    fi
+    
+    # Verify the signature
+    log "Verifying signature..."
+    if codesign --verify --deep --strict "$EXPORT_PATH/$APP_NAME.app" 2>&1; then
+        log "Signature verification passed"
+    else
+        error "Signature verification failed"
+        exit 1
     fi
 else
     error "App not found at: $EXPORT_PATH/$APP_NAME.app"
