@@ -9,7 +9,43 @@ import Foundation
 import GRDB
 
 extension DatabaseManager {
-    // MARK: - Filter Type Queries (Used by LibraryManager)
+    /// Populate track album art from albums table
+    func populateAlbumArtworkForTracks(_ tracks: inout [Track]) {
+        do {
+            try dbQueue.read { db in
+                // Get unique album IDs from tracks
+                let albumIds = tracks.compactMap { $0.albumId }.removingDuplicates()
+                
+                guard !albumIds.isEmpty else { return }
+                
+                // Create a request that only fetches id and artwork_data
+                let request = Album
+                    .filter(albumIds.contains(Album.Columns.id))
+                    .select(Album.Columns.id, Album.Columns.artworkData)
+                
+                // Fetch as raw rows to avoid model initialization
+                let rows = try Row.fetchAll(db, request)
+                
+                // Build the artwork map
+                let albumArtworkMap: [Int64: Data] = rows.reduce(into: [:]) { dict, row in
+                    if let id: Int64 = row[Album.Columns.id],
+                       let artwork: Data = row[Album.Columns.artworkData] {
+                        dict[id] = artwork
+                    }
+                }
+                
+                // Populate the transient property on tracks
+                for i in 0..<tracks.count {
+                    if let albumId = tracks[i].albumId,
+                       let albumArtwork = albumArtworkMap[albumId] {
+                        tracks[i].albumArtworkData = albumArtwork
+                    }
+                }
+            }
+        } catch {
+            Logger.error("Failed to populate album artwork: \(error)")
+        }
+    }
 
     /// Get distinct values for a filter type using normalized tables
     func getDistinctValues(for filterType: LibraryFilterType) -> [String] {
@@ -332,14 +368,15 @@ extension DatabaseManager {
     /// Get tracks for a specific artist entity
     func getTracksForArtistEntity(_ artistName: String) -> [Track] {
         do {
-            return try dbQueue.read { db in
+            // First fetch the tracks
+            var tracks = try dbQueue.read { db in
                 // First find the artist
                 let normalizedName = ArtistParser.normalizeArtistName(artistName)
                 guard let artist = try Artist
                     .filter((Artist.Columns.name == artistName) || (Artist.Columns.normalizedName == normalizedName))
                     .fetchOne(db),
                     let artistId = artist.id else {
-                    return []
+                    return [Track]()
                 }
                 
                 // Get all track IDs for this artist
@@ -354,6 +391,11 @@ extension DatabaseManager {
                     .order(Track.Columns.album, Track.Columns.trackNumber)
                     .fetchAll(db)
             }
+            
+            // Then populate artwork outside the read block
+            populateAlbumArtworkForTracks(&tracks)
+            
+            return tracks
         } catch {
             Logger.error("Failed to get tracks for artist entity: \(error)")
             return []
@@ -363,35 +405,43 @@ extension DatabaseManager {
     /// Get tracks for a specific album entity using album ID
     func getTracksForAlbumEntity(_ albumEntity: AlbumEntity) -> [Track] {
         do {
-            return try dbQueue.read { db in
-                // If we have the album ID, use it directly - this is the most reliable way
+            // First fetch the tracks
+            var tracks = try dbQueue.read { db in
+                // If we have the album ID, use it directly
                 if let albumId = albumEntity.albumId {
                     return try applyDuplicateFilter(Track.all())
                         .filter(Track.Columns.albumId == albumId)
                         .order(Track.Columns.discNumber, Track.Columns.trackNumber)
                         .fetchAll(db)
+                } else {
+                    // Fallback to name-based search if no album ID is present
+                    let normalizedTitle = albumEntity.name.lowercased()
+                        .replacingOccurrences(of: " - ", with: " ")
+                        .replacingOccurrences(of: "  ", with: " ")
+                        .replacingOccurrences(of: "the ", with: "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    // Find album by normalized title only (not by artist anymore)
+                    guard let album = try Album
+                        .filter(Album.Columns.normalizedTitle == normalizedTitle)
+                        .fetchOne(db),
+                          let albumId = album.id else {
+                        Logger.warning("No album found for entity: \(albumEntity.name)")
+                        return [Track]()
+                    }
+                    
+                    // Get tracks for this album
+                    return try applyDuplicateFilter(Track.all())
+                        .filter(Track.Columns.albumId == albumId)
+                        .order(Track.Columns.discNumber, Track.Columns.trackNumber)
+                        .fetchAll(db)
                 }
-                
-                // Fallback to name-based search if no ID (shouldn't happen with new code)
-                let normalizedTitle = albumEntity.name.lowercased()
-                    .replacingOccurrences(of: "the ", with: "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                // Find album by normalized title only (not by artist anymore)
-                guard let album = try Album
-                    .filter(Album.Columns.normalizedTitle == normalizedTitle)
-                    .fetchOne(db),
-                      let albumId = album.id else {
-                    Logger.warning("No album found for entity: \(albumEntity.name)")
-                    return []
-                }
-                
-                // Get tracks for this album
-                return try applyDuplicateFilter(Track.all())
-                    .filter(Track.Columns.albumId == albumId)
-                    .order(Track.Columns.discNumber, Track.Columns.trackNumber)
-                    .fetchAll(db)
             }
+            
+            // Then populate artwork outside the read block
+            populateAlbumArtworkForTracks(&tracks)
+            
+            return tracks
         } catch {
             Logger.error("Failed to get tracks for album entity: \(error)")
             return []
@@ -781,10 +831,27 @@ extension DatabaseManager {
     func getArtworkForTrack(_ trackId: Int64) -> Data? {
         do {
             return try dbQueue.read { db in
-                try applyDuplicateFilter(Track.all())
-                    .select(Track.Columns.artworkData)
+                // First, get the track
+                guard let track = try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.trackId == trackId)
-                    .fetchOne(db)
+                    .fetchOne(db) else {
+                    return nil
+                }
+                
+                // If track has an album, try to get artwork from album
+                if let albumId = track.albumId {
+                    let albumArtwork = try Album
+                        .filter(Album.Columns.id == albumId)
+                        .select(Album.Columns.artworkData)
+                        .fetchOne(db)?[Album.Columns.artworkData] as Data?
+                    
+                    if let albumArtwork = albumArtwork {
+                        return albumArtwork
+                    }
+                }
+                
+                // Fall back to track's own artwork
+                return track.trackArtworkData
             }
         } catch {
             Logger.error("Failed to fetch artwork: \(error)")

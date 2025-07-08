@@ -44,7 +44,7 @@ extension DatabaseManager {
                         let hasChanges = self.updateTrackIfNeeded(&updatedTrack, with: metadata, at: fileURL)
                         
                         if hasChanges {
-                            return (fileURL, TrackProcessResult.update(updatedTrack))
+                            return (fileURL, TrackProcessResult.update(updatedTrack, metadata))
                         } else {
                             return (fileURL, TrackProcessResult.skipped)
                         }
@@ -55,19 +55,19 @@ extension DatabaseManager {
                         track.folderId = folderId
                         self.applyMetadataToTrack(&track, from: metadata, at: fileURL)
                         
-                        return (fileURL, TrackProcessResult.new(track))
+                        return (fileURL, TrackProcessResult.new(track, metadata))
                     }
                 }
             }
             
             // Collect results into a single structure to avoid concurrent mutations
-            let processResults = try await group.reduce(into: (new: [Track](), update: [Track](), skipped: 0)) { result, item in
+            let processResults = try await group.reduce(into: (new: [(Track, TrackMetadata)](), update: [(Track, TrackMetadata)](), skipped: 0)) { result, item in
                 let (_, trackResult) = item
                 switch trackResult {
-                case .new(let track):
-                    result.new.append(track)
-                case .update(let track):
-                    result.update.append(track)
+                case .new(let track, let metadata):
+                    result.new.append((track, metadata))
+                case .update(let track, let metadata):
+                    result.update.append((track, metadata))
                 case .skipped:
                     result.skipped += 1
                 }
@@ -76,13 +76,13 @@ extension DatabaseManager {
             // Process in database transaction
             try await dbQueue.write { [processResults] db in
                 // Process new tracks
-                for track in processResults.new {
-                    try self.processNewTrack(track, in: db)
+                for (track, metadata) in processResults.new {
+                    try self.processNewTrack(track, metadata: metadata, in: db)
                 }
                 
                 // Process updated tracks
-                for track in processResults.update {
-                    try self.processUpdatedTrack(track, in: db)
+                for (track, metadata) in processResults.update {
+                    try self.processUpdatedTrack(track, metadata: metadata, in: db)
                 }
                 
                 // Update statistics after batch
@@ -107,11 +107,8 @@ extension DatabaseManager {
     // MARK: - Track Processing
     
     /// Process a new track with normalized data
-    private func processNewTrack(_ track: Track, in db: Database) throws {
+    private func processNewTrack(_ track: Track, metadata: TrackMetadata, in db: Database) throws {
         var mutableTrack = track
-        
-        // Extract metadata for processing
-        let metadata = TrackMetadata(url: track.url)
         
         // Process album first (so we can link the track to it)
         try processTrackAlbum(&mutableTrack, in: db)
@@ -130,10 +127,10 @@ extension DatabaseManager {
         try processTrackGenres(mutableTrack, in: db)
         
         // Update artwork for artists and album if this track has artwork
-        if let artworkData = mutableTrack.artworkData, !artworkData.isEmpty {
+        if let artworkData = metadata.artworkData, !artworkData.isEmpty {
             // Update artist artwork
             let artistIds = try TrackArtist
-                .filter(TrackArtist.Columns.trackId == trackId)  // Use trackId from mutableTrack
+                .filter(TrackArtist.Columns.trackId == trackId)
                 .select(TrackArtist.Columns.artistId, as: Int64.self)
                 .distinct()
                 .fetchAll(db)
@@ -149,17 +146,14 @@ extension DatabaseManager {
         }
         
         // Log interesting metadata
-#if DEBUG
+        #if DEBUG
         logTrackMetadata(mutableTrack)
-#endif
+        #endif
     }
     
     /// Process an updated track with normalized data
-    private func processUpdatedTrack(_ track: Track, in db: Database) throws {
+    private func processUpdatedTrack(_ track: Track, metadata: TrackMetadata, in db: Database) throws {
         var mutableTrack = track
-        
-        // Extract metadata for processing
-        let metadata = TrackMetadata(url: track.url)
         
         // Update album association
         try processTrackAlbum(&mutableTrack, in: db)

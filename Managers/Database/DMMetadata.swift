@@ -17,7 +17,15 @@ extension DatabaseManager {
         track.composer = metadata.composer ?? "Unknown Composer"
         track.year = metadata.year ?? ""
         track.duration = metadata.duration
-        track.artworkData = metadata.artworkData
+        
+        // Avoid storing album art in track table for tracks with albums
+        // as we'll store it in albums table instead.
+        if track.album == "Unknown Album" || track.album.isEmpty {
+            track.trackArtworkData = metadata.artworkData
+        } else {
+            track.trackArtworkData = nil
+        }
+
         track.isMetadataLoaded = true
 
         // Additional metadata
@@ -122,9 +130,18 @@ extension DatabaseManager {
             hasChanges = true
         }
 
-        if let newArtworkData = metadata.artworkData, track.artworkData == nil {
-            track.artworkData = newArtworkData
-            hasChanges = true
+        if let newArtworkData = metadata.artworkData {
+            let shouldStoreInTrack = (track.album == "Unknown Album" || track.album.isEmpty)
+            
+            if shouldStoreInTrack && track.trackArtworkData == nil {
+                // Store artwork for tracks without albums
+                track.trackArtworkData = newArtworkData
+                hasChanges = true
+            } else if !shouldStoreInTrack && track.trackArtworkData != nil {
+                // Clear artwork for tracks with albums
+                track.trackArtworkData = nil
+                hasChanges = true
+            }
         }
 
         return hasChanges

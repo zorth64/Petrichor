@@ -89,6 +89,7 @@ extension LibraryManager {
 
         folders = resolvedFolders
         tracks = databaseManager.getAllTracks()
+        databaseManager.populateAlbumArtworkForTracks(&tracks)
         updateSearchResults()
 
         Logger.info("Loaded \(folders.count) folders and \(tracks.count) tracks from database")

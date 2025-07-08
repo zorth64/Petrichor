@@ -13,7 +13,8 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     @Published var genre: String
     @Published var year: String
     @Published var duration: Double
-    @Published var artworkData: Data?
+    @Published var trackArtworkData: Data?
+    @Published var albumArtworkData: Data?
     @Published var isMetadataLoaded: Bool = false
     @Published var isFavorite: Bool = false
     @Published var playCount: Int = 0
@@ -53,6 +54,16 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     var extendedMetadata: ExtendedMetadata?
 
     var albumId: Int64?
+    
+    var artworkData: Data? {
+        // Prefer album artwork if available
+        if let albumArtwork = albumArtworkData {
+            return albumArtwork
+        }
+        
+        // Fall back to track's own artwork
+        return trackArtworkData
+    }
 
     // MARK: - Initialization
 
@@ -103,7 +114,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let isDuplicate = Column("is_duplicate")
         static let primaryTrackId = Column("primary_track_id")
         static let duplicateGroupId = Column("duplicate_group_id")
-        static let artworkData = Column("artwork_data")
+        static let trackArtworkData = Column("track_artwork_data")
         static let isFavorite = Column("is_favorite")
         static let playCount = Column("play_count")
         static let lastPlayedDate = Column("last_played_date")
@@ -152,7 +163,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         year = row[Columns.year] ?? ""
         duration = row[Columns.duration] ?? 0
         format = row[Columns.format] ?? url.pathExtension
-        artworkData = row[Columns.artworkData]
+        trackArtworkData = row[Columns.trackArtworkData]
         isFavorite = row[Columns.isFavorite] ?? false
         playCount = row[Columns.playCount] ?? 0
         lastPlayedDate = row[Columns.lastPlayedDate]
@@ -206,7 +217,7 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         container[Columns.duration] = duration
         container[Columns.format] = format
         container[Columns.dateAdded] = Date()
-        container[Columns.artworkData] = artworkData
+        container[Columns.trackArtworkData] = trackArtworkData
         container[Columns.isFavorite] = isFavorite
         container[Columns.playCount] = playCount
         container[Columns.lastPlayedDate] = lastPlayedDate

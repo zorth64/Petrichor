@@ -144,7 +144,7 @@ extension DatabaseManager {
             t.column("file_size", .integer)
             t.column("date_added", .datetime).notNull()
             t.column("date_modified", .datetime)
-            t.column("artwork_data", .blob)
+            t.column("track_artwork_data", .blob)
             t.column("is_favorite", .boolean).notNull().defaults(to: false)
             t.column("play_count", .integer).notNull().defaults(to: 0)
             t.column("last_played_date", .datetime)
