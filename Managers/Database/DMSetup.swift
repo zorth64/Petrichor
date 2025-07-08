@@ -148,6 +148,11 @@ extension DatabaseManager {
             t.column("is_favorite", .boolean).notNull().defaults(to: false)
             t.column("play_count", .integer).notNull().defaults(to: 0)
             t.column("last_played_date", .datetime)
+            
+            // Duplicate tracking
+            t.column("is_duplicate", .boolean).notNull().defaults(to: false)
+            t.column("primary_track_id", .integer).references("tracks", column: "id", onDelete: .setNull)
+            t.column("duplicate_group_id", .text)
 
             // Additional metadata
             t.column("album_artist", .text)
@@ -266,6 +271,10 @@ extension DatabaseManager {
         try db.create(index: "idx_tracks_rating", on: "tracks", columns: ["rating"], ifNotExists: true)
         try db.create(index: "idx_tracks_compilation", on: "tracks", columns: ["compilation"], ifNotExists: true)
         try db.create(index: "idx_tracks_media_type", on: "tracks", columns: ["media_type"], ifNotExists: true)
+        
+        // Duplicate tracking indices
+        try db.create(index: "idx_tracks_is_duplicate", on: "tracks", columns: ["is_duplicate"], ifNotExists: true)
+        try db.create(index: "idx_tracks_duplicate_group_id", on: "tracks", columns: ["duplicate_group_id"], ifNotExists: true)
 
         // Artists table indices
         try db.create(index: "idx_artists_normalized_name", on: "artists", columns: ["normalized_name"], ifNotExists: true)

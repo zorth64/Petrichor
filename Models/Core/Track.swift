@@ -41,6 +41,10 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
     var dateAdded: Date?
     var dateModified: Date?
 
+    var isDuplicate: Bool = false
+    var primaryTrackId: Int64?
+    var duplicateGroupId: String?
+
     var sortTitle: String?
     var sortArtist: String?
     var sortAlbum: String?
@@ -96,6 +100,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         static let fileSize = Column("file_size")
         static let dateAdded = Column("date_added")
         static let dateModified = Column("date_modified")
+        static let isDuplicate = Column("is_duplicate")
+        static let primaryTrackId = Column("primary_track_id")
+        static let duplicateGroupId = Column("duplicate_group_id")
         static let artworkData = Column("artwork_data")
         static let isFavorite = Column("is_favorite")
         static let playCount = Column("play_count")
@@ -168,6 +175,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         fileSize = row[Columns.fileSize]
         dateAdded = row[Columns.dateAdded]
         dateModified = row[Columns.dateModified]
+        isDuplicate = row[Columns.isDuplicate] ?? false
+        primaryTrackId = row[Columns.primaryTrackId]
+        duplicateGroupId = row[Columns.duplicateGroupId]
         sortTitle = row[Columns.sortTitle]
         sortArtist = row[Columns.sortArtist]
         sortAlbum = row[Columns.sortAlbum]
@@ -218,6 +228,9 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
         container[Columns.bitDepth] = bitDepth
         container[Columns.fileSize] = fileSize
         container[Columns.dateModified] = dateModified
+        container[Columns.isDuplicate] = isDuplicate
+        container[Columns.primaryTrackId] = primaryTrackId
+        container[Columns.duplicateGroupId] = duplicateGroupId
         container[Columns.sortTitle] = sortTitle
         container[Columns.sortArtist] = sortArtist
         container[Columns.sortAlbum] = sortAlbum
@@ -263,6 +276,78 @@ class Track: Identifiable, ObservableObject, Equatable, FetchableRecord, Persist
 
     var albumArtistForSorting: String {
         albumArtist ?? ""
+    }
+}
+
+// MARK: - Quality Scoring
+
+extension Track {
+    /// Calculate a quality score for duplicate detection
+    /// Higher score = better quality
+    var qualityScore: Int {
+        var score = 0
+        
+        let formatLower = format.lowercased()
+        let bitrateValue = bitrate ?? 0
+        
+        // Format scoring (base score by tier)
+        switch formatLower {
+        case "flac", "alac":
+            score += 10000  // Tier 1: Lossless
+        case "mp3":
+            if bitrateValue >= 320 {
+                score += 8000   // Tier 2: High quality lossy
+            } else if bitrateValue >= 256 {
+                score += 6000   // Tier 3: Good quality lossy
+            } else {
+                score += 1000   // Tier 4: Lower quality
+            }
+        case "m4a", "aac", "mp4":
+            if bitrateValue >= 256 {
+                score += 8000   // Tier 2: High quality lossy
+            } else if bitrateValue >= 192 {
+                score += 6000   // Tier 3: Good quality lossy
+            } else {
+                score += 1000   // Tier 4: Lower quality
+            }
+        default:
+            score += 1000   // Tier 4: Everything else
+        }
+        
+        // Add actual bitrate to score for differentiation within tiers
+        score += bitrateValue
+        
+        // Use file size as final tiebreaker (larger usually means better quality)
+        // Divide by 1MB to keep it in reasonable range
+        if let fileSize = fileSize {
+            score += Int(fileSize / 1_000_000)
+        }
+        
+        return score
+    }
+    
+    /// Generate a normalized key for duplicate detection
+    var duplicateKey: String {
+        let normalizedTitle = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedAlbum = album.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedYear = year.trimmingCharacters(in: .whitespacesAndNewlines)
+        let roundedDuration = Int(duration.rounded())
+        
+        // Include year in the key for better accuracy
+        return "\(normalizedTitle)|\(normalizedAlbum)|\(normalizedYear)|\(roundedDuration)"
+    }
+    
+    /// Check if this track is a duplicate candidate of another track
+    func isDuplicateOf(_ other: Track) -> Bool {
+        // Must have valid durations
+        guard duration > 0, other.duration > 0 else { return false }
+        
+        // Check if durations are within 2 seconds of each other
+        let durationDiff = abs(duration - other.duration)
+        guard durationDiff <= 2.0 else { return false }
+        
+        // Compare normalized metadata
+        return duplicateKey == other.duplicateKey
     }
 }
 

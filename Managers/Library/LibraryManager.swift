@@ -10,7 +10,6 @@ import Foundation
 import AppKit
 
 class LibraryManager: ObservableObject {
-    // MARK: - Published Properties
     @Published var tracks: [Track] = []
     @Published var folders: [Folder] = []
     @Published var isScanning: Bool = false

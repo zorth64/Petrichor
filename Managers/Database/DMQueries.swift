@@ -25,7 +25,7 @@ extension DatabaseManager {
 
                     // Add "Unknown" placeholder if there are tracks without artists
                     var results = artists
-                    if try Track.filter(Track.Columns.artist == filterType.unknownPlaceholder).fetchCount(db) > 0 {
+                    if try applyDuplicateFilter(Track.all()).filter(Track.Columns.artist == filterType.unknownPlaceholder).fetchCount(db) > 0 {
                         results.append(filterType.unknownPlaceholder)
                     }
                     return results
@@ -39,7 +39,7 @@ extension DatabaseManager {
 
                     // Add "Unknown Album" if needed
                     var results = albums
-                    if try Track.filter(Track.Columns.album == "Unknown Album").fetchCount(db) > 0 {
+                    if try applyDuplicateFilter(Track.all()).filter(Track.Columns.album == "Unknown Album").fetchCount(db) > 0 {
                         results.append("Unknown Album")
                     }
                     return results
@@ -53,14 +53,14 @@ extension DatabaseManager {
 
                     // Add "Unknown Genre" if needed
                     var results = genres
-                    if try Track.filter(Track.Columns.genre == "Unknown Genre").fetchCount(db) > 0 {
+                    if try applyDuplicateFilter(Track.all()).filter(Track.Columns.genre == "Unknown Genre").fetchCount(db) > 0 {
                         results.append("Unknown Genre")
                     }
                     return results
                     
                 case .decades:
                     // Get all years and convert to decades
-                    let years = try Track
+                    let years = try applyDuplicateFilter(Track.all())
                         .select(Track.Columns.year, as: String.self)
                         .filter(Track.Columns.year != "")
                         .filter(Track.Columns.year != "Unknown Year")
@@ -85,7 +85,7 @@ extension DatabaseManager {
 
                 case .years:
                     // Years don't have a normalized table, use tracks directly
-                    return try Track
+                    return try applyDuplicateFilter(Track.all())
                         .select(Track.Columns.year, as: String.self)
                         .filter(Track.Columns.year != "")
                         .distinct()
@@ -107,7 +107,7 @@ extension DatabaseManager {
                 case .artists, .albumArtists, .composers:
                     // Handle unknown placeholder
                     if value == filterType.unknownPlaceholder {
-                        return try Track
+                        return try applyDuplicateFilter(Track.all())
                             .filter(Track.columnMap[filterType.databaseColumn]! == value)
                             .fetchAll(db)
                     }
@@ -137,13 +137,13 @@ extension DatabaseManager {
                         .select(TrackArtist.Columns.trackId, as: Int64.self)
                         .fetchAll(db)
 
-                    return try Track
+                    return try applyDuplicateFilter(Track.all())
                         .filter(trackIds.contains(Track.Columns.trackId))
                         .fetchAll(db)
 
                 case .albums:
                     if value == "Unknown Album" {
-                        return try Track
+                        return try applyDuplicateFilter(Track.all())
                             .filter(Track.Columns.album == value)
                             .fetchAll(db)
                     }
@@ -156,14 +156,14 @@ extension DatabaseManager {
                         return []
                     }
 
-                    return try Track
+                    return try applyDuplicateFilter(Track.all())
                         .filter(Track.Columns.albumId == albumId)
                         .order(Track.Columns.discNumber, Track.Columns.trackNumber)
                         .fetchAll(db)
 
                 case .genres:
                     if value == "Unknown Genre" {
-                        return try Track
+                        return try applyDuplicateFilter(Track.all())
                             .filter(Track.Columns.genre == value)
                             .fetchAll(db)
                     }
@@ -182,7 +182,7 @@ extension DatabaseManager {
                         .select(TrackGenre.Columns.trackId, as: Int64.self)
                         .fetchAll(db)
 
-                    return try Track
+                    return try applyDuplicateFilter(Track.all())
                         .filter(trackIds.contains(Track.Columns.trackId))
                         .fetchAll(db)
 
@@ -193,14 +193,14 @@ extension DatabaseManager {
                     }
                     let decadeEnd = decadeStart + 9
                     
-                    return try Track
+                    return try applyDuplicateFilter(Track.all())
                         .filter(sql: "CAST(SUBSTR(year, 1, 4) AS INTEGER) BETWEEN ? AND ?",
                                 arguments: [decadeStart, decadeEnd])
                         .order(Track.Columns.artist, Track.Columns.album, Track.Columns.trackNumber)
                         .fetchAll(db)
 
                 case .years:
-                    return try Track
+                    return try applyDuplicateFilter(Track.all())
                         .filter(Track.Columns.year == value)
                         .order(Track.Columns.album, Track.Columns.trackNumber)
                         .fetchAll(db)
@@ -237,7 +237,7 @@ extension DatabaseManager {
                     .select(TrackArtist.Columns.trackId, as: Int64.self)
                     .fetchAll(db)
 
-                return try Track
+                return try applyDuplicateFilter(Track.all())
                     .filter(trackIds.contains(Track.Columns.trackId))
                     .fetchAll(db)
             }
@@ -349,7 +349,7 @@ extension DatabaseManager {
                     .fetchAll(db)
                 
                 // Fetch the tracks
-                return try Track
+                return try applyDuplicateFilter(Track.all())
                     .filter(trackIds.contains(Track.Columns.trackId))
                     .order(Track.Columns.album, Track.Columns.trackNumber)
                     .fetchAll(db)
@@ -366,7 +366,7 @@ extension DatabaseManager {
             return try dbQueue.read { db in
                 // If we have the album ID, use it directly - this is the most reliable way
                 if let albumId = albumEntity.albumId {
-                    return try Track
+                    return try applyDuplicateFilter(Track.all())
                         .filter(Track.Columns.albumId == albumId)
                         .order(Track.Columns.discNumber, Track.Columns.trackNumber)
                         .fetchAll(db)
@@ -387,7 +387,7 @@ extension DatabaseManager {
                 }
                 
                 // Get tracks for this album
-                return try Track
+                return try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.albumId == albumId)
                     .order(Track.Columns.discNumber, Track.Columns.trackNumber)
                     .fetchAll(db)
@@ -458,7 +458,7 @@ extension DatabaseManager {
                 }
 
                 // Add unknown placeholder if needed
-                let unknownCount = try Track
+                let unknownCount = try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.artist == "Unknown Artist")
                     .fetchCount(db)
 
@@ -508,7 +508,7 @@ extension DatabaseManager {
                 }
 
                 // Add unknown placeholder if needed
-                let unknownCount = try Track
+                let unknownCount = try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.albumArtist == "Unknown Album Artist")
                     .fetchCount(db)
 
@@ -558,7 +558,7 @@ extension DatabaseManager {
                 }
 
                 // Add unknown placeholder if needed
-                let unknownCount = try Track
+                let unknownCount = try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.composer == "Unknown Composer")
                     .fetchCount(db)
 
@@ -591,7 +591,7 @@ extension DatabaseManager {
                 for album in albums {
                     guard let albumId = album.id else { continue }
 
-                    let trackCount = try Track
+                    let trackCount = try applyDuplicateFilter(Track.all())
                         .filter(Track.Columns.albumId == albumId)
                         .fetchCount(db)
 
@@ -605,7 +605,7 @@ extension DatabaseManager {
                 }
 
                 // Add unknown album if needed
-                let unknownCount = try Track
+                let unknownCount = try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.album == "Unknown Album")
                     .filter(Track.Columns.albumId == nil)
                     .fetchCount(db)
@@ -655,7 +655,7 @@ extension DatabaseManager {
                 }
 
                 // Add unknown genre if needed
-                let unknownCount = try Track
+                let unknownCount = try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.genre == "Unknown Genre")
                     .fetchCount(db)
 
@@ -680,7 +680,7 @@ extension DatabaseManager {
         do {
             return try dbQueue.read { db in
                 // Get all tracks with valid years
-                let tracks = try Track
+                let tracks = try applyDuplicateFilter(Track.all())
                     .filter(Track.Columns.year != "")
                     .filter(Track.Columns.year != "Unknown Year")
                     .fetchAll(db)
@@ -719,7 +719,7 @@ extension DatabaseManager {
     func getYearFilterItems() -> [LibraryFilterItem] {
         do {
             return try dbQueue.read { db in
-                let years = try Track
+                let years = try applyDuplicateFilter(Track.all())
                     .select(Track.Columns.year, as: String.self)
                     .filter(Track.Columns.year != "")
                     .filter(Track.Columns.year != "Unknown Year")
@@ -730,7 +730,7 @@ extension DatabaseManager {
                 var items: [LibraryFilterItem] = []
 
                 for year in years {
-                    let count = try Track
+                    let count = try applyDuplicateFilter(Track.all())
                         .filter(Track.Columns.year == year)
                         .fetchCount(db)
 
@@ -752,7 +752,7 @@ extension DatabaseManager {
     func getAllTracks() -> [Track] {
         do {
             return try dbQueue.read { db in
-                try Track
+                try applyDuplicateFilter(Track.all())
                     .including(optional: Track.folder)
                     .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
                     .fetchAll(db)
@@ -766,6 +766,7 @@ extension DatabaseManager {
     func getTracksForFolder(_ folderId: Int64) -> [Track] {
         do {
             return try dbQueue.read { db in
+                // We do NOT want to ignore duplicates in Folders view
                 try Track
                     .filter(Track.Columns.folderId == folderId)
                     .order(Track.Columns.filename)
@@ -780,7 +781,7 @@ extension DatabaseManager {
     func getArtworkForTrack(_ trackId: Int64) -> Data? {
         do {
             return try dbQueue.read { db in
-                try Track
+                try applyDuplicateFilter(Track.all())
                     .select(Track.Columns.artworkData)
                     .filter(Track.Columns.trackId == trackId)
                     .fetchOne(db)
@@ -805,5 +806,18 @@ extension DatabaseManager {
             Logger.error("Failed to get artist ID: \(error)")
             return nil
         }
+    }
+    
+    // MARK: - Helper Methods
+
+    /// Apply duplicate filtering to a Track query if the user preference is enabled
+    private func applyDuplicateFilter(_ query: QueryInterfaceRequest<Track>) -> QueryInterfaceRequest<Track> {
+        let hideDuplicates = UserDefaults.standard.bool(forKey: "hideDuplicateTracks")
+        
+        if hideDuplicates {
+            return query.filter(Track.Columns.isDuplicate == false)
+        }
+        
+        return query
     }
 }
