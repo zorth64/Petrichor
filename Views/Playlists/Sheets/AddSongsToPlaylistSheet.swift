@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct AddSongsToPlaylistSheet: View {
+    @AppStorage("hideDuplicateTracks")
+    private var hideDuplicateTracks: Bool = true
+
     let playlist: Playlist
     @Environment(\.dismiss)
     private var dismiss
@@ -267,14 +270,18 @@ struct AddSongsToPlaylistSheet: View {
 
     private var visibleTracks: [Track] {
         let filtered: [Track]
+
+        let availableTracks = hideDuplicateTracks ?
+            libraryManager.tracks.filter { !$0.isDuplicate } :
+            libraryManager.tracks
+        
         if searchText.isEmpty {
             // No search - show all library tracks (playlist status will be determined by playlistTrackIDs)
-            filtered = libraryManager.tracks
+            filtered = availableTracks
         } else {
             // When searching, only show library tracks that match
-            // (playlist status will be determined by playlistTrackIDs)
             let searchLower = searchText.lowercased()
-            filtered = libraryManager.tracks.filter { track in
+            filtered = availableTracks.filter { track in
                 track.title.lowercased().contains(searchLower) ||
                 track.artist.lowercased().contains(searchLower) ||
                 track.album.lowercased().contains(searchLower) ||
@@ -282,7 +289,6 @@ struct AddSongsToPlaylistSheet: View {
             }
         }
 
-        // Then sort
         return filtered.sorted { track1, track2 in
             switch sortOrder {
             case .title:

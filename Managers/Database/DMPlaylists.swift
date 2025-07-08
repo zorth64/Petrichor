@@ -106,7 +106,7 @@ extension DatabaseManager {
     
     func loadAllPlaylists() -> [Playlist] {
         do {
-            return try dbQueue.read { db in
+            var playlists = try dbQueue.read { db in
                 // Fetch all playlists
                 var playlists = try Playlist.fetchAll(db)
                 
@@ -128,8 +128,8 @@ extension DatabaseManager {
                     // Get all unique track IDs
                     let allTrackIds = Set(allPlaylistTracks.map { $0.trackId })
                     
-                    // Fetch all tracks at once
-                    let tracks = try Track
+                    // Fetch all tracks at once, applying duplicate filter
+                    let tracks = try self.applyDuplicateFilter(Track.all())
                         .filter(allTrackIds.contains(Track.Columns.trackId))
                         .fetchAll(db)
                     
@@ -158,6 +158,39 @@ extension DatabaseManager {
                 
                 return playlists
             }
+            
+            // Collect ALL tracks from ALL playlists into a single array
+            var allPlaylistTracks = [Track]()
+            for playlist in playlists where playlist.type == PlaylistType.regular {
+                allPlaylistTracks.append(contentsOf: playlist.tracks)
+            }
+            
+            // Single batch operation to populate album artwork for all tracks
+            if !allPlaylistTracks.isEmpty {
+                populateAlbumArtworkForTracks(&allPlaylistTracks)
+                
+                // Now map the updated tracks back to their playlists
+                var trackMap = [Int64: Track]()
+                for track in allPlaylistTracks {
+                    if let trackId = track.trackId {
+                        trackMap[trackId] = track
+                    }
+                }
+                
+                // Update tracks in each playlist with the populated artwork
+                for index in playlists.indices {
+                    if playlists[index].type == .regular {
+                        for trackIndex in playlists[index].tracks.indices {
+                            if let trackId = playlists[index].tracks[trackIndex].trackId,
+                               let updatedTrack = trackMap[trackId] {
+                                playlists[index].tracks[trackIndex] = updatedTrack
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return playlists
         } catch {
             Logger.error("Failed to load playlists: \(error)")
             return []

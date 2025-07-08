@@ -878,7 +878,7 @@ extension DatabaseManager {
     // MARK: - Helper Methods
 
     /// Apply duplicate filtering to a Track query if the user preference is enabled
-    private func applyDuplicateFilter(_ query: QueryInterfaceRequest<Track>) -> QueryInterfaceRequest<Track> {
+    func applyDuplicateFilter(_ query: QueryInterfaceRequest<Track>) -> QueryInterfaceRequest<Track> {
         let hideDuplicates = UserDefaults.standard.bool(forKey: "hideDuplicateTracks")
         
         if hideDuplicates {
