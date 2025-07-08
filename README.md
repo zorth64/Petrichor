@@ -71,12 +71,12 @@ _P.S. I plan publish it on Homebrew soon._
 ### 📷 Screenshots
 
 <div align="center">
-<img src=".github/assets/screenshot_1-min.png" width="392" alt="Screenshot"/>
-<img src=".github/assets/screenshot_2-min.png" width="392" alt="Screenshot"/>
-<img src=".github/assets/screenshot_3-min.png" width="392" alt="Screenshot"/>
-<img src=".github/assets/screenshot_4-min.png" width="392" alt="Screenshot"/>
-<img src=".github/assets/screenshot_5-min.png" width="392" alt="Screenshot"/>
-<img src=".github/assets/screenshot_6-min.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_1.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_2.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_3.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_4.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_5.png" width="392" alt="Screenshot"/>
+<img src=".github/assets/screenshot_6.png" width="392" alt="Screenshot"/>
 </div>
 
 ## 🏗️ Development
