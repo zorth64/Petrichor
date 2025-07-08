@@ -6,9 +6,9 @@ struct GeneralTabView: View {
 
     @AppStorage("closeToMenubar")
     private var closeToMenubar = true
-
-    @AppStorage("showNotifications")
-    private var showNotifications = true
+    
+    @AppStorage("hideDuplicateTracks")
+    private var hideDuplicateTracks: Bool = true
 
     @AppStorage("autoScanInterval")
     private var autoScanInterval: AutoScanInterval = .every60Minutes
@@ -46,8 +46,11 @@ struct GeneralTabView: View {
         Form {
             Section("Behavior") {
                 Toggle("Start at login", isOn: $startAtLogin)
+                    .help("Starts app on login")
                 Toggle("Keep running in menubar on close", isOn: $closeToMenubar)
-                Toggle("Show notifications for new tracks", isOn: $showNotifications)
+                    .help("Keeps the app running in the menubar even after closing")
+                Toggle("Hide duplicate songs (requires app relaunch)", isOn: $hideDuplicateTracks)
+                    .help("Shows only the highest quality version when multiple copies exist")
             }
 
             Section("Appearance") {
@@ -63,6 +66,7 @@ struct GeneralTabView: View {
                 }
 
                 Toggle("Show folders tab in main window", isOn: $showFoldersTab)
+                    .help("Shows Folders tab within the main window to browse music directly from added folders")
             }
 
             Section("Library Scanning") {
@@ -72,6 +76,7 @@ struct GeneralTabView: View {
                             Text(interval.displayName).tag(interval)
                         }
                     }
+                    .help("Automatically scan for new music in the library on selected interval")
                     .pickerStyle(.menu)
                     .frame(maxWidth: .infinity)
                 }
