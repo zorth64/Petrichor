@@ -54,8 +54,8 @@ extension DatabaseManager {
             t.column("members", .text) // JSON array
 
             // Stats
-            t.column("total_tracks", .integer).notNull().defaults(to: 0)
-            t.column("total_albums", .integer).notNull().defaults(to: 0)
+            t.column("total_tracks", .integer).notNull().defaults(to: 0).check { $0 >= 0 }
+            t.column("total_albums", .integer).notNull().defaults(to: 0).check { $0 >= 0 }
 
             t.column("created_at", .datetime).notNull()
             t.column("updated_at", .datetime).notNull()
@@ -74,10 +74,10 @@ extension DatabaseManager {
 
             // Album metadata
             t.column("release_date", .text)
-            t.column("release_year", .integer)
+            t.column("release_year", .integer).check { $0 == nil || ($0 >= 1900 && $0 <= 2100) }
             t.column("album_type", .text)
-            t.column("total_tracks", .integer)
-            t.column("total_discs", .integer)
+            t.column("total_tracks", .integer).check { $0 == nil || $0 >= 0 }
+            t.column("total_discs", .integer).check { $0 == nil || $0 >= 0 }
 
             // External API metadata
             t.column("description", .text)
@@ -139,7 +139,7 @@ extension DatabaseManager {
             t.column("composer", .text)
             t.column("genre", .text)
             t.column("year", .text)
-            t.column("duration", .double)
+            t.column("duration", .double).check { $0 >= 0 }
             t.column("format", .text)
             t.column("file_size", .integer)
             t.column("date_added", .datetime).notNull()
@@ -156,11 +156,11 @@ extension DatabaseManager {
 
             // Additional metadata
             t.column("album_artist", .text)
-            t.column("track_number", .integer)
+            t.column("track_number", .integer).check { $0 == nil || $0 > 0 }
             t.column("total_tracks", .integer)
-            t.column("disc_number", .integer)
+            t.column("disc_number", .integer).check { $0 == nil || $0 > 0 }
             t.column("total_discs", .integer)
-            t.column("rating", .integer)
+            t.column("rating", .integer).check { $0 == nil || ($0 >= 0 && $0 <= 5) }
             t.column("compilation", .boolean).defaults(to: false)
             t.column("release_date", .text)
             t.column("original_release_date", .text)
@@ -168,7 +168,7 @@ extension DatabaseManager {
             t.column("media_type", .text)
 
             // Audio properties
-            t.column("bitrate", .integer)
+            t.column("bitrate", .integer).check { $0 == nil || $0 > 0 }
             t.column("sample_rate", .integer)
             t.column("channels", .integer)
             t.column("codec", .text)
@@ -273,13 +273,15 @@ extension DatabaseManager {
         try db.create(index: "idx_tracks_media_type", on: "tracks", columns: ["media_type"], ifNotExists: true)
         
         // Duplicate tracking indices
+        try db.create(index: "idx_tracks_primary_track_id", on: "tracks", columns: ["primary_track_id"], ifNotExists: true)
         try db.create(index: "idx_tracks_is_duplicate", on: "tracks", columns: ["is_duplicate"], ifNotExists: true)
         try db.create(index: "idx_tracks_duplicate_group_id", on: "tracks", columns: ["duplicate_group_id"], ifNotExists: true)
 
         // Artists table indices
-        try db.create(index: "idx_artists_normalized_name", on: "artists", columns: ["normalized_name"], ifNotExists: true)
+        try db.create(index: "idx_artists_normalized_name_unique", on: "artists", columns: ["normalized_name"], unique: true, ifNotExists: true)
 
         // Albums table indices
+        try db.create(index: "idx_albums_title_year", on: "albums", columns: ["normalized_title", "release_year"], ifNotExists: true)
         try db.create(index: "idx_albums_normalized_title", on: "albums", columns: ["normalized_title"], ifNotExists: true)
         try db.create(index: "idx_albums_release_year", on: "albums", columns: ["release_year"], ifNotExists: true)
         
