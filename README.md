@@ -93,7 +93,8 @@ itch and learn Swift and macOS app development along the way!
 - Built entirely with Swift and SwiftUI for the best macOS integration.
 - Once folders are added, the app scans them and populates a SQLite database using [GRDB](https://github.com/groue/GRDB.swift/).
 - Petrichor does **not** alter your music files, it only reads from the directories you add.
-- Playback is powered entirely by [AVFoundation](https://developer.apple.com/av-foundation/).
+- Tracks searching is powered by [SQLite FTS5](https://www.sqlite.org/fts5.html) with fall-back to in-memory search.
+- Playback is powered by [AVFoundation](https://developer.apple.com/av-foundation/).
 
 <details>
 <summary>View Database Schema</summary>
@@ -113,7 +114,7 @@ erDiagram
     artists {
         INTEGER id PK "AUTO_INCREMENT"
         TEXT name "NOT NULL"
-        TEXT normalized_name "NOT NULL"
+        TEXT normalized_name "NOT NULL UNIQUE"
         TEXT sort_name
         BLOB artwork_data
         TEXT bio
@@ -132,8 +133,8 @@ erDiagram
         TEXT genres "JSON array"
         TEXT websites "JSON array"
         TEXT members "JSON array"
-        INTEGER total_tracks "NOT NULL DEFAULT 0"
-        INTEGER total_albums "NOT NULL DEFAULT 0"
+        INTEGER total_tracks "NOT NULL DEFAULT 0 CHECK >= 0"
+        INTEGER total_albums "NOT NULL DEFAULT 0 CHECK >= 0"
         DATETIME created_at "NOT NULL"
         DATETIME updated_at "NOT NULL"
     }
@@ -145,10 +146,10 @@ erDiagram
         TEXT sort_title
         BLOB artwork_data
         TEXT release_date
-        INTEGER release_year
+        INTEGER release_year "CHECK 1900-2100"
         TEXT album_type
-        INTEGER total_tracks
-        INTEGER total_discs
+        INTEGER total_tracks "CHECK >= 0"
+        INTEGER total_discs "CHECK >= 0"
         TEXT description
         TEXT review
         TEXT review_source
@@ -190,12 +191,12 @@ erDiagram
         TEXT composer
         TEXT genre
         TEXT year
-        REAL duration
+        REAL duration "CHECK >= 0"
         TEXT format
         INTEGER file_size
         DATETIME date_added "NOT NULL"
         DATETIME date_modified
-        BLOB artwork_data
+        BLOB track_artwork_data
         BOOLEAN is_favorite "NOT NULL DEFAULT false"
         INTEGER play_count "NOT NULL DEFAULT 0"
         DATETIME last_played_date
@@ -203,18 +204,18 @@ erDiagram
         INTEGER primary_track_id FK
         TEXT duplicate_group_id
         TEXT album_artist
-        INTEGER track_number
+        INTEGER track_number "CHECK > 0"
         INTEGER total_tracks
-        INTEGER disc_number
+        INTEGER disc_number "CHECK > 0"
         INTEGER total_discs
-        INTEGER rating "0-5 scale"
+        INTEGER rating "CHECK 0-5"
         BOOLEAN compilation "DEFAULT false"
         TEXT release_date
         TEXT original_release_date
         INTEGER bpm
         TEXT media_type "Music/Audiobook/Podcast"
-        INTEGER bitrate "kbps"
-        INTEGER sample_rate "Hz"
+        INTEGER bitrate "CHECK > 0"
+        INTEGER sample_rate
         INTEGER channels "1=mono, 2=stereo"
         TEXT codec
         INTEGER bit_depth
@@ -273,6 +274,17 @@ erDiagram
         DATETIME date_added "NOT NULL"
     }
 
+    tracks_fts {
+        INTEGER track_id "NOT INDEXED"
+        TEXT title
+        TEXT artist
+        TEXT album
+        TEXT album_artist
+        TEXT composer
+        TEXT genre
+        TEXT year
+    }
+
     folders ||--o{ tracks : contains
     albums ||--o{ album_artists : "has artists"
     artists ||--o{ album_artists : "appears on"
@@ -284,6 +296,7 @@ erDiagram
     tracks ||--o{ track_genres : "has genres"
     playlists ||--o{ playlist_tracks : contains
     tracks ||--o{ playlist_tracks : "appears in"
+    tracks ||--|| tracks_fts : "searchable in"
 ```
 
 </details>
