@@ -41,6 +41,7 @@ extension PlaylistManager {
 
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        audioPlayer?.updateNowPlayingInfo()
         Logger.info("Played track: \(track.url)")
     }
 
@@ -66,6 +67,7 @@ extension PlaylistManager {
 
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        audioPlayer?.updateNowPlayingInfo()
         Logger.info("Played track: \(track.url)")
     }
 
@@ -92,6 +94,7 @@ extension PlaylistManager {
 
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        audioPlayer?.updateNowPlayingInfo()
         Logger.info("Played track: \(track.url)")
     }
 
@@ -127,6 +130,7 @@ extension PlaylistManager {
         let track = currentQueue[nextIndex]
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        audioPlayer?.updateNowPlayingInfo()
         Logger.info("Played track: \(track.url)")
     }
 
@@ -160,6 +164,7 @@ extension PlaylistManager {
         let track = currentQueue[prevIndex]
         incrementPlayCount(for: track)
         audioPlayer?.playTrack(track)
+        audioPlayer?.updateNowPlayingInfo()
         Logger.info("Played track: \(track.url)")
     }
 

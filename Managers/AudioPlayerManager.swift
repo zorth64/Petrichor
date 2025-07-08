@@ -242,6 +242,15 @@ class AudioPlayerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     // MARK: - Helpers
 
+    func updateNowPlayingInfo() {
+        guard let track = currentTrack else { return }
+        nowPlayingManager.updateNowPlayingInfo(
+            track: track,
+            currentTime: currentTime,
+            isPlaying: isPlaying
+        )
+    }
+
     // Prepare track for restoration without immediately playing
     func prepareTrackForRestoration(_ track: Track, at position: Double) {
         // Clear any restored UI state
