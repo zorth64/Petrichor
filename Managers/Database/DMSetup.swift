@@ -2,15 +2,44 @@
 // DatabaseManager class extension
 //
 // This extension contains methods for setting up database schema and seed initial data.
+// Updated to use migration helpers and static methods.
 //
 
 import Foundation
 import GRDB
 
 extension DatabaseManager {
+    // MARK: - Main Setup Method (Static)
+    static func setupDatabaseSchema(in db: Database) throws {
+        // Create tables in dependency order
+        try createFoldersTable(in: db)
+        try createArtistsTable(in: db)
+        try createAlbumsTable(in: db)
+        try createAlbumArtistsTable(in: db)
+        try createGenresTable(in: db)
+        try createTracksTable(in: db)
+        try createPlaylistsTable(in: db)
+        try createPlaylistTracksTable(in: db)
+        try createTrackArtistsTable(in: db)
+        try createTrackGenresTable(in: db)
+        try createPinnedItemsTable(in: db)
+
+        // Create all indices
+        try createIndices(in: db)
+        
+        // Create FTS5 search index
+        try createFTSTable(in: db)
+        
+        // Seed default data
+        try seedDefaultPlaylists(in: db)
+        try seedDefaultPinnedItems(in: db)
+        
+        Logger.info("Database schema setup completed")
+    }
+    
     // MARK: - Folders Table
-    func createFoldersTable(in db: Database) throws {
-        try db.create(table: "folders", ifNotExists: true) { t in
+    static func createFoldersTable(in db: Database) throws {
+        try db.createTableIfNotExists("folders") { t in
             t.autoIncrementedPrimaryKey("id")
             t.column("name", .text).notNull()
             t.column("path", .text).notNull().unique()
@@ -23,8 +52,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Artists Table
-    func createArtistsTable(in db: Database) throws {
-        try db.create(table: "artists", ifNotExists: true) { t in
+    static func createArtistsTable(in db: Database) throws {
+        try db.createTableIfNotExists("artists") { t in
             t.autoIncrementedPrimaryKey("id")
             t.column("name", .text).notNull()
             t.column("normalized_name", .text).notNull()
@@ -64,8 +93,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Albums Table
-    func createAlbumsTable(in db: Database) throws {
-        try db.create(table: "albums", ifNotExists: true) { t in
+    static func createAlbumsTable(in db: Database) throws {
+        try db.createTableIfNotExists("albums") { t in
             t.autoIncrementedPrimaryKey("id")
             t.column("title", .text).notNull()
             t.column("normalized_title", .text).notNull()
@@ -105,8 +134,8 @@ extension DatabaseManager {
     }
     
     // MARK: - Album Artists Junction Table
-    func createAlbumArtistsTable(in db: Database) throws {
-        try db.create(table: "album_artists", ifNotExists: true) { t in
+    static func createAlbumArtistsTable(in db: Database) throws {
+        try db.createTableIfNotExists("album_artists") { t in
             t.column("album_id", .integer).notNull().references("albums", onDelete: .cascade)
             t.column("artist_id", .integer).notNull().references("artists", onDelete: .cascade)
             t.column("role", .text).notNull().defaults(to: "primary")
@@ -117,8 +146,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Genres Table
-    func createGenresTable(in db: Database) throws {
-        try db.create(table: "genres", ifNotExists: true) { t in
+    static func createGenresTable(in db: Database) throws {
+        try db.createTableIfNotExists("genres") { t in
             t.autoIncrementedPrimaryKey("id")
             t.column("name", .text).notNull().unique()
         }
@@ -126,8 +155,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Tracks Table
-    func createTracksTable(in db: Database) throws {
-        try db.create(table: "tracks", ifNotExists: true) { t in
+    static func createTracksTable(in db: Database) throws {
+        try db.createTableIfNotExists("tracks") { t in
             t.autoIncrementedPrimaryKey("id")
             t.column("folder_id", .integer).notNull().references("folders", onDelete: .cascade)
             t.column("album_id", .integer).references("albums", onDelete: .setNull)
@@ -187,8 +216,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Playlists Table
-    func createPlaylistsTable(in db: Database) throws {
-        try db.create(table: "playlists", ifNotExists: true) { t in
+    static func createPlaylistsTable(in db: Database) throws {
+        try db.createTableIfNotExists("playlists") { t in
             t.column("id", .text).primaryKey()
             t.column("name", .text).notNull()
             t.column("type", .text).notNull()
@@ -204,8 +233,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Playlist Tracks Table
-    func createPlaylistTracksTable(in db: Database) throws {
-        try db.create(table: "playlist_tracks", ifNotExists: true) { t in
+    static func createPlaylistTracksTable(in db: Database) throws {
+        try db.createTableIfNotExists("playlist_tracks") { t in
             t.column("playlist_id", .text).notNull().references("playlists", column: "id", onDelete: .cascade)
             t.column("track_id", .integer).notNull().references("tracks", column: "id", onDelete: .cascade)
             t.column("position", .integer).notNull()
@@ -216,8 +245,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Track Artists Junction Table
-    func createTrackArtistsTable(in db: Database) throws {
-        try db.create(table: "track_artists", ifNotExists: true) { t in
+    static func createTrackArtistsTable(in db: Database) throws {
+        try db.createTableIfNotExists("track_artists") { t in
             t.column("track_id", .integer).notNull().references("tracks", onDelete: .cascade)
             t.column("artist_id", .integer).notNull().references("artists", onDelete: .cascade)
             t.column("role", .text).notNull().defaults(to: "artist")
@@ -228,8 +257,8 @@ extension DatabaseManager {
     }
 
     // MARK: - Track Genres Junction Table
-    func createTrackGenresTable(in db: Database) throws {
-        try db.create(table: "track_genres", ifNotExists: true) { t in
+    static func createTrackGenresTable(in db: Database) throws {
+        try db.createTableIfNotExists("track_genres") { t in
             t.column("track_id", .integer).notNull().references("tracks", onDelete: .cascade)
             t.column("genre_id", .integer).notNull().references("genres", onDelete: .cascade)
             t.primaryKey(["track_id", "genre_id"])
@@ -238,8 +267,8 @@ extension DatabaseManager {
     }
     
     // MARK: - Pinned Items Table
-    func createPinnedItemsTable(in db: Database) throws {
-        try db.create(table: "pinned_items", ifNotExists: true) { t in
+    static func createPinnedItemsTable(in db: Database) throws {
+        try db.createTableIfNotExists("pinned_items") { t in
             t.autoIncrementedPrimaryKey("id")
             t.column("item_type", .text).notNull() // "library" or "playlist"
             t.column("filter_type", .text) // For library items: artists, albums, etc.
@@ -258,7 +287,7 @@ extension DatabaseManager {
     }
     
     // MARK: - FTS5 Search Table
-    func createFTSTable(in db: Database) throws {
+    static func createFTSTable(in db: Database) throws {
         // Create FTS5 virtual table for tracks
         try db.create(virtualTable: "tracks_fts", ifNotExists: true, using: FTS5()) { t in
             t.column("track_id").notIndexed()
@@ -283,7 +312,7 @@ extension DatabaseManager {
     }
 
     // MARK: - FTS5 Triggers
-    private func createFTSTriggers(in db: Database) throws {
+    private static func createFTSTriggers(in db: Database) throws {
         // Trigger for new tracks
         try db.execute(sql: """
             CREATE TRIGGER IF NOT EXISTS tracks_fts_insert
@@ -327,7 +356,7 @@ extension DatabaseManager {
     }
 
     // MARK: - Populate FTS Table
-    private func populateFTSTable(in db: Database) throws {
+    private static func populateFTSTable(in db: Database) throws {
         // Check if FTS table already has data
         let ftsCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM tracks_fts") ?? 0
         
@@ -350,54 +379,55 @@ extension DatabaseManager {
     }
 
     // MARK: - Create All Indices
-    func createIndices(in db: Database) throws {
+    static func createIndices(in db: Database) throws {
         // Tracks table indices
-        try db.create(index: "idx_tracks_folder_id", on: "tracks", columns: ["folder_id"], ifNotExists: true)
-        try db.create(index: "idx_tracks_album_id", on: "tracks", columns: ["album_id"], ifNotExists: true)
-        try db.create(index: "idx_tracks_artist", on: "tracks", columns: ["artist"], ifNotExists: true)
-        try db.create(index: "idx_tracks_album", on: "tracks", columns: ["album"], ifNotExists: true)
-        try db.create(index: "idx_tracks_composer", on: "tracks", columns: ["composer"], ifNotExists: true)
-        try db.create(index: "idx_tracks_genre", on: "tracks", columns: ["genre"], ifNotExists: true)
-        try db.create(index: "idx_tracks_year", on: "tracks", columns: ["year"], ifNotExists: true)
-        try db.create(index: "idx_tracks_album_artist", on: "tracks", columns: ["album_artist"], ifNotExists: true)
-        try db.create(index: "idx_tracks_rating", on: "tracks", columns: ["rating"], ifNotExists: true)
-        try db.create(index: "idx_tracks_compilation", on: "tracks", columns: ["compilation"], ifNotExists: true)
-        try db.create(index: "idx_tracks_media_type", on: "tracks", columns: ["media_type"], ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_tracks_folder_id", table: "tracks", columns: ["folder_id"])
+        try db.createIndexIfNotExists(name: "idx_tracks_album_id", table: "tracks", columns: ["album_id"])
+        try db.createIndexIfNotExists(name: "idx_tracks_artist", table: "tracks", columns: ["artist"])
+        try db.createIndexIfNotExists(name: "idx_tracks_album", table: "tracks", columns: ["album"])
+        try db.createIndexIfNotExists(name: "idx_tracks_composer", table: "tracks", columns: ["composer"])
+        try db.createIndexIfNotExists(name: "idx_tracks_genre", table: "tracks", columns: ["genre"])
+        try db.createIndexIfNotExists(name: "idx_tracks_year", table: "tracks", columns: ["year"])
+        try db.createIndexIfNotExists(name: "idx_tracks_album_artist", table: "tracks", columns: ["album_artist"])
+        try db.createIndexIfNotExists(name: "idx_tracks_is_favorite", table: "tracks", columns: ["is_favorite"])
+        try db.createIndexIfNotExists(name: "idx_tracks_rating", table: "tracks", columns: ["rating"])
+        try db.createIndexIfNotExists(name: "idx_tracks_compilation", table: "tracks", columns: ["compilation"])
+        try db.createIndexIfNotExists(name: "idx_tracks_media_type", table: "tracks", columns: ["media_type"])
         
         // Duplicate tracking indices
-        try db.create(index: "idx_tracks_primary_track_id", on: "tracks", columns: ["primary_track_id"], ifNotExists: true)
-        try db.create(index: "idx_tracks_is_duplicate", on: "tracks", columns: ["is_duplicate"], ifNotExists: true)
-        try db.create(index: "idx_tracks_duplicate_group_id", on: "tracks", columns: ["duplicate_group_id"], ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_tracks_primary_track_id", table: "tracks", columns: ["primary_track_id"])
+        try db.createIndexIfNotExists(name: "idx_tracks_is_duplicate", table: "tracks", columns: ["is_duplicate"])
+        try db.createIndexIfNotExists(name: "idx_tracks_duplicate_group_id", table: "tracks", columns: ["duplicate_group_id"])
 
         // Artists table indices
-        try db.create(index: "idx_artists_normalized_name_unique", on: "artists", columns: ["normalized_name"], unique: true, ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_artists_normalized_name_unique", table: "artists", columns: ["normalized_name"], unique: true)
 
         // Albums table indices
-        try db.create(index: "idx_albums_title_year", on: "albums", columns: ["normalized_title", "release_year"], ifNotExists: true)
-        try db.create(index: "idx_albums_normalized_title", on: "albums", columns: ["normalized_title"], ifNotExists: true)
-        try db.create(index: "idx_albums_release_year", on: "albums", columns: ["release_year"], ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_albums_title_year", table: "albums", columns: ["normalized_title", "release_year"])
+        try db.createIndexIfNotExists(name: "idx_albums_normalized_title", table: "albums", columns: ["normalized_title"])
+        try db.createIndexIfNotExists(name: "idx_albums_release_year", table: "albums", columns: ["release_year"])
         
         // Album artists junction table indices
-        try db.create(index: "idx_album_artists_album_id", on: "album_artists", columns: ["album_id"], ifNotExists: true)
-        try db.create(index: "idx_album_artists_artist_id", on: "album_artists", columns: ["artist_id"], ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_album_artists_album_id", table: "album_artists", columns: ["album_id"])
+        try db.createIndexIfNotExists(name: "idx_album_artists_artist_id", table: "album_artists", columns: ["artist_id"])
 
         // Playlist tracks index
-        try db.create(index: "idx_playlist_tracks_playlist_id", on: "playlist_tracks", columns: ["playlist_id"], ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_playlist_tracks_playlist_id", table: "playlist_tracks", columns: ["playlist_id"])
 
         // Junction table indices
-        try db.create(index: "idx_track_artists_artist_id", on: "track_artists", columns: ["artist_id"], ifNotExists: true)
-        try db.create(index: "idx_track_artists_track_id", on: "track_artists", columns: ["track_id"], ifNotExists: true)
-        try db.create(index: "idx_track_genres_genre_id", on: "track_genres", columns: ["genre_id"], ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_track_artists_artist_id", table: "track_artists", columns: ["artist_id"])
+        try db.createIndexIfNotExists(name: "idx_track_artists_track_id", table: "track_artists", columns: ["track_id"])
+        try db.createIndexIfNotExists(name: "idx_track_genres_genre_id", table: "track_genres", columns: ["genre_id"])
         
         // Pinned items indices
-        try db.create(index: "idx_pinned_items_sort_order", on: "pinned_items", columns: ["sort_order"], ifNotExists: true)
-        try db.create(index: "idx_pinned_items_item_type", on: "pinned_items", columns: ["item_type"], ifNotExists: true)
+        try db.createIndexIfNotExists(name: "idx_pinned_items_sort_order", table: "pinned_items", columns: ["sort_order"])
+        try db.createIndexIfNotExists(name: "idx_pinned_items_item_type", table: "pinned_items", columns: ["item_type"])
         
         Logger.info("Created column indices")
     }
     
     // MARK: - Seed Default Playlists
-    func seedDefaultPlaylists(in db: Database) throws {
+    static func seedDefaultPlaylists(in db: Database) throws {
         // Check if playlists table is empty (first time setup)
         let playlistCount = try Playlist.fetchCount(db)
         
@@ -414,7 +444,7 @@ extension DatabaseManager {
     }
     
     // MARK: - Seed Default Pinned Items
-    func seedDefaultPinnedItems(in db: Database) throws {
+    static func seedDefaultPinnedItems(in db: Database) throws {
         // Check if pinned_items table is empty (first time setup)
         let pinnedCount = try PinnedItem.fetchCount(db)
         
@@ -446,6 +476,13 @@ extension DatabaseManager {
                 try savedItem.insert(db)
                 Logger.info("Pinned default playlist: \(mostPlayed.name)")
             }
+        }
+    }
+    
+    // MARK: - Instance Methods
+    func setupDatabase() throws {
+        try dbQueue.write { db in
+            try DatabaseManager.setupDatabaseSchema(in: db)
         }
     }
 }

@@ -46,40 +46,11 @@ class DatabaseManager: ObservableObject {
         // Initialize database queue with configuration
         dbQueue = try DatabaseQueue(path: dbPath, configuration: config)
 
-        // Setup database schema
-        try setupDatabase()
+        // Use migration system for both new and existing databases
+        try DatabaseMigrator.migrate(dbQueue)
     }
 
-    // MARK: - Database Setup
-
-    private func setupDatabase() throws {
-        try dbQueue.write { db in
-            // Create tables in dependency order
-            try createFoldersTable(in: db)
-            try createArtistsTable(in: db)
-            try createAlbumsTable(in: db)
-            try createAlbumArtistsTable(in: db)
-            try createGenresTable(in: db)
-            try createTracksTable(in: db)
-            try createPlaylistsTable(in: db)
-            try createPlaylistTracksTable(in: db)
-            try createTrackArtistsTable(in: db)
-            try createTrackGenresTable(in: db)
-            try createPinnedItemsTable(in: db)
-
-            // Create all indices
-            try createIndices(in: db)
-            
-            // Create FTS5 search index
-            try createFTSTable(in: db)
-            
-            // Seed default data
-            try seedDefaultPlaylists(in: db)
-            try seedDefaultPinnedItems(in: db)
-            
-            Logger.info("Database schema setup completed")
-        }
-    }
+    // MARK: - Database Maintenance
 
     func checkpoint() {
         do {
@@ -92,13 +63,57 @@ class DatabaseManager: ObservableObject {
         }
     }
 
+    // MARK: - Migration Status
+    
+    /// Check if database needs migration
+    func needsMigration() -> Bool {
+        DatabaseMigrator.hasUnappliedMigrations(dbQueue)
+    }
+    
+    /// Get list of applied migrations
+    func getAppliedMigrations() -> [String] {
+        DatabaseMigrator.appliedMigrations(dbQueue)
+    }
+
     // MARK: - Helper Methods
 
-    // Clean up database file
+    /// Clean up database file and recreate schema
+    /// Warning: This will delete all data!
     func resetDatabase() throws {
         try dbQueue.erase()
-        try setupDatabase()
+        
+        // Re-run migrations on the fresh database
+        try DatabaseMigrator.migrate(dbQueue)
+        
         Logger.info("Database reset completed")
+    }
+    
+    /// Get database file size in bytes
+    func getDatabaseSize() -> Int64? {
+        let fileManager = FileManager.default
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: dbPath)
+            return attributes[.size] as? Int64
+        } catch {
+            Logger.error("Failed to get database size: \(error)")
+            return nil
+        }
+    }
+    
+    /// Vacuum the database to reclaim space
+    func vacuumDatabase() async throws {
+        try await dbQueue.writeWithoutTransaction { db in
+            try db.execute(sql: "VACUUM")
+        }
+        Logger.info("Database vacuum completed")
+    }
+    
+    /// Analyze the database to update statistics
+    func analyzeDatabase() async throws {
+        try await dbQueue.writeWithoutTransaction { db in
+            try db.execute(sql: "ANALYZE")
+        }
+        Logger.info("Database analyze completed")
     }
 }
 
@@ -113,6 +128,18 @@ enum TrackProcessResult {
 enum DatabaseError: Error {
     case invalidTrackId
     case updateFailed
+    case migrationFailed(String)
+    
+    var localizedDescription: String {
+        switch self {
+        case .invalidTrackId:
+            return "Invalid track ID"
+        case .updateFailed:
+            return "Failed to update database"
+        case .migrationFailed(let message):
+            return "Migration failed: \(message)"
+        }
+    }
 }
 
 // MARK: - Array Extension
