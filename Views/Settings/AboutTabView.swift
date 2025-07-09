@@ -125,40 +125,64 @@ struct AboutTabView: View {
     private var footerSection: some View {
         HStack(spacing: 20) {
             FooterLink(
-                title: "Visit website",
-                systemImage: "globe"
-            ) {
-                    if let url = URL(string: About.appWebsite) {
-                        NSWorkspace.shared.open(url)
-                    }
-            }
+                icon: "globe",
+                title: "Website",
+                url: URL(string: About.appWebsite)!,
+                tooltip: "Visit project website"
+            )
             
             FooterLink(
-                title: "Show app data in Finder",
-                systemImage: "folder",
-                action: openAppDataInFinder
+                icon: "folder",
+                title: "App Data",
+                action: {
+                    let appDataURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+                        .appendingPathComponent(Bundle.main.bundleIdentifier ?? About.bundleIdentifier)
+                    
+                    if let url = appDataURL {
+                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: url.path)
+                    }
+                },
+                tooltip: "Show app data directory in Finder"
             )
         }
     }
     
     private struct FooterLink: View {
+        let icon: String
         let title: String
-        let systemImage: String
-        let action: () -> Void
+        var url: URL?
+        var action: (() -> Void)?
+        let tooltip: String
         
         @State private var isHovered = false
         
         var body: some View {
-            Button(action: action) {
-                Label(title, systemImage: systemImage)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(isHovered ? .accentColor : .secondary)
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: AnimationDuration.standardDuration)) {
-                    isHovered = hovering
+            if let url = url {
+                Link(destination: url) {
+                    linkContent
                 }
+                .buttonStyle(.plain)
+                .help(tooltip)
+            } else if let action = action {
+                Button(action: action) {
+                    linkContent
+                }
+                .buttonStyle(.plain)
+                .help(tooltip)
+            }
+        }
+        
+        private var linkContent: some View {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                Text(title)
+                    .font(.system(size: 12))
+            }
+            .foregroundColor(isHovered ? .accentColor : .secondary)
+            .underline(isHovered)
+            .onHover { hovering in
+                isHovered = hovering
             }
         }
     }
