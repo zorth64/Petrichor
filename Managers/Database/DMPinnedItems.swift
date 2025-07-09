@@ -74,6 +74,20 @@ extension DatabaseManager {
         }
     }
     
+    /// Get all pinned items synchronously for initial load
+    func getPinnedItemsSync() -> [PinnedItem] {
+        do {
+            return try dbQueue.read { db in
+                try PinnedItem
+                    .order(PinnedItem.Columns.sortOrder)
+                    .fetchAll(db)
+            }
+        } catch {
+            Logger.error("Failed to load pinned items synchronously: \(error)")
+            return []
+        }
+    }
+    
     /// Update the sort order of pinned items
     func updatePinnedItemsOrder(_ items: [PinnedItem]) async throws {
         try await dbQueue.write { db in

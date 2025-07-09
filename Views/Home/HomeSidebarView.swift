@@ -6,6 +6,8 @@ struct HomeSidebarView: View {
     @Binding var selectedItem: HomeSidebarItem?
     
     @State private var allItems: [HomeSidebarItem] = []
+    @State private var hasLoadedInitialCounts = false
+    @State private var pinnedItemTrackCounts: [Int64: Int] = [:]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,6 +64,13 @@ struct HomeSidebarView: View {
         .onAppear {
             updateAllItems()
             updateSelectedItem()
+
+            if !hasLoadedInitialCounts {
+                hasLoadedInitialCounts = true
+                Task {
+                    await updatePinnedItemTrackCounts()
+                }
+            }
         }
         .onChange(of: libraryManager.tracks.count) {
             updateAllItems()
@@ -94,17 +103,9 @@ struct HomeSidebarView: View {
             HomeSidebarItem(type: .albums, albumCount: albumCount)
         ]
 
-        // Add pinned items with track counts
         let pinnedSidebarItems = libraryManager.pinnedItems.map { pinnedItem in
-            let trackCount: Int
-            switch pinnedItem.itemType {
-            case .library:
-                trackCount = libraryManager.getTracksForPinnedItem(pinnedItem).count
-            case .playlist:
-                trackCount = playlistManager.getTracksForPinnedPlaylist(pinnedItem).count
-            }
-            
-            return HomeSidebarItem(pinnedItem: pinnedItem, trackCount: trackCount)
+            let cachedCount = pinnedItemTrackCounts[pinnedItem.id ?? 0] ?? 0
+            return HomeSidebarItem(pinnedItem: pinnedItem, trackCount: cachedCount)
         }
         items.append(contentsOf: pinnedSidebarItems)
         
@@ -116,6 +117,39 @@ struct HomeSidebarView: View {
         if let currentId = currentSelectionId,
            let matchingItem = allItems.first(where: { $0.id == currentId }) {
             selectedItem = matchingItem
+        }
+        
+        // Update track counts asynchronously to avoid blocking UI
+        Task {
+            await updatePinnedItemTrackCounts()
+        }
+    }
+    
+    private func updatePinnedItemTrackCounts() async {
+        for pinnedItem in libraryManager.pinnedItems {
+            let trackCount: Int
+            switch pinnedItem.itemType {
+            case .library:
+                trackCount = libraryManager.getTracksForPinnedItem(pinnedItem).count
+            case .playlist:
+                trackCount = playlistManager.getTracksForPinnedPlaylist(pinnedItem).count
+            }
+            
+            // Update cache and UI if count changed
+            if let pinnedId = pinnedItem.id, pinnedItemTrackCounts[pinnedId] != trackCount {
+                await MainActor.run {
+                    pinnedItemTrackCounts[pinnedId] = trackCount
+                    // Update the specific item in allItems if it exists
+                    if let index = allItems.firstIndex(where: {
+                        if case .pinned(let item) = $0.source {
+                            return item.id == pinnedItem.id
+                        }
+                        return false
+                    }) {
+                        allItems[index] = HomeSidebarItem(pinnedItem: pinnedItem, trackCount: trackCount)
+                    }
+                }
+            }
         }
     }
 

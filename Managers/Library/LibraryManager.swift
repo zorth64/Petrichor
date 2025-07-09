@@ -83,9 +83,7 @@ class LibraryManager: ObservableObject {
 
         loadMusicLibrary()
         
-        Task {
-            await loadPinnedItems()
-        }
+        pinnedItems = databaseManager.getPinnedItemsSync()
         
         startFileWatcher()
 
