@@ -155,15 +155,20 @@ struct EntityDetailView: View {
                 .lineLimit(2)
             
             HStack {
-                if entity is ArtistEntity {
-                    Text("\(tracks.count) \(tracks.count == 1 ? "song" : "songs") involving \(entity.name)")
+                if let albumEntity = entity as? AlbumEntity,
+                   let year = albumEntity.year {
+                    Text(year)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                } else {
-                    Text("\(tracks.count) \(tracks.count == 1 ? "song" : "songs")")
+
+                    Text("•")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
+
+                Text("\(tracks.count) \(tracks.count == 1 ? "song" : "songs")")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 
                 if !tracks.isEmpty {
                     Text("•")
@@ -171,18 +176,6 @@ struct EntityDetailView: View {
                         .foregroundColor(.secondary)
                     
                     Text(formattedTotalDuration)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                // For albums, show artist name
-                if let albumEntity = entity as? AlbumEntity,
-                   let artist = albumEntity.artist {
-                    Text("•")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Text(artist)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -377,7 +370,7 @@ struct EntityDetailView: View {
 }
 
 #Preview("Album Detail") {
-    let album = AlbumEntity(name: "Test Album", artist: "Test Artist", trackCount: 12)
+    let album = AlbumEntity(name: "The Dark Side of the Moon", trackCount: 10, year: "1973", duration: 2580)
     
     return EntityDetailView(
         entity: album,

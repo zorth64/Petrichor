@@ -89,15 +89,21 @@ private struct EntityListRow<T: Entity>: View {
                 Text(entity.name)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
-                    .foregroundColor(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
+                    .truncationMode(.tail)
+                
                 if let subtitle = entity.subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .truncationMode(.tail)
+                }
+                
+                if entity is AlbumEntity {
+                    Text("\(entity.trackCount) \(entity.trackCount == 1 ? "song" : "songs")")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -181,10 +187,10 @@ private struct EntityListRow<T: Entity>: View {
 
 #Preview("Album List") {
     let albums = [
-        AlbumEntity(name: "OK Computer", artist: "Radiohead", trackCount: 12),
-        AlbumEntity(name: "The Suburbs", artist: "Arcade Fire", trackCount: 16),
-        AlbumEntity(name: "Sleep Well Beast", artist: "The National", trackCount: 12),
-        AlbumEntity(name: "In Rainbows", artist: "Radiohead", trackCount: 10)
+        AlbumEntity(name: "OK Computer", trackCount: 12, year: "1997", duration: 3200),
+        AlbumEntity(name: "The Suburbs", trackCount: 16, year: "2010", duration: 3840),
+        AlbumEntity(name: "Sleep Well Beast", trackCount: 12, year: "2017", duration: 2880),
+        AlbumEntity(name: "In Rainbows", trackCount: 10, year: "2007", duration: 2400)
     ]
 
     EntityListView(

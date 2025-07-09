@@ -334,6 +334,7 @@ extension DatabaseManager {
 
         for artistId in artistIds {
             let trackCount = try TrackArtist
+                .joining(required: TrackArtist.track.filter(Track.Columns.isDuplicate == false))
                 .filter(TrackArtist.Columns.artistId == artistId)
                 .select(TrackArtist.Columns.trackId, as: Int64.self)
                 .distinct()
@@ -363,11 +364,10 @@ extension DatabaseManager {
     }
 
     private func updateAlbumStats(in db: Database) throws {
-        // Get all album IDs with their track counts in a single query
         let albumStats = try Row.fetchAll(db, sql: """
             SELECT album_id, COUNT(*) as track_count
             FROM tracks
-            WHERE album_id IS NOT NULL
+            WHERE album_id IS NOT NULL AND is_duplicate = 0
             GROUP BY album_id
         """)
 
@@ -384,11 +384,11 @@ extension DatabaseManager {
         }
     }
 
-    /// Update stats for a single artist (more efficient for incremental updates)
     func updateStatsForArtist(_ artistId: Int64, in db: Database) throws {
         guard let artist = try Artist.fetchOne(db, key: artistId) else { return }
 
         artist.totalTracks = try TrackArtist
+            .joining(required: TrackArtist.track.filter(Track.Columns.isDuplicate == false))
             .filter(TrackArtist.Columns.artistId == artistId)
             .select(TrackArtist.Columns.trackId, as: Int64.self)
             .distinct()
@@ -405,12 +405,12 @@ extension DatabaseManager {
         try artist.update(db)
     }
 
-    /// Alternative: Update stats for a single album (more efficient for incremental updates)
     func updateStatsForAlbum(_ albumId: Int64, in db: Database) throws {
         guard let album = try Album.fetchOne(db, key: albumId) else { return }
 
         album.totalTracks = try Track
             .filter(Track.Columns.albumId == albumId)
+            .filter(Track.Columns.isDuplicate == false)
             .fetchCount(db)
 
         album.updatedAt = Date()

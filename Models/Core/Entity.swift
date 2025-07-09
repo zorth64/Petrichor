@@ -46,32 +46,30 @@ struct ArtistEntity: Entity {
 struct AlbumEntity: Entity {
     let id: UUID
     let name: String
-    let artist: String?
     let tracks: [Track]
     let trackCount: Int
     let artworkData: Data?
     let albumId: Int64?
+    let year: String?
+    let duration: Double?
 
     var subtitle: String? {
-        if let artist = artist {
-            return "\(artist) • \(trackCount) \(trackCount == 1 ? "song" : "songs")"
-        }
-        return "\(trackCount) \(trackCount == 1 ? "song" : "songs")"
+        year
     }
 
-    init(name: String, artist: String?, tracks: [Track]) {
+    init(name: String, tracks: [Track]) {
         let namespace = UUID(uuidString: "6BA7B811-9DAD-11D1-80B4-00C04FD430C8")!
-        let combinedName = "\(name.lowercased())-\(artist?.lowercased() ?? "")"
-        self.id = UUID(name: combinedName, namespace: namespace)
+        self.id = UUID(name: name.lowercased(), namespace: namespace)
         self.name = name
-        self.artist = artist
         self.tracks = tracks
         self.trackCount = tracks.count
         self.artworkData = tracks.first { $0.artworkData != nil }?.artworkData
         self.albumId = nil
+        self.year = nil
+        self.duration = nil
     }
 
-    init(name: String, artist: String?, trackCount: Int, artworkData: Data? = nil, albumId: Int64? = nil) {
+    init(name: String, trackCount: Int, artworkData: Data? = nil, albumId: Int64? = nil, year: String? = nil, duration: Double? = nil) {
         // If we have an albumId, use it for a truly unique ID
         if let albumId = albumId {
             // Create a deterministic UUID from the album ID
@@ -80,16 +78,15 @@ struct AlbumEntity: Entity {
         } else {
             // Fallback to name-based UUID
             let namespace = UUID(uuidString: "6BA7B811-9DAD-11D1-80B4-00C04FD430C8")!
-            let combinedName = "\(name.lowercased())-\(artist?.lowercased() ?? "")"
-            self.id = UUID(name: combinedName, namespace: namespace)
+            self.id = UUID(name: name.lowercased(), namespace: namespace)
         }
-
         self.name = name
-        self.artist = artist
         self.tracks = []
         self.trackCount = trackCount
         self.artworkData = artworkData
         self.albumId = albumId
+        self.year = year
+        self.duration = duration
     }
 }
 

@@ -316,46 +316,24 @@ extension DatabaseManager {
                     .filter(Album.Columns.totalTracks > 0)
                     .order(Album.Columns.sortTitle)
                     .fetchAll(db)
-
-                return albums.map { album in
-                    // Fetch all artist names from album_artists table
-                    var artistNames: [String] = []
-                    if let albumId = album.id {
-                        // Get all artists for this album, ordered by position
-                        let albumArtists = try? AlbumArtist
-                            .filter(AlbumArtist.Columns.albumId == albumId)
-                            .order(AlbumArtist.Columns.position)
-                            .fetchAll(db)
-                        
-                        if let albumArtists = albumArtists {
-                            for albumArtist in albumArtists {
-                                if let artist = try? Artist.fetchOne(db, key: albumArtist.artistId) {
-                                    artistNames.append(artist.name)
-                                }
-                            }
-                        }
-                    }
+                
+                return try albums.map { album in
+                    let albumId = album.id ?? 0
                     
-                    // Join artist names with appropriate separators
-                    let artistString: String?
-                    if artistNames.isEmpty {
-                        artistString = nil
-                    } else if artistNames.count == 1 {
-                        artistString = artistNames[0]
-                    } else if artistNames.count == 2 {
-                        artistString = artistNames.joined(separator: " & ")
-                    } else {
-                        // For 3+ artists, use commas and & for the last one
-                        let lastArtist = artistNames.removeLast()
-                        artistString = artistNames.joined(separator: ", ") + " & " + lastArtist
-                    }
-
+                    // Calculate total duration for this album
+                    let totalDuration = try Track
+                        .filter(Track.Columns.albumId == albumId)
+                        .filter(Track.Columns.isDuplicate == false)
+                        .select(sum(Track.Columns.duration))
+                        .fetchOne(db) ?? 0.0
+                    
                     return AlbumEntity(
                         name: album.title,
-                        artist: artistString,
                         trackCount: album.totalTracks ?? 0,
                         artworkData: album.artworkData,
-                        albumId: album.id
+                        albumId: album.id,
+                        year: album.releaseYear.map { String($0) } ?? "",
+                        duration: totalDuration
                     )
                 }
             }

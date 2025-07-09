@@ -83,15 +83,14 @@ extension NSImage {
 
 #Preview("Album Grid") {
     let albums = [
-        AlbumEntity(name: "Album 0", artist: "Artist 0", trackCount: 3),
-        AlbumEntity(name: "Album 1", artist: "Artist 1", trackCount: 6),
-        AlbumEntity(name: "Album 2", artist: "Artist 2", trackCount: 9),
-        AlbumEntity(name: "Album 3", artist: "Artist 0", trackCount: 12)
+        AlbumEntity(name: "Abbey Road", trackCount: 17, year: "1969", duration: 2832),
+        AlbumEntity(name: "The Dark Side of the Moon", trackCount: 10, year: "1973", duration: 2580),
+        AlbumEntity(name: "Led Zeppelin IV", trackCount: 8, year: "1971", duration: 2556),
+        AlbumEntity(name: "A Night at the Opera", trackCount: 12, year: "1975", duration: 2628)
     ]
 
-    EntityView(
+    EntityGridView(
         entities: albums,
-        viewType: .grid,
         onSelectEntity: { album in
             Logger.debugPrint("Selected: \(album.name)")
         },

@@ -65,7 +65,7 @@ struct PinnedItem: Identifiable, FetchableRecord, PersistableRecord {
         self.albumId = albumEntity.albumId
         self.playlistId = nil
         self.displayName = albumEntity.name
-        self.subtitle = albumEntity.artist
+        self.subtitle = albumEntity.year
         self.iconName = Icons.opticalDiscFill
         self.sortOrder = 0
         self.dateAdded = Date()

@@ -114,19 +114,25 @@ private struct EntityGridItem<T: Entity>: View {
             .frame(width: 160, height: 160)
 
             // Text content
-            VStack(spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(entity.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(2)
                     .foregroundColor(.primary)
-                    .frame(width: 160, alignment: .leading)
 
                 if let subtitle = entity.subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .help(subtitle)
+                }
+
+                if entity is AlbumEntity {
+                    Text("\(entity.trackCount) \(entity.trackCount == 1 ? "song" : "songs")")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
-                        .frame(width: 160, alignment: .leading)
                 }
             }
             .frame(width: 160, alignment: .leading)
@@ -200,10 +206,10 @@ private struct EntityGridItem<T: Entity>: View {
 
 #Preview("Album Grid") {
     let albums = [
-        AlbumEntity(name: "Abbey Road", artist: "The Beatles", trackCount: 17),
-        AlbumEntity(name: "The Dark Side of the Moon", artist: "Pink Floyd", trackCount: 10),
-        AlbumEntity(name: "Led Zeppelin IV", artist: "Led Zeppelin", trackCount: 8),
-        AlbumEntity(name: "A Night at the Opera", artist: "Queen", trackCount: 12)
+        AlbumEntity(name: "Abbey Road", trackCount: 17, year: "1969", duration: 2832),
+        AlbumEntity(name: "The Dark Side of the Moon", trackCount: 10, year: "1973", duration: 2580),
+        AlbumEntity(name: "Led Zeppelin IV", trackCount: 8, year: "1971", duration: 2556),
+        AlbumEntity(name: "A Night at the Opera", trackCount: 12, year: "1975", duration: 2628)
     ]
 
     EntityGridView(
