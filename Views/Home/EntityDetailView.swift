@@ -335,7 +335,7 @@ struct EntityDetailView: View {
     
     private func playTrack(_ track: Track) {
         // Use the playTrack method with context tracks
-        playlistManager.playTrack(track, fromTracks: tracks)
+        playlistManager.playTrack(track, fromTracks: sortedTracks)
         selectedTrackID = track.id
     }
 

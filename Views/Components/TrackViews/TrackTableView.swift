@@ -29,6 +29,7 @@ struct TrackTableView: NSViewRepresentable {
     let contextMenuItems: (Track) -> [ContextMenuItem]
 
     @EnvironmentObject var audioPlayerManager: AudioPlayerManager
+    @EnvironmentObject var playlistManager: PlaylistManager
     @StateObject private var columnManager = ColumnVisibilityManager.shared
 
     @State private var sortOrder: [NSSortDescriptor] = []
@@ -211,6 +212,7 @@ struct TrackTableView: NSViewRepresentable {
             playlistID: playlistID,
             onPlayTrack: onPlayTrack,
             audioPlayerManager: audioPlayerManager,
+            playlistManager: playlistManager,
             contextMenuItems: contextMenuItems,
             columnVisibility: columnManager.columnVisibility
         )
@@ -331,6 +333,7 @@ struct TrackTableView: NSViewRepresentable {
         let playlistSortManager = PlaylistSortManager.shared
         let onPlayTrack: (Track) -> Void
         var audioPlayerManager: AudioPlayerManager
+        let playlistManager: PlaylistManager
         let contextMenuItems: (Track) -> [ContextMenuItem]
         var columnVisibility: TrackTableColumnVisibility
         var currentlyPlayingTrackPath: String?
@@ -351,6 +354,7 @@ struct TrackTableView: NSViewRepresentable {
             playlistID: UUID?,
             onPlayTrack: @escaping (Track) -> Void,
             audioPlayerManager: AudioPlayerManager,
+            playlistManager: PlaylistManager,
             contextMenuItems: @escaping (Track) -> [ContextMenuItem],
             columnVisibility: TrackTableColumnVisibility
         ) {
@@ -359,6 +363,7 @@ struct TrackTableView: NSViewRepresentable {
             self.playlistID = playlistID
             self.onPlayTrack = onPlayTrack
             self.audioPlayerManager = audioPlayerManager
+            self.playlistManager = playlistManager
             self.contextMenuItems = contextMenuItems
             self.columnVisibility = columnVisibility
 
@@ -421,7 +426,7 @@ struct TrackTableView: NSViewRepresentable {
                         isHovered: hoveredRow == row,
                         audioPlayerManager: audioPlayerManager
                     ) { [unowned self] in
-                            self.onPlayTrack(track)
+                            self.handlePlayTrack(track)
                     }
                     return hostingView
                 } else {
@@ -430,7 +435,7 @@ struct TrackTableView: NSViewRepresentable {
                         isHovered: hoveredRow == row,
                         audioPlayerManager: audioPlayerManager
                     ) { [unowned self] in
-                            self.onPlayTrack(track)
+                            self.handlePlayTrack(track)
                     })
                     hostingView.identifier = identifier
                     return hostingView
@@ -700,7 +705,20 @@ struct TrackTableView: NSViewRepresentable {
             guard clickedRow >= 0, clickedRow < tracks.count else { return }
 
             let track = sortedTracks[clickedRow]
-            onPlayTrack(track)
+            handlePlayTrack(track)
+        }
+        
+        private func handlePlayTrack(_ track: Track) {
+            // Check if this is a playlist context
+            if let playlistID = playlistID,
+               let playlist = playlistManager.playlists.first(where: { $0.id == playlistID }) {
+                if let originalIndex = playlist.tracks.firstIndex(where: { $0.id == track.id }) {
+                    playlistManager.playTrackFromPlaylist(playlist, at: originalIndex)
+                }
+            } else {
+                playlistManager.playTrack(track, fromTracks: sortedTracks)
+                playlistManager.currentQueueSource = .library
+            }
         }
 
         private func createNSMenu(from items: [ContextMenuItem], track: Track) -> NSMenu {
