@@ -123,29 +123,16 @@ extension LibraryManager {
 
     func refreshLibrary() {
         Logger.info("Refreshing library...")
-
-        // Set background scanning flag instead of regular scanning
         isBackgroundScanning = true
-
-        // Use an actor to safely track errors in concurrent context
         actor ErrorTracker {
             private var hasErrors = false
-            
-            func setError() {
-                hasErrors = true
-            }
-            
-            func getHasErrors() -> Bool {
-                hasErrors
-            }
+            func setError() { hasErrors = true }
+            func getHasErrors() -> Bool { hasErrors }
         }
         
         let errorTracker = ErrorTracker()
-
-        // Track completion of all folder refreshes
         let group = DispatchGroup()
 
-        // First, ensure all folders have valid bookmarks
         Task {
             for folder in folders {
                 // Check and refresh bookmark if needed
@@ -180,11 +167,16 @@ extension LibraryManager {
                     guard let self = self else { return }
 
                     Task {
-                        // Reload the library after all refreshes complete
+                        // Re-detect duplicates BEFORE reloading
+                        Logger.info("Detecting and marking duplicate tracks")
+                        await self.databaseManager.detectAndMarkDuplicates()
+                        
+                        // Now reload the library ONCE with all changes
                         self.loadMusicLibrary()
-                        self.isBackgroundScanning = false
-
                         self.updateSearchResults()
+                        
+                        // Clear scanning flag
+                        self.isBackgroundScanning = false
 
                         let hasErrors = await errorTracker.getHasErrors()
                         if hasErrors {

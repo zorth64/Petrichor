@@ -51,6 +51,11 @@ struct GeneralTabView: View {
                     .help("Keeps the app running in the menubar even after closing")
                 Toggle("Hide duplicate songs (requires app relaunch)", isOn: $hideDuplicateTracks)
                     .help("Shows only the highest quality version when multiple copies exist")
+                    .onChange(of: hideDuplicateTracks) {
+                        // Force UserDefaults to write immediately to prevent out of sync
+                        Logger.info("Hide duplicate songs setting changed to \(hideDuplicateTracks), synchronizing UserDefaults, this will require a relaunch")
+                        UserDefaults.standard.synchronize()
+                    }
             }
 
             Section("Appearance") {

@@ -342,9 +342,10 @@ extension Track {
         let normalizedTitle = title.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedAlbum = album.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedYear = year.trimmingCharacters(in: .whitespacesAndNewlines)
-        let roundedDuration = Int(duration.rounded())
         
-        // Include year in the key for better accuracy
+        // Round duration to nearest 2 seconds to handle slight variations
+        let roundedDuration = Int((duration / 2.0).rounded()) * 2
+        
         return "\(normalizedTitle)|\(normalizedAlbum)|\(normalizedYear)|\(roundedDuration)"
     }
     
