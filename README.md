@@ -35,7 +35,9 @@
 - Pin _anything_ (almost!) to the sidebar for quick access to your favorite music.
 - Navigate easily: right-click a track to go to its album, artist, year, etc.
 - Native macOS integration with menubar and dock playback controls, plus dark mode support.
-- Fast and performant, even with large libraries containing thousands of songs.
+- Search quickly through large libraries containing thousands of songs.
+
+💡 **Tip**: Petrichor relies heavily on tracks having good metadata for all its features to work well.
 
 ### ⌛ Planned features
 
