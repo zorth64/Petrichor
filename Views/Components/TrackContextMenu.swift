@@ -23,6 +23,8 @@ enum TrackContextMenu {
         // Add info item
         items.append(createShowInfoItem(for: track))
         
+        items.append(createRevealInFinderItem(for: track))
+        
         items.append(.divider)
         
         // Add "Go to" submenu
@@ -90,6 +92,12 @@ enum TrackContextMenu {
                 object: nil,
                 userInfo: ["track": track]
             )
+        }
+    }
+    
+    private static func createRevealInFinderItem(for track: Track) -> ContextMenuItem {
+        .button(title: "Reveal in Finder") {
+            NSWorkspace.shared.selectFile(track.url.path, inFileViewerRootedAtPath: "")
         }
     }
     
