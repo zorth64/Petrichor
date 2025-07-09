@@ -392,7 +392,6 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
             
-            // Then populate artwork outside the read block
             populateAlbumArtworkForTracks(&tracks)
             
             return tracks
@@ -437,8 +436,7 @@ extension DatabaseManager {
                         .fetchAll(db)
                 }
             }
-            
-            // Then populate artwork outside the read block
+
             populateAlbumArtworkForTracks(&tracks)
             
             return tracks
@@ -801,12 +799,16 @@ extension DatabaseManager {
 
     func getAllTracks() -> [Track] {
         do {
-            return try dbQueue.read { db in
+            var tracks = try dbQueue.read { db in
                 try applyDuplicateFilter(Track.all())
                     .including(optional: Track.folder)
                     .order(Track.Columns.artist, Track.Columns.album, Track.Columns.title)
                     .fetchAll(db)
             }
+            
+            populateAlbumArtworkForTracks(&tracks)
+            
+            return tracks
         } catch {
             Logger.error("Failed to fetch tracks: \(error)")
             return []
@@ -825,37 +827,6 @@ extension DatabaseManager {
         } catch {
             Logger.error("Failed to fetch tracks for folder: \(error)")
             return []
-        }
-    }
-
-    func getArtworkForTrack(_ trackId: Int64) -> Data? {
-        do {
-            return try dbQueue.read { db in
-                // First, get the track
-                guard let track = try applyDuplicateFilter(Track.all())
-                    .filter(Track.Columns.trackId == trackId)
-                    .fetchOne(db) else {
-                    return nil
-                }
-                
-                // If track has an album, try to get artwork from album
-                if let albumId = track.albumId {
-                    let albumArtwork = try Album
-                        .filter(Album.Columns.id == albumId)
-                        .select(Album.Columns.artworkData)
-                        .fetchOne(db)?[Album.Columns.artworkData] as Data?
-                    
-                    if let albumArtwork = albumArtwork {
-                        return albumArtwork
-                    }
-                }
-                
-                // Fall back to track's own artwork
-                return track.trackArtworkData
-            }
-        } catch {
-            Logger.error("Failed to fetch artwork: \(error)")
-            return nil
         }
     }
     

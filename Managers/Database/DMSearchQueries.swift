@@ -122,7 +122,6 @@ extension DatabaseManager {
                     .fetchAll(db)
             }
             
-            // IMPORTANT: Populate album artwork for search results
             populateAlbumArtworkForTracks(&tracks)
             
             return tracks

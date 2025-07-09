@@ -128,9 +128,13 @@ extension DatabaseManager {
             
             // Fallback to the original filter-based method
             let allTracks = getAllTracks()
-            return allTracks.filter { track in
+            var tracks = allTracks.filter { track in
                 filterType.trackMatches(track, filterValue: filterValue)
             }
+            
+            populateAlbumArtworkForTracks(&tracks)
+            
+            return tracks
             
         case .playlist:
             guard let playlistId = item.playlistId else { return [] }
