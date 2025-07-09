@@ -69,6 +69,14 @@ struct ContentView: View {
             pendingLibraryFilter: $pendingLibraryFilter,
             showTrackDetail: showTrackDetail
         )
+        .onChange(of: audioPlayerManager.currentTrack?.id) { oldId, _ in
+            if showingTrackDetail,
+               let detailTrack = detailTrack,
+               detailTrack.id == oldId,
+               let newTrack = audioPlayerManager.currentTrack {
+                self.detailTrack = newTrack
+            }
+        }
         .onChange(of: libraryManager.globalSearchText) { _, newValue in
             if !newValue.isEmpty && selectedTab != .library {
                 withAnimation(.easeInOut(duration: 0.25)) {
