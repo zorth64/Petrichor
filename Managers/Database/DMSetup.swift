@@ -185,9 +185,9 @@ extension DatabaseManager {
 
             // Additional metadata
             t.column("album_artist", .text)
-            t.column("track_number", .integer).check { $0 == nil || $0 > 0 }
+            t.column("track_number", .integer)
             t.column("total_tracks", .integer)
-            t.column("disc_number", .integer).check { $0 == nil || $0 > 0 }
+            t.column("disc_number", .integer)
             t.column("total_discs", .integer)
             t.column("rating", .integer).check { $0 == nil || ($0 >= 0 && $0 <= 5) }
             t.column("compilation", .boolean).defaults(to: false)

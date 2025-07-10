@@ -25,37 +25,43 @@ extension DatabaseManager {
                         self.scanStatusMessage = "Processing: \(fileURL.lastPathComponent)"
                     }
                     
-                    // Check if track already exists
-                    if let existingTrack = try? await self.dbQueue.read({ db in
-                        try Track.filter(Track.Columns.path == fileURL.path).fetchOne(db)
-                    }) {
-                        // Check if file has been modified
-                        if let attributes = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]),
-                           let modificationDate = attributes.contentModificationDate,
-                           let trackModifiedDate = existingTrack.dateModified,
-                           modificationDate <= trackModifiedDate {
-                            return (fileURL, TrackProcessResult.skipped)
-                        }
-                        
-                        // File has changed, extract metadata
-                        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-                        var updatedTrack = existingTrack
-                        
-                        let hasChanges = self.updateTrackIfNeeded(&updatedTrack, with: metadata, at: fileURL)
-                        
-                        if hasChanges {
-                            return (fileURL, TrackProcessResult.update(updatedTrack, metadata))
+                    do {
+                        // Check if track already exists
+                        if let existingTrack = try await self.dbQueue.read({ db in
+                            try Track.filter(Track.Columns.path == fileURL.path).fetchOne(db)
+                        }) {
+                            // Check if file has been modified
+                            if let attributes = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]),
+                               let modificationDate = attributes.contentModificationDate,
+                               let trackModifiedDate = existingTrack.dateModified,
+                               modificationDate <= trackModifiedDate {
+                                return (fileURL, TrackProcessResult.skipped)
+                            }
+                            
+                            // File has changed, extract metadata
+                            let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+                            var updatedTrack = existingTrack
+                            
+                            let hasChanges = self.updateTrackIfNeeded(&updatedTrack, with: metadata, at: fileURL)
+                            
+                            if hasChanges {
+                                return (fileURL, TrackProcessResult.update(updatedTrack, metadata))
+                            } else {
+                                return (fileURL, TrackProcessResult.skipped)
+                            }
                         } else {
-                            return (fileURL, TrackProcessResult.skipped)
+                            // New track
+                            let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
+                            var track = Track(url: fileURL)
+                            track.folderId = folderId
+                            self.applyMetadataToTrack(&track, from: metadata, at: fileURL)
+                            
+                            return (fileURL, TrackProcessResult.new(track, metadata))
                         }
-                    } else {
-                        // New track
-                        let metadata = MetadataExtractor.extractMetadataSync(from: fileURL)
-                        var track = Track(url: fileURL)
-                        track.folderId = folderId
-                        self.applyMetadataToTrack(&track, from: metadata, at: fileURL)
-                        
-                        return (fileURL, TrackProcessResult.new(track, metadata))
+                    } catch {
+                        // Log the error and skip this track
+                        Logger.error("Failed to process track \(fileURL.lastPathComponent): \(error)")
+                        return (fileURL, TrackProcessResult.skipped)
                     }
                 }
             }
@@ -77,12 +83,22 @@ extension DatabaseManager {
             try await dbQueue.write { [processResults] db in
                 // Process new tracks
                 for (track, metadata) in processResults.new {
-                    try self.processNewTrack(track, metadata: metadata, in: db)
+                    do {
+                        try self.processNewTrack(track, metadata: metadata, in: db)
+                    } catch {
+                        // Report error and continue with other tracks
+                        Logger.error("Failed to add new track \(track.title): \(error)")
+                    }
                 }
                 
                 // Process updated tracks
                 for (track, metadata) in processResults.update {
-                    try self.processUpdatedTrack(track, metadata: metadata, in: db)
+                    do {
+                        try self.processUpdatedTrack(track, metadata: metadata, in: db)
+                    } catch {
+                        // Report error and continue with other tracks
+                        Logger.error("Failed to update track \(track.title): \(error)")
+                    }
                 }
                 
                 // Update statistics after batch
