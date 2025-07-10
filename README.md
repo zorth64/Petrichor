@@ -57,11 +57,36 @@
 
 ### ⚙️ Installation
 
+#### Homebrew (recommended)
+
+While Petrichor is still in alpha/beta stage, it is available to install through
+my personal Homebrew tap.
+
+```
+# Add the tap
+brew tap kushalpandya/tap
+
+# Install Petrichor
+brew install --cask petrichor
+```
+
+_P.S. once stable release is ready, I'll publish it on official Homebrew repo._
+
+#### Manually
+
 - Go to [Releases](https://github.com/kushalpandya/Petrichor/releases) and download the latest `.dmg`.
 - Open the `.dmg` and drag the app icon into the Applications folder.
 - In Applications, right-click **Petrichor > Open**.
 
-_P.S. I plan publish it on Homebrew soon._
+#### Troubleshooting
+
+If you're unable to the app, that is because app is not notarized using paid
+Apple developer account, you can still run it by bypassing Gatekeeper once;
+
+- Right-clicking `.dmg` and selecting Open, same step for app itself once moved to Applications folder.
+  - If you're unable to open the dmg file, run `xattr -cr ~/path/to/Petrichor-<version>-Universal.dmg`
+    (replace with actual file name and path).
+- If that too doesn't work, do `xattr -dr com.apple.quarantine /Applications/Petrichor.app`.
 
 ### 📷 Screenshots
 
