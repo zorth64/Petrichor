@@ -83,6 +83,14 @@ struct PlayerView: View {
                 break
             }
         }
+        .onChange(of: audioPlayerManager.volume) { oldValue, newValue in
+            if oldValue < 0.01 && newValue > 0.01 {
+                isMuted = false
+            } else if newValue < 0.01 {
+                isMuted = true
+                previousVolume = oldValue > 0.01 ? oldValue : 0.7
+            }
+        }
         .background(Color.clear)
     }
     
