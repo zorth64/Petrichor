@@ -29,6 +29,7 @@
 ### ✨ Features
 
 - Everything you'd expect from an offline music player!
+- Supports MP3, M4A, WAV, AAC, AIFF, and FLAC file formats.
 - Map your music folders and browse your library in an organized view.
 - Create playlists and manage the play queue interactively.
 - Browse music using folder view when needed.
@@ -42,6 +43,8 @@
 ### ⌛ Planned features
 
 - Smart playlists with user-configurable conditional filters
+- Audio Equalizer
+- Extra file format support (eg; Opus & OGG)
 - AirPlay 2 casting support
 - Miniplayer and full-screen modes
 - Automatic in-app updates
