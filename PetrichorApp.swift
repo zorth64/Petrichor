@@ -4,6 +4,9 @@ import SwiftUI
 struct PetrichorApp: App {
     @StateObject private var appCoordinator = AppCoordinator()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
+    @AppStorage("showFoldersTab")
+    private var showFoldersTab = false
 
     var body: some Scene {
         WindowGroup {
@@ -41,26 +44,26 @@ struct PetrichorApp: App {
                 
                 Divider()
                 
-                Button("Add Folder") {
-                    appCoordinator.libraryManager.addFolder()
-                }
-                .keyboardShortcut("o", modifiers: [.command])
-                
                 Button("Play/Pause") {
                     appCoordinator.audioPlayerManager.togglePlayPause()
                 }
                 .keyboardShortcut("p", modifiers: [.command])
-                
-                Divider()
-                
-                Button("Quit Petrichor") {
-                    // Ensure database is saved before quitting
-                    if let coordinator = AppCoordinator.shared {
-                        coordinator.libraryManager.databaseManager.checkpoint()
+            }
+            
+            // Add to View menu
+            CommandGroup(after: .toolbar) {
+                Toggle("Folders tab", isOn: $showFoldersTab)
+                    .keyboardShortcut("f", modifiers: [.command, .option])
+            }
+            
+            // Customize the Help menu
+            CommandGroup(replacing: .help) {
+                Button("Petrichor Help") {
+                    if let url = URL(string: About.appWiki) {
+                        NSWorkspace.shared.open(url)
                     }
-                    NSApp.terminate(nil)
                 }
-                .keyboardShortcut("q", modifiers: .command)
+                .keyboardShortcut("?", modifiers: .command)
             }
         }
     }

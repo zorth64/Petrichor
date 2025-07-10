@@ -77,6 +77,7 @@ enum About {
     static let appTitle = "Petrichor"
     static let appSubtitle = "An offline macOS music player"
     static let appWebsite = "https://github.com/kushalpandya/Petrichor"
+    static let appWiki = "https://github.com/kushalpandya/Petrichor/wiki"
 }
 
 // MARK: - Audio File Formats
