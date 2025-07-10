@@ -175,6 +175,9 @@ struct PlayerView: View {
             }
         }
         .equatable()
+        .contextMenu {
+            TrackContextMenuContent(items: currentTrackContextMenuItems)
+        }
     }
 
     private var trackDetails: some View {
@@ -186,7 +189,10 @@ struct PlayerView: View {
                     .lineLimit(1)
                     .foregroundColor(.primary)
                     .truncationMode(.tail)
-                    .help(audioPlayerManager.currentTrack?.title ?? "")  // Always show tooltip with full title
+                    .help(audioPlayerManager.currentTrack?.title ?? "")
+                    .contextMenu {
+                        TrackContextMenuContent(items: currentTrackContextMenuItems)
+                    }
 
                 favoriteButton
             }
@@ -200,6 +206,9 @@ struct PlayerView: View {
             )
             .frame(height: 16)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .contextMenu {
+                TrackContextMenuContent(items: currentTrackContextMenuItems)
+            }
 
             // Album with marquee
             MarqueeText(
@@ -209,6 +218,9 @@ struct PlayerView: View {
             )
             .frame(height: 14)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .contextMenu {
+                TrackContextMenuContent(items: currentTrackContextMenuItems)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -475,6 +487,17 @@ struct PlayerView: View {
         } else {
             return "speaker.wave.2.fill"
         }
+    }
+    
+    private var currentTrackContextMenuItems: [ContextMenuItem] {
+        guard let track = audioPlayerManager.currentTrack else { return [] }
+        
+        return TrackContextMenu.createMenuItems(
+            for: track,
+            audioPlayerManager: audioPlayerManager,
+            playlistManager: playlistManager,
+            currentContext: .library
+        )
     }
 
     // MARK: - Helper Methods
