@@ -371,12 +371,14 @@ struct TrackTableView: NSViewRepresentable {
 
             // Observe playback state changes
             audioPlayerManager.$isPlaying
+                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.updatePlayingIndicator()
                 }
                 .store(in: &cancellables)
 
             audioPlayerManager.$currentTrack
+                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     self?.updatePlayingIndicator()
                 }
@@ -709,6 +711,8 @@ struct TrackTableView: NSViewRepresentable {
         }
         
         private func handlePlayTrack(_ track: Track) {
+            let previousTrack = audioPlayerManager.currentTrack
+            
             // Check if this is a playlist context
             if let playlistID = playlistID,
                let playlist = playlistManager.playlists.first(where: { $0.id == playlistID }) {
@@ -718,6 +722,12 @@ struct TrackTableView: NSViewRepresentable {
             } else {
                 playlistManager.playTrack(track, fromTracks: sortedTracks)
                 playlistManager.currentQueueSource = .library
+            }
+            
+            if previousTrack == nil {
+                DispatchQueue.main.async { [weak self] in
+                    self?.updatePlayingIndicator()
+                }
             }
         }
 
@@ -799,6 +809,28 @@ struct TrackTableView: NSViewRepresentable {
 
         private func updatePlayingIndicator() {
             guard let tableView = hostTableView else { return }
+            
+            // Clear any stale hover states first
+            if let currentHoveredRow = hoveredRow {
+                let windowPoint = NSEvent.mouseLocation
+                let viewPoint = tableView.window?.convertPoint(fromScreen: windowPoint) ?? .zero
+                let localPoint = tableView.convert(viewPoint, from: nil)
+                let actualRow = tableView.row(at: localPoint)
+                
+                // If the mouse is not actually over the hovered row, clear it
+                if actualRow != currentHoveredRow {
+                    hoveredRow = nil
+                    
+                    // Update the stale hovered row
+                    let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
+                    if playPauseColumnIndex >= 0 {
+                        tableView.reloadData(
+                            forRowIndexes: IndexSet(integer: currentHoveredRow),
+                            columnIndexes: IndexSet(integer: playPauseColumnIndex)
+                        )
+                    }
+                }
+            }
 
             // Find and update the currently playing track row
             if let currentTrack = audioPlayerManager.currentTrack,
@@ -809,8 +841,10 @@ struct TrackTableView: NSViewRepresentable {
                 for columnID in columnsToUpdate {
                     let columnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier(columnID))
                     if columnIndex >= 0 {
-                        tableView.reloadData(forRowIndexes: IndexSet(integer: index),
-                                            columnIndexes: IndexSet(integer: columnIndex))
+                        tableView.reloadData(
+                            forRowIndexes: IndexSet(integer: index),
+                            columnIndexes: IndexSet(integer: columnIndex)
+                        )
                     }
                 }
             }
@@ -965,32 +999,50 @@ struct TrackTableView: NSViewRepresentable {
         override func mouseEntered(with event: NSEvent) {
             // Get current mouse location
             let currentMouseLocation = NSEvent.mouseLocation
-
+            
             // Check if mouse actually moved (not just content scrolling under cursor)
             let mouseActuallyMoved = abs(currentMouseLocation.x - (coordinator?.lastMouseLocation.x ?? 0)) > 1 ||
                                     abs(currentMouseLocation.y - (coordinator?.lastMouseLocation.y ?? 0)) > 1
-
+            
             guard mouseActuallyMoved else { return }
-
+            
             // Update last mouse location
             coordinator?.lastMouseLocation = currentMouseLocation
-
+            
+            // Clear any previous hover state before setting new one
+            if let previousHoveredRow = coordinator?.hoveredRow,
+               previousHoveredRow != row,
+               let tableView = superview as? NSTableView {
+                // Force clear the previous hovered row
+                coordinator?.hoveredRow = nil
+                
+                // Update the previous row's play/pause cell
+                let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
+                if playPauseColumnIndex >= 0 {
+                    tableView.reloadData(
+                        forRowIndexes: IndexSet(integer: previousHoveredRow),
+                        columnIndexes: IndexSet(integer: playPauseColumnIndex)
+                    )
+                }
+                
+                // Update the previous row's background
+                if let previousRowView = tableView.rowView(atRow: previousHoveredRow, makeIfNecessary: false) as? HoverableTableRowView {
+                    previousRowView.updateBackgroundColor(animated: false)
+                }
+            }
+            
+            // Now set the new hover state
             coordinator?.hoveredRow = row
             updateBackgroundColor(animated: true)
-
+            
             if let tableView = superview as? NSTableView {
                 // Force update of the play/pause cell for this row
                 let playPauseColumnIndex = tableView.column(withIdentifier: NSUserInterfaceItemIdentifier("playPause"))
                 if playPauseColumnIndex >= 0 {
-                    tableView.reloadData(forRowIndexes: IndexSet(integer: row),
-                                        columnIndexes: IndexSet(integer: playPauseColumnIndex))
-                }
-
-                // Update other rows as before
-                tableView.enumerateAvailableRowViews { rowView, _ in
-                    if let hoverableRow = rowView as? HoverableTableRowView, hoverableRow != self {
-                        hoverableRow.updateBackgroundColor(animated: true)
-                    }
+                    tableView.reloadData(
+                        forRowIndexes: IndexSet(integer: row),
+                        columnIndexes: IndexSet(integer: playPauseColumnIndex)
+                    )
                 }
             }
         }
@@ -1016,7 +1068,7 @@ struct TrackTableView: NSViewRepresentable {
 // Native version of title cell
 struct TrackTableTitleCell: View {
     let track: Track
-    let audioPlayerManager: AudioPlayerManager
+    @ObservedObject var audioPlayerManager: AudioPlayerManager
 
     // Use the track's existing artwork data directly
     private var artworkImage: NSImage? {
