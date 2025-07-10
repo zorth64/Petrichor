@@ -3,6 +3,9 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var libraryManager: LibraryManager
     @State private var selectedTab: SettingsTab = .general
+    
+    @Environment(\.dismiss)
+    var dismiss
 
     enum SettingsTab: String, CaseIterable {
         case general = "General"
@@ -28,18 +31,32 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabbedButtons(
-                items: SettingsTab.allCases,
-                selection: $selectedTab,
-                style: .compact,
-                animation: .transform
-            )
+            ZStack {
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: Icons.xmarkCircleFill)
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                    }
+                    .help("Dismiss")
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                    
+                    Spacer()
+                }
+                
+                TabbedButtons(
+                    items: SettingsTab.allCases,
+                    selection: $selectedTab,
+                    style: .compact,
+                    animation: .transform
+                )
+                .focusable(false)
+            }
             .padding(10)
-            .focusable(false)
 
             Divider()
 
-            // Tab content
             Group {
                 switch selectedTab {
                 case .general:
