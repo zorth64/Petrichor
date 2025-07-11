@@ -2,7 +2,7 @@ import SwiftUI
 import Foundation
 
 struct PlayerView: View {
-    @EnvironmentObject var audioPlayerManager: AudioPlayerManager
+    @EnvironmentObject var playbackManager: PlaybackManager
     @EnvironmentObject var playlistManager: PlaylistManager
     @Binding var showingQueue: Bool
     
@@ -46,7 +46,7 @@ struct PlayerView: View {
             setupInitialState()
             syncDisplayTime()
         }
-        .onChange(of: audioPlayerManager.isPlaying) { _, isPlaying in
+        .onChange(of: playbackManager.isPlaying) { _, isPlaying in
             // Only start timer if scene is active
             if isPlaying && scenePhase == .active {
                 startUITimer()
@@ -54,10 +54,10 @@ struct PlayerView: View {
                 stopUITimer()
             }
         }
-        .onChange(of: audioPlayerManager.currentTrack) { _, _ in
+        .onChange(of: playbackManager.currentTrack) { _, _ in
             syncDisplayTime()
             // Only start timer if scene is active
-            if audioPlayerManager.isPlaying && scenePhase == .active {
+            if playbackManager.isPlaying && scenePhase == .active {
                 startUITimer()
             }
         }
@@ -72,7 +72,7 @@ struct PlayerView: View {
             switch newPhase {
             case .active:
                 // Window is visible and active
-                if audioPlayerManager.isPlaying {
+                if playbackManager.isPlaying {
                     syncDisplayTime() // Sync time when becoming active
                     startUITimer()
                 }
@@ -83,7 +83,7 @@ struct PlayerView: View {
                 break
             }
         }
-        .onChange(of: audioPlayerManager.volume) { oldValue, newValue in
+        .onChange(of: playbackManager.volume) { oldValue, newValue in
             if oldValue < 0.01 && newValue > 0.01 {
                 isMuted = false
             } else if newValue < 0.01 {
@@ -103,7 +103,7 @@ struct PlayerView: View {
         
         // Capture the current playback position
         playbackStartTime = Date()
-        playbackStartOffset = audioPlayerManager.actualCurrentTime
+        playbackStartOffset = playbackManager.actualCurrentTime
         displayTime = playbackStartOffset
         
         // Create a timer that updates the UI every second for accurate display
@@ -121,7 +121,7 @@ struct PlayerView: View {
     
     private func updateDisplayTime() {
         guard let startTime = playbackStartTime,
-              audioPlayerManager.isPlaying,
+              playbackManager.isPlaying,
               !isDraggingProgress else { return }
         
         // Calculate elapsed time since playback started
@@ -129,7 +129,7 @@ struct PlayerView: View {
         let newTime = playbackStartOffset + elapsed
         
         // Clamp to track duration
-        if let duration = audioPlayerManager.currentTrack?.duration {
+        if let duration = playbackManager.currentTrack?.duration {
             displayTime = min(newTime, duration)
         } else {
             displayTime = newTime
@@ -137,7 +137,7 @@ struct PlayerView: View {
     }
     
     private func syncDisplayTime() {
-        displayTime = audioPlayerManager.actualCurrentTime
+        displayTime = playbackManager.actualCurrentTime
     }
 
     // MARK: - View Sections
@@ -169,12 +169,12 @@ struct PlayerView: View {
     // MARK: - Left Section Components
 
     private var albumArtwork: some View {
-        let trackArtworkInfo = audioPlayerManager.currentTrack.map { track in
+        let trackArtworkInfo = playbackManager.currentTrack.map { track in
             TrackArtworkInfo(id: track.id, artworkData: track.artworkData)
         }
 
         return PlayerAlbumArtView(trackInfo: trackArtworkInfo) {
-            if let currentTrack = audioPlayerManager.currentTrack {
+            if let currentTrack = playbackManager.currentTrack {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("ShowTrackInfo"),
                     object: nil,
@@ -192,12 +192,12 @@ struct PlayerView: View {
         VStack(alignment: .leading, spacing: 4) {
             // Title row with favorite button
             HStack(alignment: .center, spacing: 8) {
-                Text(audioPlayerManager.currentTrack?.title ?? "")
+                Text(playbackManager.currentTrack?.title ?? "")
                     .font(.system(size: 14, weight: .medium))
                     .lineLimit(1)
                     .foregroundColor(.primary)
                     .truncationMode(.tail)
-                    .help(audioPlayerManager.currentTrack?.title ?? "")
+                    .help(playbackManager.currentTrack?.title ?? "")
                     .contextMenu {
                         TrackContextMenuContent(items: currentTrackContextMenuItems)
                     }
@@ -208,7 +208,7 @@ struct PlayerView: View {
 
             // Artist with marquee
             MarqueeText(
-                text: audioPlayerManager.currentTrack?.artist ?? "",
+                text: playbackManager.currentTrack?.artist ?? "",
                 font: .system(size: 12),
                 color: .secondary
             )
@@ -220,7 +220,7 @@ struct PlayerView: View {
 
             // Album with marquee
             MarqueeText(
-                text: audioPlayerManager.currentTrack?.album ?? "",
+                text: playbackManager.currentTrack?.album ?? "",
                 font: .system(size: 11),
                 color: .secondary.opacity(0.8)
             )
@@ -235,7 +235,7 @@ struct PlayerView: View {
 
     private var favoriteButton: some View {
         Group {
-            if let track = audioPlayerManager.currentTrack {
+            if let track = playbackManager.currentTrack {
                 Button(action: {
                     playlistManager.toggleFavorite(for: track)
                 }) {
@@ -274,7 +274,7 @@ struct PlayerView: View {
         }
         .buttonStyle(ControlButtonStyle())
         .hoverEffect(scale: 1.1)
-        .disabled(audioPlayerManager.currentTrack == nil)
+        .disabled(playbackManager.currentTrack == nil)
         .help(playlistManager.isShuffleEnabled ? "Disable Shuffle" : "Enable Shuffle")
     }
 
@@ -289,15 +289,15 @@ struct PlayerView: View {
         }
         .buttonStyle(ControlButtonStyle())
         .hoverEffect(scale: 1.1)
-        .disabled(audioPlayerManager.currentTrack == nil)
+        .disabled(playbackManager.currentTrack == nil)
         .help("Previous")
     }
 
     private var playPauseButton: some View {
         Button(action: {
-            audioPlayerManager.togglePlayPause()
+            playbackManager.togglePlayPause()
         }) {
-            PlayPauseIcon(isPlaying: audioPlayerManager.isPlaying)
+            PlayPauseIcon(isPlaying: playbackManager.isPlaying)
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
@@ -316,8 +316,8 @@ struct PlayerView: View {
             },
             perform: {}
         )
-        .disabled(audioPlayerManager.currentTrack == nil)
-        .help(audioPlayerManager.isPlaying ? "Pause" : "Play")
+        .disabled(playbackManager.currentTrack == nil)
+        .help(playbackManager.isPlaying ? "Pause" : "Play")
         .id("playPause")
     }
 
@@ -333,7 +333,7 @@ struct PlayerView: View {
         .buttonStyle(ControlButtonStyle())
         .hoverEffect(scale: 1.1)
         .help("Next")
-        .disabled(audioPlayerManager.currentTrack == nil)
+        .disabled(playbackManager.currentTrack == nil)
     }
 
     private var repeatButton: some View {
@@ -348,7 +348,7 @@ struct PlayerView: View {
         .buttonStyle(ControlButtonStyle())
         .hoverEffect(scale: 1.1)
         .help("Toggle repeat mode")
-        .disabled(audioPlayerManager.currentTrack == nil)
+        .disabled(playbackManager.currentTrack == nil)
     }
 
     private var progressBar: some View {
@@ -364,7 +364,7 @@ struct PlayerView: View {
             progressSlider
 
             // Total duration
-            Text(formatDuration(audioPlayerManager.currentTrack?.duration ?? 0))
+            Text(formatDuration(playbackManager.currentTrack?.duration ?? 0))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
                 .monospacedDigit()
@@ -437,9 +437,9 @@ struct PlayerView: View {
     private var volumeSlider: some View {
         Slider(
             value: Binding(
-                get: { audioPlayerManager.volume },
+                get: { playbackManager.volume },
                 set: { newVolume in
-                    audioPlayerManager.setVolume(newVolume)
+                    playbackManager.setVolume(newVolume)
                     // If user moves slider, unmute
                     if isMuted && newVolume > 0 {
                         isMuted = false
@@ -476,7 +476,7 @@ struct PlayerView: View {
     // MARK: - Computed Properties
 
     private var progressPercentage: Double {
-        guard let duration = audioPlayerManager.currentTrack?.duration, duration > 0 else { return 0 }
+        guard let duration = playbackManager.currentTrack?.duration, duration > 0 else { return 0 }
 
         if isDraggingProgress {
             return min(1, max(0, tempProgressValue / duration))
@@ -486,11 +486,11 @@ struct PlayerView: View {
     }
 
     private var volumeIcon: String {
-        if isMuted || audioPlayerManager.volume < 0.01 {
+        if isMuted || playbackManager.volume < 0.01 {
             return "speaker.slash.fill"
-        } else if audioPlayerManager.volume < 0.33 {
+        } else if playbackManager.volume < 0.33 {
             return "speaker.fill"
-        } else if audioPlayerManager.volume < 0.66 {
+        } else if playbackManager.volume < 0.66 {
             return "speaker.wave.1.fill"
         } else {
             return "speaker.wave.2.fill"
@@ -498,11 +498,11 @@ struct PlayerView: View {
     }
     
     private var currentTrackContextMenuItems: [ContextMenuItem] {
-        guard let track = audioPlayerManager.currentTrack else { return [] }
+        guard let track = playbackManager.currentTrack else { return [] }
         
         return TrackContextMenu.createMenuItems(
             for: track,
-            audioPlayerManager: audioPlayerManager,
+            playbackManager: playbackManager,
             playlistManager: playlistManager,
             currentContext: .library
         )
@@ -512,17 +512,17 @@ struct PlayerView: View {
 
     private func setupInitialState() {
         // Initialize the cached album art
-        if let artworkData = audioPlayerManager.currentTrack?.artworkData,
+        if let artworkData = playbackManager.currentTrack?.artworkData,
            let image = NSImage(data: artworkData) {
             cachedArtworkImage = image
-            currentTrackId = audioPlayerManager.currentTrack?.id
+            currentTrackId = playbackManager.currentTrack?.id
         }
 
-        if audioPlayerManager.volume < 0.01 {
+        if playbackManager.volume < 0.01 {
             isMuted = true
             previousVolume = 0.7
         } else {
-            previousVolume = audioPlayerManager.volume
+            previousVolume = playbackManager.volume
         }
     }
 
@@ -533,13 +533,13 @@ struct PlayerView: View {
                     isDraggingProgress = true
                 }
                 let percentage = max(0, min(1, value.location.x / geometry.size.width))
-                tempProgressValue = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
+                tempProgressValue = percentage * (playbackManager.currentTrack?.duration ?? 0)
                 displayTime = tempProgressValue  // Update displayTime while dragging
             }
             .onEnded { value in
                 let percentage = max(0, min(1, value.location.x / geometry.size.width))
-                let newTime = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
-                audioPlayerManager.seekTo(time: newTime)
+                let newTime = percentage * (playbackManager.currentTrack?.duration ?? 0)
+                playbackManager.seekTo(time: newTime)
                 // Reset dragging state after seek completes
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isDraggingProgress = false
@@ -549,8 +549,8 @@ struct PlayerView: View {
 
     private func handleProgressTap(at x: CGFloat, in width: CGFloat) {
         let percentage = x / width
-        let newTime = percentage * (audioPlayerManager.currentTrack?.duration ?? 0)
-        audioPlayerManager.seekTo(time: newTime)
+        let newTime = percentage * (playbackManager.currentTrack?.duration ?? 0)
+        playbackManager.seekTo(time: newTime)
         displayTime = newTime  // Update displayTime immediately
     }
 
@@ -564,12 +564,12 @@ struct PlayerView: View {
     private func toggleMute() {
         if isMuted {
             // Unmute - restore previous volume
-            audioPlayerManager.setVolume(previousVolume)
+            playbackManager.setVolume(previousVolume)
             isMuted = false
         } else {
             // Mute - save current volume and set to 0
-            previousVolume = audioPlayerManager.volume
-            audioPlayerManager.setVolume(0)
+            previousVolume = playbackManager.volume
+            playbackManager.setVolume(0)
             isMuted = true
         }
     }
@@ -720,7 +720,7 @@ extension View {
             PlayerView(showingQueue: $showingQueue)
                 .environmentObject({
                     let coordinator = AppCoordinator()
-                    return coordinator.audioPlayerManager
+                    return coordinator.playbackManager
                 }())
                 .environmentObject({
                     let coordinator = AppCoordinator()
