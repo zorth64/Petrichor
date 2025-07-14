@@ -143,6 +143,7 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .animation(.none, value: selectedTab)
         }
         .frame(minWidth: 400, minHeight: 200)
     }
