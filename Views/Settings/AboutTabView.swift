@@ -55,7 +55,7 @@ struct AboutTabView: View {
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("Version \(AppInfo.version)")
+            Text(AppInfo.version)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -129,6 +129,13 @@ struct AboutTabView: View {
                 title: "Website",
                 url: URL(string: About.appWebsite)!,
                 tooltip: "Visit project website"
+            )
+            
+            FooterLink(
+                icon: "questionmark.circle",
+                title: "Help",
+                url: URL(string: About.appWiki)!,
+                tooltip: "Visit Help Wiki"
             )
             
             FooterLink(
