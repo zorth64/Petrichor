@@ -52,6 +52,9 @@ struct PlayQueueView: View {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         showingQueue = false
+                        if let coordinator = AppCoordinator.shared {
+                            coordinator.isQueueVisible = showingQueue
+                        }
                     }
                 }) {
                     Image(systemName: "xmark.circle.fill")

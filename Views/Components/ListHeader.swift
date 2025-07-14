@@ -32,8 +32,8 @@ extension View {
 
 struct ListHeader<Content: View>: View {
     enum HeaderType {
-        case simple    // Default 36px height
-        case expanded  // Custom height for complex content
+        case simple
+        case expanded
     }
 
     let type: HeaderType
@@ -66,7 +66,6 @@ struct ListHeader<Content: View>: View {
 
 // MARK: - Specialized Header Components
 
-// For complex playlist headers with artwork
 struct PlaylistHeader<Content: View>: View {
     let content: () -> Content
 
@@ -83,7 +82,6 @@ struct PlaylistHeader<Content: View>: View {
     }
 }
 
-// For track list headers with title and count
 struct TrackListHeader<Trailing: View>: View {
     let title: String
     let subtitle: String?
