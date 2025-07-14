@@ -22,6 +22,9 @@ struct PetrichorApp: App {
                 .onReceive(appCoordinator.playbackManager.$currentTrack) { _ in
                     menuUpdateTrigger = UUID()
                 }
+                .onReceive(appCoordinator.playlistManager.$isShuffleEnabled) { _ in
+                    menuUpdateTrigger = UUID()
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)
@@ -29,124 +32,247 @@ struct PetrichorApp: App {
         .windowResizability(.contentMinSize)
         .handlesExternalEvents(matching: Set(arrayLiteral: "main"))
         .commands {
-            // Remove the default Preferences menu item
-            CommandGroup(replacing: .appSettings) {}
+            // App Menu Commands
+            appMenuCommands()
             
-            // Replace the default About menu item
-            CommandGroup(replacing: .appInfo) {
-                Button("About Petrichor") {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("OpenSettingsAboutTab"),
-                        object: nil
-                    )
-                }
+            // Playback Menu
+            playbackMenuCommands()
+            
+            // View Menu Commands
+            viewMenuCommands()
+            
+            // Help Menu Commands
+            helpMenuCommands()
+        }
+    }
+    
+    // MARK: - App Menu Commands
+    
+    @CommandsBuilder
+    private func appMenuCommands() -> some Commands {
+        CommandGroup(replacing: .appSettings) {}
+        
+        CommandGroup(replacing: .appInfo) {
+            aboutMenuItem()
+        }
+        
+        CommandGroup(after: .appInfo) {
+            settingsMenuItem()
+        }
+    }
+    
+    private func aboutMenuItem() -> some View {
+        Button("About Petrichor") {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("OpenSettingsAboutTab"),
+                object: nil
+            )
+        }
+    }
+    
+    private func settingsMenuItem() -> some View {
+        Button("Settings") {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("OpenSettings"),
+                object: nil
+            )
+        }
+        .keyboardShortcut(",", modifiers: .command)
+    }
+    
+    // MARK: - Playback Menu Commands
+    
+    @CommandsBuilder
+    private func playbackMenuCommands() -> some Commands {
+        CommandMenu("Playback") {
+            playPauseMenuItem()
+            favoriteMenuItem()
+            
+            Divider()
+            
+            shuffleMenuItem()
+            repeatMenuItem()
+            
+            Divider()
+            
+            navigationMenuItems()
+            
+            Divider()
+            
+            volumeMenuItems()
+        }
+    }
+    
+    private func playPauseMenuItem() -> some View {
+        Button("Play/Pause") {
+            if appCoordinator.playbackManager.currentTrack != nil {
+                appCoordinator.playbackManager.togglePlayPause()
             }
-            
-            // Add custom menu items under Petrichor menu
-            CommandGroup(after: .appInfo) {
-                Button("Settings") {
-                    NotificationCenter.default.post(name: NSNotification.Name("OpenSettings"), object: nil)
-                }
-                .keyboardShortcut(",", modifiers: .command)
+        }
+        .keyboardShortcut(" ", modifiers: [])
+        .disabled(appCoordinator.playbackManager.currentTrack == nil)
+    }
+    
+    private func favoriteMenuItem() -> some View {
+        Button(appCoordinator.playbackManager.currentTrack?.isFavorite == true ?
+               "Remove from Favorites" : "Add to Favorites") {
+            if let track = appCoordinator.playbackManager.currentTrack {
+                appCoordinator.playlistManager.toggleFavorite(for: track)
+                menuUpdateTrigger = UUID()
             }
-            
-            CommandMenu("Playback") {
-                Button("Play/Pause") {
-                    if appCoordinator.playbackManager.currentTrack != nil {
-                        appCoordinator.playbackManager.togglePlayPause()
-                    }
-                }
-                .keyboardShortcut(" ", modifiers: [])
-                .disabled(appCoordinator.playbackManager.currentTrack == nil)
-                
-                Button(appCoordinator.playbackManager.currentTrack?.isFavorite == true ? "Remove from Favorites" : "Add to Favorites") {
-                    if let track = appCoordinator.playbackManager.currentTrack {
-                        appCoordinator.playlistManager.toggleFavorite(for: track)
-                        menuUpdateTrigger = UUID()
-                    }
-                }
-                .keyboardShortcut("f", modifiers: [.command, .shift])
-                .disabled(appCoordinator.playbackManager.currentTrack == nil)
-                .id(menuUpdateTrigger)
-                
-                Divider()
-                
-                Button("Shuffle") {
-                    appCoordinator.playlistManager.toggleShuffle()
-                }
-                .keyboardShortcut("s", modifiers: .command)
-                
-                Button(repeatModeLabel) {
-                    appCoordinator.playlistManager.toggleRepeatMode()
-                    menuUpdateTrigger = UUID()
-                }
-                .keyboardShortcut("r", modifiers: .command)
-                .id(menuUpdateTrigger)
-                
-                Divider()
-                
-                Button("Next") {
-                    appCoordinator.playlistManager.playNextTrack()
-                }
-                .keyboardShortcut(.rightArrow, modifiers: .command)
-                .disabled(appCoordinator.playbackManager.currentTrack == nil)
-                
-                Button("Previous") {
-                    appCoordinator.playlistManager.playPreviousTrack()
-                }
-                .keyboardShortcut(.leftArrow, modifiers: .command)
-                .disabled(appCoordinator.playbackManager.currentTrack == nil)
-                
-                Button("Seek Forward") {
-                    if let currentTrack = appCoordinator.playbackManager.currentTrack {
-                        let newTime = min(appCoordinator.playbackManager.actualCurrentTime + 10, currentTrack.duration)
-                        appCoordinator.playbackManager.seekTo(time: newTime)
-                    }
-                }
-                .keyboardShortcut(.rightArrow, modifiers: [])
-                .disabled(appCoordinator.playbackManager.currentTrack == nil)
-                
-                Button("Seek Backward") {
-                    if appCoordinator.playbackManager.currentTrack != nil {
-                        let newTime = max(appCoordinator.playbackManager.actualCurrentTime - 10, 0)
-                        appCoordinator.playbackManager.seekTo(time: newTime)
-                    }
-                }
-                .keyboardShortcut(.leftArrow, modifiers: [])
-                .disabled(appCoordinator.playbackManager.currentTrack == nil)
-                
-                Divider()
-                
-                Button("Volume Up") {
-                    let newVolume = min(appCoordinator.playbackManager.volume + 0.05, 1.0)
-                    appCoordinator.playbackManager.setVolume(newVolume)
-                }
-                .keyboardShortcut(.upArrow, modifiers: [])
-                
-                Button("Volume Down") {
-                    let newVolume = max(appCoordinator.playbackManager.volume - 0.05, 0.0)
-                    appCoordinator.playbackManager.setVolume(newVolume)
-                }
-                .keyboardShortcut(.downArrow, modifiers: [])
+        }
+        .keyboardShortcut("f", modifiers: [.command, .shift])
+        .disabled(appCoordinator.playbackManager.currentTrack == nil)
+        .id(menuUpdateTrigger)
+    }
+    
+    private func shuffleMenuItem() -> some View {
+        Toggle("Shuffle", isOn: Binding(
+            get: { appCoordinator.playlistManager.isShuffleEnabled },
+            set: { _ in
+                appCoordinator.playlistManager.toggleShuffle()
+                menuUpdateTrigger = UUID()
             }
-            
-            // Add to View menu
-            CommandGroup(after: .toolbar) {
-                Toggle("Folders tab", isOn: $showFoldersTab)
-                    .keyboardShortcut("f", modifiers: [.command, .option])
+        ))
+        .keyboardShortcut("s", modifiers: .command)
+        .id(menuUpdateTrigger)
+    }
+    
+    private func repeatMenuItem() -> some View {
+        Button(repeatModeLabel) {
+            appCoordinator.playlistManager.toggleRepeatMode()
+            menuUpdateTrigger = UUID()
+        }
+        .keyboardShortcut("r", modifiers: .command)
+        .id(menuUpdateTrigger)
+    }
+    
+    @ViewBuilder
+    private func navigationMenuItems() -> some View {
+        nextMenuItem()
+        previousMenuItem()
+        seekForwardMenuItem()
+        seekBackwardMenuItem()
+    }
+    
+    private func nextMenuItem() -> some View {
+        Button("Next") {
+            appCoordinator.playlistManager.playNextTrack()
+        }
+        .keyboardShortcut(.rightArrow, modifiers: .command)
+        .disabled(appCoordinator.playbackManager.currentTrack == nil)
+    }
+    
+    private func previousMenuItem() -> some View {
+        Button("Previous") {
+            appCoordinator.playlistManager.playPreviousTrack()
+        }
+        .keyboardShortcut(.leftArrow, modifiers: .command)
+        .disabled(appCoordinator.playbackManager.currentTrack == nil)
+    }
+    
+    private func seekForwardMenuItem() -> some View {
+        Button("Seek Forward") {
+            if let currentTrack = appCoordinator.playbackManager.currentTrack {
+                let newTime = min(
+                    appCoordinator.playbackManager.actualCurrentTime + 10,
+                    currentTrack.duration
+                )
+                appCoordinator.playbackManager.seekTo(time: newTime)
             }
-            
-            // Customize the Help menu
-            CommandGroup(replacing: .help) {
-                Button("Petrichor Help") {
-                    if let url = URL(string: About.appWiki) {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
-                .keyboardShortcut("?", modifiers: .command)
+        }
+        .keyboardShortcut(.rightArrow, modifiers: [])
+        .disabled(appCoordinator.playbackManager.currentTrack == nil)
+    }
+    
+    private func seekBackwardMenuItem() -> some View {
+        Button("Seek Backward") {
+            if appCoordinator.playbackManager.currentTrack != nil {
+                let newTime = max(
+                    appCoordinator.playbackManager.actualCurrentTime - 10,
+                    0
+                )
+                appCoordinator.playbackManager.seekTo(time: newTime)
+            }
+        }
+        .keyboardShortcut(.leftArrow, modifiers: [])
+        .disabled(appCoordinator.playbackManager.currentTrack == nil)
+    }
+    
+    @ViewBuilder
+    private func volumeMenuItems() -> some View {
+        volumeUpMenuItem()
+        volumeDownMenuItem()
+    }
+    
+    private func volumeUpMenuItem() -> some View {
+        Button("Volume Up") {
+            let newVolume = min(appCoordinator.playbackManager.volume + 0.05, 1.0)
+            appCoordinator.playbackManager.setVolume(newVolume)
+        }
+        .keyboardShortcut(.upArrow, modifiers: [])
+    }
+    
+    private func volumeDownMenuItem() -> some View {
+        Button("Volume Down") {
+            let newVolume = max(appCoordinator.playbackManager.volume - 0.05, 0.0)
+            appCoordinator.playbackManager.setVolume(newVolume)
+        }
+        .keyboardShortcut(.downArrow, modifiers: [])
+    }
+    
+    // MARK: - View Menu Commands
+    
+    @CommandsBuilder
+    private func viewMenuCommands() -> some Commands {
+        CommandGroup(after: .toolbar) {
+            foldersTabToggle()
+        }
+    }
+    
+    private func foldersTabToggle() -> some View {
+        Toggle("Folders tab", isOn: $showFoldersTab)
+            .keyboardShortcut("f", modifiers: [.command, .option])
+    }
+    
+    // MARK: - Help Menu Commands
+    
+    @CommandsBuilder
+    private func helpMenuCommands() -> some Commands {
+        CommandGroup(replacing: .help) {
+            projectHomepageMenuItem()
+            sponsorProjectMenuItem()
+            Divider()
+            helpMenuItem()
+        }
+    }
+    
+    private func projectHomepageMenuItem() -> some View {
+        Button("Project Homepage") {
+            if let url = URL(string: About.appWebsite) {
+                NSWorkspace.shared.open(url)
             }
         }
     }
+    
+    private func sponsorProjectMenuItem() -> some View {
+        Button("Support Development") {
+            if let url = URL(string: About.sponsor) {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+    
+    private func helpMenuItem() -> some View {
+        Button("Petrichor Help") {
+            if let url = URL(string: About.appWiki) {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        .keyboardShortcut("?", modifiers: .command)
+    }
+    
+    // MARK: - Helper Properties
     
     private var repeatModeLabel: String {
         switch appCoordinator.playlistManager.repeatMode {

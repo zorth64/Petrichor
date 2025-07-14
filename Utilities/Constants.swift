@@ -70,7 +70,7 @@ enum Icons {
     static let customMusicNoteRectangleStackFill = "custom.music.note.rectangle.stack.fill"
 }
 
-// MARK: - About View
+// MARK: - About
 
 enum About {
     static let bundleIdentifier = "org.Petrichor"
@@ -78,6 +78,7 @@ enum About {
     static let appSubtitle = "An offline macOS music player"
     static let appWebsite = "https://github.com/kushalpandya/Petrichor"
     static let appWiki = "https://github.com/kushalpandya/Petrichor/wiki"
+    static let sponsor = "https://github.com/sponsors/kushalpandya"
     static let appPlaybackQueueLabel = "org.Petrichor.playback"
 }
 
