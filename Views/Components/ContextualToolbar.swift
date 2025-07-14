@@ -14,6 +14,9 @@ struct ContextualToolbar: View {
         .frame(height: 40)
         .padding(.horizontal, 8)
         .background(Color(NSColor.windowBackgroundColor))
+        .onTapGesture {
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
     }
 
     private var isSearchActive: Bool {
@@ -52,36 +55,15 @@ struct ContextualToolbar: View {
     // MARK: - Search Input Field
     private var searchField: some View {
         HStack(spacing: 6) {
-            HStack {
-                Image(systemName: Icons.magnifyingGlass)
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 12))
-
-                TextField("Search...", text: $libraryManager.globalSearchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-
-                // Spacer or clear button - maintains consistent space
-                ZStack {
-                    Color.clear
-                        .frame(width: 16, height: 16)
-
-                    if !libraryManager.globalSearchText.isEmpty {
-                        Button(action: {
-                            libraryManager.globalSearchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                                .font(.system(size: 10))
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color(NSColor.textBackgroundColor))
-            .cornerRadius(6)
+            // TODO we should ideally replace this with `.searchable`
+            // which provides this UX without log of extra code, although
+            // it would require titlebar layout changes.
+            SearchInputField(
+                text: $libraryManager.globalSearchText,
+                placeholder: "Search",
+                fontSize: 12,
+                width: 280
+            )
             .frame(width: 280)
         }
     }

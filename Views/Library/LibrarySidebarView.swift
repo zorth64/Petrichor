@@ -105,44 +105,15 @@ struct LibrarySidebarView: View {
                 tooltipProvider: { $0.rawValue }
             )
 
-            // Search bar
-            HStack {
-                Image(systemName: Icons.magnifyingGlass)
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 12))
-
-                TextField("Filter \(selectedFilterType.rawValue.lowercased())...", text: $localSearchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .onChange(of: localSearchText) { _, newValue in
-                        searchText = newValue
-                    }
-                    .onChange(of: searchText) { _, newValue in
-                        if localSearchText != newValue {
-                            localSearchText = newValue
-                        }
-
-                        // When search is cleared, select "All"
-                        if newValue.isEmpty {
-                            let allItem = LibraryFilterItem.allItem(for: selectedFilterType, totalCount: libraryManager.tracks.count)
-                            selectedFilterItem = allItem
-                            selectedSidebarItem = LibrarySidebarItem(allItemFor: selectedFilterType, count: libraryManager.tracks.count)
-                        }
-                    }
-
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 10))
-                    }
-                    .buttonStyle(.borderless)
-                }
+            // Filter bar
+            SearchInputField(
+                text: $localSearchText,
+                placeholder: "Filter \(selectedFilterType.rawValue.lowercased())...",
+                fontSize: 11
+            )
+            .onChange(of: localSearchText) { _, newValue in
+                searchText = newValue
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color(NSColor.textBackgroundColor))
-            .cornerRadius(4)
 
             // Sort button
             Button(action: { sortAscending.toggle() }) {
