@@ -17,7 +17,7 @@ struct ContentView: View {
     @AppStorage("showFoldersTab")
     private var showFoldersTab = false
     
-    @State private var selectedTab: MainTab = .home
+    @State private var selectedTab: Sections = .home
     @State private var showingSettings = false
     @State private var settingsInitialTab: SettingsView.SettingsTab = .general
     @State private var showingQueue = false
@@ -105,7 +105,7 @@ struct ContentView: View {
     private var mainContentArea: some View {
         PersistentSplitView(
             main: {
-                mainTabContent
+                sectionContent
             },
             right: {
                 sidePanel
@@ -115,7 +115,7 @@ struct ContentView: View {
         .frame(minHeight: 0, maxHeight: .infinity)
     }
 
-    private var mainTabContent: some View {
+    private var sectionContent: some View {
         VStack {
             ZStack {
                 HomeView(isShowingEntities: $homeShowingEntities)
@@ -196,7 +196,7 @@ struct ContentView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             TabbedButtons(
-                items: MainTab.allCases.filter { $0 != .folders || showFoldersTab },
+                items: Sections.allCases.filter { $0 != .folders || showFoldersTab },
                 selection: $selectedTab,
                 animation: .transform,
                 isDisabled: libraryManager.folders.isEmpty
@@ -288,7 +288,7 @@ struct ContentView: View {
 extension View {
     func contentViewNotificationHandlers(
         showingSettings: Binding<Bool>,
-        selectedTab: Binding<MainTab>,
+        selectedTab: Binding<Sections>,
         libraryManager: LibraryManager,
         pendingLibraryFilter: Binding<LibraryFilterRequest?>,
         showTrackDetail: @escaping (Track) -> Void

@@ -1,6 +1,6 @@
 import Foundation
 
-enum MainTab: String, CaseIterable, Identifiable {
+enum Sections: String, CaseIterable, Identifiable {
     case home
     case library
     case playlists

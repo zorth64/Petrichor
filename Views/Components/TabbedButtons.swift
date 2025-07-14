@@ -337,7 +337,7 @@ extension View {
     }
 }
 
-extension MainTab: TabbedItem {
+extension Sections: TabbedItem {
     var title: String { self.label }
 }
 
