@@ -15,24 +15,40 @@ class ColumnVisibilityManager: ObservableObject {
             saveColumnVisibility()
         }
     }
+    
+    @Published var columnOrder: [String]? {
+        didSet {
+            saveColumnOrder()
+        }
+    }
 
-    private let userDefaultsKey = "trackTableColumnVisibility"
+    private let columnVisibilityKey = "trackTableColumnVisibility"
+    private let columnOrderKey = "trackTableColumnOrder"
 
     private init() {
         // Load from UserDefaults on init
-        if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+        if let data = UserDefaults.standard.data(forKey: columnVisibilityKey),
            let decoded = try? JSONDecoder().decode(TrackTableColumnVisibility.self, from: data) {
             self.columnVisibility = decoded
         } else {
             // Use default visibility settings
             self.columnVisibility = TrackTableColumnVisibility()
         }
+        self.columnOrder = UserDefaults.standard.array(forKey: columnOrderKey) as? [String]
     }
 
     private func saveColumnVisibility() {
         // Save to UserDefaults whenever it changes
         if let encoded = try? JSONEncoder().encode(columnVisibility) {
-            UserDefaults.standard.set(encoded, forKey: userDefaultsKey)
+            UserDefaults.standard.set(encoded, forKey: columnVisibilityKey)
+        }
+    }
+    
+    private func saveColumnOrder() {
+        if let order = columnOrder {
+            UserDefaults.standard.set(order, forKey: columnOrderKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: columnOrderKey)
         }
     }
 
@@ -46,5 +62,9 @@ class ColumnVisibilityManager: ObservableObject {
 
     func setVisibility(_ column: TrackTableColumn, isVisible: Bool) {
         columnVisibility.setVisibility(column, isVisible: isVisible)
+    }
+    
+    func updateColumnOrder(_ order: [String]) {
+        columnOrder = order
     }
 }

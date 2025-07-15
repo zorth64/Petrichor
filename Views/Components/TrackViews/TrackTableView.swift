@@ -226,14 +226,34 @@ struct TrackTableView: NSViewRepresentable {
 
         // Add play/pause column first
         let playColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("playPause"))
-        playColumn.title = "" // Empty header
+        playColumn.title = ""
         playColumn.width = 32
         playColumn.minWidth = 32
         playColumn.maxWidth = 32
-        playColumn.resizingMask = [] // Fixed width, no resizing
+        playColumn.resizingMask = []
         tableView.addTableColumn(playColumn)
+        
+        // Get the saved column order or use default order
+        let savedOrder = columnManager.columnOrder
+        let defaultColumns = TrackTableColumn.allColumns
+        
+        // Create columns in the saved order (if available) or default order
+        let orderedColumns: [TrackTableColumn]
+        if let savedOrder = savedOrder {
+            // Map saved identifiers back to TrackTableColumn instances
+            let savedColumns = savedOrder.compactMap { identifier in
+                defaultColumns.first { $0.identifier == identifier }
+            }
+            // Add any new columns that aren't in the saved order
+            let newColumns = defaultColumns.filter { column in
+                !savedOrder.contains(column.identifier)
+            }
+            orderedColumns = savedColumns + newColumns
+        } else {
+            orderedColumns = defaultColumns
+        }
 
-        for column in TrackTableColumn.allColumns {
+        for column in orderedColumns {
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.identifier))
 
             if case .special(.trackNumber) = column {
@@ -618,6 +638,14 @@ struct TrackTableView: NSViewRepresentable {
 
             // Create NSMenu from ContextMenuItem array
             return createNSMenu(from: menuItems, track: track)
+        }
+        
+        func tableView(_ tableView: NSTableView, didDrag tableColumn: NSTableColumn) {
+            let columnOrder = tableView.tableColumns
+                .dropFirst()
+                .compactMap { $0.identifier.rawValue }
+            
+            columnManager.updateColumnOrder(columnOrder)
         }
 
         func handleContextMenu(for event: NSEvent, in tableView: NSTableView) -> NSMenu? {
