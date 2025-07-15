@@ -123,12 +123,24 @@ extension LibraryManager {
 
     func refreshLibrary() {
         Logger.info("Refreshing library...")
-        isBackgroundScanning = true
         
         actor ErrorTracker {
             private var hasErrors = false
-            func setError() { hasErrors = true }
+            private var errorFolders: [String] = []
+            private var successFolders: [String] = []
+            
+            func setError(folder: String) {
+                hasErrors = true
+                errorFolders.append(folder)
+            }
+            
+            func setSuccess(folder: String) {
+                successFolders.append(folder)
+            }
+            
             func getHasErrors() -> Bool { hasErrors }
+            func getErrorFolders() -> [String] { errorFolders }
+            func getSuccessFolders() -> [String] { successFolders }
         }
         
         let errorTracker = ErrorTracker()
@@ -142,69 +154,95 @@ extension LibraryManager {
                 }
             }
 
-            // Filter folders that need refreshing based on modification date
+            // Filter folders that need refreshing
             let foldersToRefresh = await determineFoldersToRefresh()
 
             // Only proceed if there are folders to refresh
             if foldersToRefresh.isEmpty {
-                await MainActor.run { [weak self] in
-                    self?.isBackgroundScanning = false
-                    Logger.info("No folders need refreshing")
-                }
+                Logger.info("No folders need refreshing")
                 return
             }
 
             Logger.info("Will refresh \(foldersToRefresh.count) of \(folders.count) folders")
 
-            let foldersToProcess = foldersToRefresh
+            // Start activity before processing
+            await MainActor.run {
+                NotificationManager.shared.startActivity("Refreshing \(foldersToRefresh.count) folder\(foldersToRefresh.count == 1 ? "" : "s")...")
+            }
 
-            // Now proceed with scanning only modified folders
-            await MainActor.run { [weak self] in
-                guard let self = self else { return }
-
-                // For each modified folder, trigger a refresh
-                for folder in foldersToProcess {
-                    group.enter()
-                    self.databaseManager.refreshFolder(folder) { result in
+            // Process folders
+            for folder in foldersToRefresh {
+                group.enter()
+                
+                await MainActor.run { [weak self] in
+                    self?.databaseManager.refreshFolder(folder) { result in
                         Task {
                             switch result {
                             case .success:
                                 Logger.info("Successfully refreshed folder \(folder.name)")
+                                await errorTracker.setSuccess(folder: folder.name)
                             case .failure(let error):
                                 Logger.error("Failed to refresh folder \(folder.name): \(error)")
-                                await errorTracker.setError()
+                                await errorTracker.setError(folder: folder.name)
                             }
                             group.leave()
                         }
                     }
                 }
+            }
 
-                // When all folders are done refreshing
-                group.notify(queue: .main) { [weak self] in
-                    guard let self = self else { return }
-
-                    Task {
-                        // Only detect duplicates if we actually refreshed any folders
-                        if !foldersToProcess.isEmpty {
-                            Logger.info("Detecting and marking duplicate tracks")
-                            await self.databaseManager.detectAndMarkDuplicates()
-                        }
-                        
-                        // Reload the library with all changes
-                        self.loadMusicLibrary()
-                        self.updateSearchResults()
-                        
-                        // Clear scanning flag
-                        self.isBackgroundScanning = false
-
-                        let hasErrors = await errorTracker.getHasErrors()
-                        if hasErrors {
-                            Logger.warning("Library refresh completed with some errors")
-                        } else {
-                            Logger.info("Library refresh completed successfully")
-                        }
-                    }
+            // Wait for all folders to complete
+            await withCheckedContinuation { continuation in
+                group.notify(queue: .main) {
+                    continuation.resume()
                 }
+            }
+
+            // Now that all folders are done, process results
+            if !foldersToRefresh.isEmpty {
+                Logger.info("Detecting and marking duplicate tracks")
+                await databaseManager.detectAndMarkDuplicates()
+            }
+            
+            // Reload the library
+            await MainActor.run { [weak self] in
+                self?.loadMusicLibrary()
+                self?.updateSearchResults()
+                
+                // Stop activity after everything is done
+                NotificationManager.shared.stopActivity()
+            }
+
+            // Add notifications based on results
+            let hasErrors = await errorTracker.getHasErrors()
+            let errorFolders = await errorTracker.getErrorFolders()
+            let refreshedFolders = await errorTracker.getSuccessFolders()
+            
+            await MainActor.run {
+                if !refreshedFolders.isEmpty {
+                    let message: String
+                    if refreshedFolders.count == 1 {
+                        message = "Folder '\(refreshedFolders[0])' was refreshed for changes"
+                    } else if refreshedFolders.count <= 3 {
+                        message = "Folders \(refreshedFolders.joined(separator: ", ")) were refreshed for changes"
+                    } else {
+                        message = "\(refreshedFolders.count) folders were refreshed for changes"
+                    }
+                    NotificationManager.shared.addMessage(.info, message)
+                }
+                
+                if !errorFolders.isEmpty {
+                    let message = errorFolders.count == 1
+                        ? "Failed to refresh folder '\(errorFolders[0])'"
+                        : "Failed to refresh \(errorFolders.count) folders"
+                    NotificationManager.shared.addMessage(.error, message)
+                }
+            }
+            
+            if hasErrors {
+                Logger.warning("Library refresh completed with some errors")
+            } else {
+                Logger.info("Library refresh completed successfully")
             }
         }
     }

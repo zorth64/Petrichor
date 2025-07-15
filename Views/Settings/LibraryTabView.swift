@@ -10,6 +10,7 @@ struct LibraryTabView: View {
     @State private var stableScanningState = false
     @State private var stableRefreshButtonState = false
     @State private var scanningStateTimer: Timer?
+    @StateObject private var notificationManager = NotificationManager.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,16 +25,16 @@ struct LibraryTabView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            stableScanningState = libraryManager.isScanning || libraryManager.isBackgroundScanning
+            stableScanningState = libraryManager.isScanning || notificationManager.isActivityInProgress
         }
         .onDisappear {
             scanningStateTimer?.invalidate()
         }
         .onChange(of: libraryManager.isScanning) { _, newValue in
-            updateStableScanningState(newValue || libraryManager.isBackgroundScanning)
-            updateStableRefreshState(newValue || libraryManager.isBackgroundScanning)
+            updateStableScanningState(newValue || notificationManager.isActivityInProgress)
+            updateStableRefreshState(newValue || notificationManager.isActivityInProgress)
         }
-        .onChange(of: libraryManager.isBackgroundScanning) { _, newValue in
+        .onChange(of: notificationManager.isActivityInProgress) { _, newValue in
             updateStableScanningState(newValue || libraryManager.isScanning)
             updateStableRefreshState(newValue || libraryManager.isScanning)
         }

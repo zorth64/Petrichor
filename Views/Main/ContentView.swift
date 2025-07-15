@@ -206,23 +206,20 @@ struct ContentView: View {
 
         ToolbarItem(placement: .primaryAction) {
             HStack(alignment: .center, spacing: 8) {
-                backgroundScanningIndicator
+                notificationTray
                 settingsButton
             }
         }
     }
 
-    private var backgroundScanningIndicator: some View {
+    private var notificationTray: some View {
         ZStack {
             Color.clear
                 .frame(width: 24, height: 24)
-
-            if libraryManager.isBackgroundScanning && !libraryManager.folders.isEmpty {
-                BackgroundScanningIndicator()
-                    .transition(.scale.combined(with: .opacity))
-            }
+            
+            NotificationTray()
         }
-        .animation(.easeInOut(duration: 0.2), value: libraryManager.isBackgroundScanning)
+        .animation(.easeInOut(duration: 0.2), value: NotificationManager.shared.isActivityInProgress)
     }
 
     private var settingsButton: some View {
@@ -365,7 +362,7 @@ class WindowManager {
         }())
         .environmentObject({
             let coordinator = AppCoordinator()
-            coordinator.libraryManager.isBackgroundScanning = true
+            NotificationManager.shared.isActivityInProgress = true
             coordinator.libraryManager.folders = [Folder(url: URL(fileURLWithPath: "/Music"))]
             return coordinator.libraryManager
         }())

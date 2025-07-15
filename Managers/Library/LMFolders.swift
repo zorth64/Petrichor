@@ -79,9 +79,6 @@ extension LibraryManager {
     }
 
     func refreshFolder(_ folder: Folder) {
-        // Set background scanning flag
-        isBackgroundScanning = true
-
         // First, ensure we have a valid bookmark
         Task {
             // Refresh bookmark if needed
@@ -100,10 +97,8 @@ extension LibraryManager {
                         Logger.info("Successfully refreshed folder \(folder.name)")
                         // Reload the library to reflect changes
                         self.loadMusicLibrary()
-                        self.isBackgroundScanning = false
                     case .failure(let error):
                         Logger.error("Failed to refresh folder \(folder.name): \(error)")
-                        self.isBackgroundScanning = false
                     }
                 }
             }
@@ -111,26 +106,58 @@ extension LibraryManager {
     }
 
     func cleanupMissingFolders() {
-        // Check each folder to see if it still exists
         var foldersToRemove: [Folder] = []
-
+        
         for folder in folders {
             if !fileManager.fileExists(atPath: folder.url.path) {
                 foldersToRemove.append(folder)
             }
         }
-
-        if !foldersToRemove.isEmpty {
-            Logger.info("Cleaning up \(foldersToRemove.count) missing folders")
-
-            for folder in foldersToRemove {
-                databaseManager.removeFolder(folder) { _ in }
+        
+        if foldersToRemove.isEmpty {
+            Logger.info("No missing folders found during cleanup")
+            return
+        }
+        
+        Logger.info("Found \(foldersToRemove.count) missing folders to clean up")
+        NotificationManager.shared.startActivity("Cleaning up missing folders...")
+        
+        let group = DispatchGroup()
+        var removedFolders: [String] = []
+        var failedRemovals: [String] = []
+        
+        for folder in foldersToRemove {
+            group.enter()
+            databaseManager.removeFolder(folder) { result in
+                switch result {
+                case .success:
+                    Logger.info("Successfully removed missing folder: \(folder.name)")
+                    removedFolders.append(folder.name)
+                case .failure(let error):
+                    Logger.error("Failed to remove missing folder \(folder.name): \(error)")
+                    failedRemovals.append(folder.name)
+                }
+                group.leave()
             }
-
-            // Reload after cleanup
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.loadMusicLibrary()
+        }
+        
+        group.notify(queue: .main) { [weak self] in
+            NotificationManager.shared.stopActivity()
+            
+            // Add notifications
+            if !removedFolders.isEmpty {
+                let message = removedFolders.count == 1
+                    ? "Folder '\(removedFolders[0])' was removed as it no longer exists"
+                    : "\(removedFolders.count) folders were removed as they no longer exist"
+                NotificationManager.shared.addMessage(.info, message)
             }
+            
+            if !failedRemovals.isEmpty {
+                let message = "Failed to remove \(failedRemovals.count) missing folder\(failedRemovals.count == 1 ? "" : "s")"
+                NotificationManager.shared.addMessage(.error, message)
+            }
+            
+            self?.loadMusicLibrary()
         }
     }
 

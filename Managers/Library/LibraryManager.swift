@@ -14,7 +14,6 @@ class LibraryManager: ObservableObject {
     @Published var folders: [Folder] = []
     @Published var isScanning: Bool = false
     @Published var scanStatusMessage: String = ""
-    @Published var isBackgroundScanning: Bool = false
     @Published var globalSearchText: String = "" {
         didSet {
             updateSearchResults()
@@ -83,6 +82,9 @@ class LibraryManager: ObservableObject {
 
         loadMusicLibrary()
         
+        // Clean up missing folders on startup
+        cleanupMissingFolders()
+        
         pinnedItems = databaseManager.getPinnedItemsSync()
         
         startFileWatcher()
@@ -125,7 +127,7 @@ class LibraryManager: ObservableObject {
                 guard let self = self else { return }
                 
                 // Only refresh if we're not already scanning
-                if !self.isScanning && !self.isBackgroundScanning {
+                if !self.isScanning && !NotificationManager.shared.isActivityInProgress {
                     Logger.info("Starting auto-scan on launch")
                     self.refreshLibrary()
                 }
@@ -145,7 +147,7 @@ class LibraryManager: ObservableObject {
             guard let self = self else { return }
 
             // Only refresh if we're not currently scanning
-            if !self.isScanning && !self.isBackgroundScanning {
+            if !self.isScanning && !NotificationManager.shared.isActivityInProgress {
                 Logger.info("Starting periodic refresh...")
                 self.refreshLibrary()
             }

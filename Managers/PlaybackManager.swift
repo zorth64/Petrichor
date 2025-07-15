@@ -120,6 +120,13 @@ class PlaybackManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             startPlaybackProgressTimer()
         } catch {
             Logger.error("Failed to play track: \(error)")
+            let errorMessage = FolderUtils.getMessageForError(
+                error,
+                context: "play track",
+                path: track.url.path
+            )
+            
+            NotificationManager.shared.addMessage(.error, errorMessage)
         }
     }
 

@@ -20,6 +20,7 @@ extension DatabaseManager {
                 await MainActor.run {
                     completion(.failure(error))
                     Logger.error("Failed to add folders: \(error)")
+                    NotificationManager.shared.addMessage(.error, "Failed to add folders")
                 }
             }
         }
@@ -85,7 +86,12 @@ extension DatabaseManager {
 
         // Now scan the folders for tracks
         if !addedFolders.isEmpty {
-            try await scanFoldersForTracks(addedFolders)
+            let existingTrackCount = try await dbQueue.read { db in
+                try Track.fetchCount(db)
+            }
+            let isInitialScan = existingTrackCount == 0
+
+            try await scanFoldersForTracks(addedFolders, showActivityInTray: !isInitialScan)
         }
 
         await MainActor.run {
@@ -143,6 +149,7 @@ extension DatabaseManager {
                     self.scanStatusMessage = ""
                     completion(.failure(error))
                     Logger.error("Failed to refresh folder \(folder.name): \(error)")
+                    NotificationManager.shared.addMessage(.error, "Failed to refresh folder \(folder.name)")
                 }
             }
         }
@@ -200,6 +207,7 @@ extension DatabaseManager {
                 await MainActor.run {
                     completion(.failure(error))
                     Logger.error("Failed to remove folder '\(folder.name)': \(error)")
+                    NotificationManager.shared.addMessage(.error, "Faield to remove folder '\(folder.name)'")
                 }
             }
         }
@@ -259,17 +267,34 @@ extension DatabaseManager {
         return getTracksForFolder(folderId)
     }
     
-    func scanFoldersForTracks(_ folders: [Folder]) async throws {
+    func scanFoldersForTracks(_ folders: [Folder], showActivityInTray: Bool = true) async throws {
         let supportedExtensions = AudioFormat.supportedExtensions
         var processedFolders = 0
 
         for folder in folders {
-            try await scanSingleFolder(folder, supportedExtensions: supportedExtensions)
-            processedFolders += 1
+            if showActivityInTray {
+                await MainActor.run {
+                    NotificationManager.shared.startActivity("Scanning \(folder.name)...")
+                }
+            }
+            
+            do {
+                try await scanSingleFolder(folder, supportedExtensions: supportedExtensions)
+                processedFolders += 1
+            } catch {
+                // Report scanning errors to notification tray
+                Logger.error("Failed to scan folder \(folder.name): \(error)")
+                await MainActor.run {
+                    NotificationManager.shared.addMessage(.error, "Failed to scan folder '\(folder.name)'")
+                }
+            }
         }
 
         await MainActor.run {
             self.scanStatusMessage = "Scan complete"
+            if showActivityInTray {
+                NotificationManager.shared.stopActivity()
+            }
         }
     }
 
@@ -280,12 +305,34 @@ extension DatabaseManager {
             at: folder.url,
             includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
-        ) else { return }
+        ) else {
+            let error = DatabaseError.scanFailed("Unable to enumerate folder contents")
+            throw error
+        }
 
         guard let folderId = folder.id else {
+            let error = DatabaseError.invalidFolderId
             Logger.error("Folder has no ID")
-            return
+            throw error
         }
+
+        actor ScanState {
+            var processedCount = 0
+            var failedFiles: [(url: URL, error: Error)] = []
+            
+            func incrementProcessed(by count: Int) {
+                processedCount += count
+            }
+            
+            func addFailedFiles(_ files: [(url: URL, error: Error)]) {
+                failedFiles.append(contentsOf: files)
+            }
+            
+            func getProcessedCount() -> Int { processedCount }
+            func getFailedFiles() -> [(url: URL, error: Error)] { failedFiles }
+        }
+        
+        let scanState = ScanState()
 
         // Get existing tracks for this folder to check for updates
         let existingTracks = getTracksForFolder(folderId)
@@ -308,33 +355,99 @@ extension DatabaseManager {
         let totalFiles = musicFiles.count
         let foundPaths = scannedPaths
 
+        if totalFiles == 0 {
+            Logger.info("No music files found in folder \(folder.name)")
+            
+            // If folder is empty but we had tracks before, clean them up
+            if !existingTracks.isEmpty {
+                try await dbQueue.write { db in
+                    for track in existingTracks {
+                        try track.delete(db)
+                        Logger.info("Removed track that no longer exists: \(track.url.lastPathComponent)")
+                    }
+                }
+                
+                // Notify about the cleanup
+                await MainActor.run {
+                    NotificationManager.shared.addMessage(.info, "Folder '\(folder.name)' is now empty, removed \(existingTracks.count) tracks")
+                }
+            }
+            
+            // Update folder track count to 0
+            try await updateFolderTrackCount(folder)
+            return
+        }
+
         // Process in batches
         let batchSize = totalFiles > 1000 ? 100 : 50
-        var processedCount = 0
 
         // Create immutable copy for async context
         let fileBatches = musicFiles.chunked(into: batchSize)
 
         for batch in fileBatches {
             let batchWithFolderId = batch.map { url in (url: url, folderId: folderId) }
-            try await processBatch(batchWithFolderId)
-
-            processedCount += batch.count
+            
+            do {
+                try await processBatch(batchWithFolderId)
+                await scanState.incrementProcessed(by: batch.count)
+                
+                let currentProcessed = await scanState.getProcessedCount()
+                
+                // Update progress
+                await MainActor.run {
+                    self.scanStatusMessage = "Processing: \(currentProcessed)/\(totalFiles) files in \(folder.name)"
+                }
+            } catch {
+                // Track failed files but continue processing
+                let failures = batch.map { (url: $0, error: error) }
+                await scanState.addFailedFiles(failures)
+                Logger.error("Failed to process batch in folder \(folder.name): \(error)")
+            }
         }
 
         // Remove tracks that no longer exist in the folder
-        try await dbQueue.write { db in
+        let removedCount = try await dbQueue.write { db -> Int in
+            var count = 0
             for (url, track) in existingTracksByURL {
                 if !foundPaths.contains(url) {
                     // File no longer exists, remove from database
                     try track.delete(db)
                     Logger.info("Removed track that no longer exists: \(url.lastPathComponent)")
+                    count += 1
                 }
             }
+            return count
         }
 
-        // Update folder track count
-        try await updateFolderTrackCount(folder)
+        // Update folder metadata
+        if let folderId = folder.id {
+            try await updateFolderMetadata(folderId)
+        }
+
+        // Get final counts
+        let processedCount = await scanState.getProcessedCount()
+        let failedFiles = await scanState.getFailedFiles()
+
+        // Report results
+        if !failedFiles.isEmpty {
+            await MainActor.run {
+                let message = failedFiles.count == 1
+                    ? "Failed to process 1 file in '\(folder.name)'"
+                    : "Failed to process \(failedFiles.count) files in '\(folder.name)'"
+                NotificationManager.shared.addMessage(.warning, message)
+            }
+        }
+        
+        if removedCount > 0 {
+            await MainActor.run {
+                let message = removedCount == 1
+                    ? "Removed 1 missing track from '\(folder.name)'"
+                    : "Removed \(removedCount) missing tracks from '\(folder.name)'"
+                NotificationManager.shared.addMessage(.info, message)
+            }
+        }
+        
+        Logger.info("Completed scanning folder \(folder.name): \(processedCount) processed, \(failedFiles.count) failed, \(removedCount) removed")
     }
 
     func updateFolderTrackCount(_ folder: Folder) async throws {

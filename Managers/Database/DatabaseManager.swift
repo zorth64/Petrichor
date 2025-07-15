@@ -130,17 +130,23 @@ enum TrackProcessResult {
 
 enum DatabaseError: Error {
     case invalidTrackId
+    case invalidFolderId
     case updateFailed
     case migrationFailed(String)
+    case scanFailed(String)
     
     var localizedDescription: String {
         switch self {
         case .invalidTrackId:
             return "Invalid track ID"
+        case .invalidFolderId:
+            return "Invalid folder ID"
         case .updateFailed:
             return "Failed to update database"
         case .migrationFailed(let message):
             return "Migration failed: \(message)"
+        case .scanFailed(let message):
+            return "Scan failed: \(message)"
         }
     }
 }
