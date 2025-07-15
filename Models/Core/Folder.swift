@@ -9,6 +9,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
     var dateAdded: Date
     var dateUpdated: Date
     var bookmarkData: Data?
+    var shasumHash: String?
 
     // MARK: - Initialization
 
@@ -34,12 +35,13 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         static let dateAdded = Column("date_added")
         static let dateUpdated = Column("date_updated")
         static let bookmarkData = Column("bookmark_data")
+        static let shasumHash = Column("shasum_hash")
     }
 
     // MARK: - Coding Keys
 
     enum CodingKeys: String, CodingKey {
-        case id, name, trackCount, dateAdded, dateUpdated
+        case id, name, trackCount, dateAdded, dateUpdated, shasumHash
         case path // For database storage
     }
 
@@ -75,6 +77,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         dateAdded = row[Columns.dateAdded]
         dateUpdated = row[Columns.dateUpdated]
         bookmarkData = row[Columns.bookmarkData]
+        shasumHash = row[Columns.shasumHash]
 
         let path: String = row[Columns.path]
         url = URL(fileURLWithPath: path)
@@ -90,6 +93,7 @@ struct Folder: Identifiable, Hashable, Codable, FetchableRecord, PersistableReco
         container[Columns.dateAdded] = dateAdded
         container[Columns.dateUpdated] = dateUpdated
         container[Columns.bookmarkData] = bookmarkData
+        container[Columns.shasumHash] = shasumHash
     }
 
     // Auto-incrementing id

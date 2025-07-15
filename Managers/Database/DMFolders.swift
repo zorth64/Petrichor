@@ -31,12 +31,30 @@ extension DatabaseManager {
             self.scanStatusMessage = "Adding folders..."
         }
 
+        // Calculate hashes for all folders
+        var mutableHashMap: [URL: String] = [:]
+        for url in urls {
+            if let hash = await FolderUtils.getHashAsync(for: url) {
+                mutableHashMap[url] = hash
+            }
+        }
+        let hashMap = mutableHashMap
+
         let addedFolders = try await dbQueue.write { db -> [Folder] in
             var folders: [Folder] = []
             
             for url in urls {
                 let bookmarkData = bookmarkDataMap[url]
-                let folder = Folder(url: url, bookmarkData: bookmarkData)
+                var folder = Folder(url: url, bookmarkData: bookmarkData)
+                
+                // Get the file system modification date
+                if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+                   let fsModDate = attributes[.modificationDate] as? Date {
+                    folder.dateUpdated = fsModDate
+                }
+                
+                // Set the calculated hash
+                folder.shasumHash = hashMap[url]
 
                 // Check if folder already exists
                 if let existing = try Folder
@@ -102,8 +120,13 @@ extension DatabaseManager {
                 let trackCountBefore = getTracksForFolder(folder.id ?? -1).count
                 Logger.info("Starting refresh for folder \(folder.name) with \(trackCountBefore) tracks")
 
-                // Scan the folder - this will now always check for metadata updates
+                // Scan the folder - this will check for metadata updates
                 try await scanSingleFolder(folder, supportedExtensions: AudioFormat.supportedExtensions)
+
+                // Update folder's metadata
+                if let folderId = folder.id {
+                    try await updateFolderMetadata(folderId)
+                }
 
                 // Log the result
                 let trackCountAfter = getTracksForFolder(folder.id ?? -1).count
@@ -187,6 +210,47 @@ extension DatabaseManager {
             try Folder
                 .filter(Folder.Columns.id == folderId)
                 .updateAll(db, Folder.Columns.bookmarkData.set(to: bookmarkData))
+        }
+    }
+    
+    func updateFolderMetadata(_ folderId: Int64) async throws {
+        // First, get the folder and calculate hash outside the database transaction
+        let folderData = try await dbQueue.read { db in
+            try Folder.fetchOne(db, key: folderId)
+        }
+        
+        guard let folder = folderData else { return }
+        
+        let hash = await FolderUtils.getHashAsync(for: folder.url)
+        
+        try await dbQueue.write { db in
+            guard var folder = try Folder.fetchOne(db, key: folderId) else { return }
+            
+            // Get and store the file system's modification date
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: folder.url.path),
+               let fsModDate = attributes[.modificationDate] as? Date {
+                folder.dateUpdated = fsModDate
+            } else {
+                // Fallback to current date if we can't get FS date
+                folder.dateUpdated = Date()
+            }
+            
+            // Store the calculated hash
+            if let hash = hash {
+                folder.shasumHash = hash
+                Logger.info("Updated hash for folder \(folder.name)")
+            } else {
+                Logger.warning("Failed to calculate hash for folder \(folder.name)")
+            }
+            
+            // Update track count
+            let trackCount = try Track
+                .filter(Track.Columns.folderId == folderId)
+                .filter(Track.Columns.isDuplicate == false)
+                .fetchCount(db)
+            folder.trackCount = trackCount
+            
+            try folder.update(db)
         }
     }
 

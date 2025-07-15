@@ -116,9 +116,26 @@ class LibraryManager: ObservableObject {
         // Get current auto-scan interval
         let currentInterval = autoScanInterval
 
-        // Only start a timer if auto-scan is not set to "only on launch"
+        // Handle "only on launch" setting
+        if currentInterval == .onlyOnLaunch {
+            Logger.info("Auto-scan set to only on launch, performing initial scan...")
+            
+            // Perform scan after a short delay to let the UI initialize
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else { return }
+                
+                // Only refresh if we're not already scanning
+                if !self.isScanning && !self.isBackgroundScanning {
+                    Logger.info("Starting auto-scan on launch")
+                    self.refreshLibrary()
+                }
+            }
+            return
+        }
+
+        // Only start a timer if auto-scan has a time interval
         guard let interval = currentInterval.timeInterval else {
-            Logger.info("Auto-scan set to only on launch, no timer started")
+            Logger.info("No auto-scan timer needed")
             return
         }
 

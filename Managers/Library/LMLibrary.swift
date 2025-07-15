@@ -124,6 +124,7 @@ extension LibraryManager {
     func refreshLibrary() {
         Logger.info("Refreshing library...")
         isBackgroundScanning = true
+        
         actor ErrorTracker {
             private var hasErrors = false
             func setError() { hasErrors = true }
@@ -134,19 +135,35 @@ extension LibraryManager {
         let group = DispatchGroup()
 
         Task {
+            // First check bookmarks
             for folder in folders {
-                // Check and refresh bookmark if needed
                 if folder.bookmarkData == nil || !folder.url.startAccessingSecurityScopedResource() {
                     await refreshBookmarkForFolder(folder)
                 }
             }
 
-            // Now proceed with scanning
+            // Filter folders that need refreshing based on modification date
+            let foldersToRefresh = await determineFoldersToRefresh()
+
+            // Only proceed if there are folders to refresh
+            if foldersToRefresh.isEmpty {
+                await MainActor.run { [weak self] in
+                    self?.isBackgroundScanning = false
+                    Logger.info("No folders need refreshing")
+                }
+                return
+            }
+
+            Logger.info("Will refresh \(foldersToRefresh.count) of \(folders.count) folders")
+
+            let foldersToProcess = foldersToRefresh
+
+            // Now proceed with scanning only modified folders
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
 
-                // For each folder, trigger a refresh in the database
-                for folder in self.folders {
+                // For each modified folder, trigger a refresh
+                for folder in foldersToProcess {
                     group.enter()
                     self.databaseManager.refreshFolder(folder) { result in
                         Task {
@@ -167,11 +184,13 @@ extension LibraryManager {
                     guard let self = self else { return }
 
                     Task {
-                        // Re-detect duplicates BEFORE reloading
-                        Logger.info("Detecting and marking duplicate tracks")
-                        await self.databaseManager.detectAndMarkDuplicates()
+                        // Only detect duplicates if we actually refreshed any folders
+                        if !foldersToProcess.isEmpty {
+                            Logger.info("Detecting and marking duplicate tracks")
+                            await self.databaseManager.detectAndMarkDuplicates()
+                        }
                         
-                        // Now reload the library ONCE with all changes
+                        // Reload the library with all changes
                         self.loadMusicLibrary()
                         self.updateSearchResults()
                         
@@ -188,6 +207,53 @@ extension LibraryManager {
                 }
             }
         }
+    }
+
+    private func determineFoldersToRefresh() async -> [Folder] {
+        var foldersToRefresh: [Folder] = []
+        
+        Logger.info("Starting folder refresh check")
+        
+        for folder in folders {
+            // Step 1: Check modification timestamp
+            let timestampChanged = FolderUtils.modificationTimestampChanged(
+                for: folder.url,
+                comparedTo: folder.dateUpdated
+            )
+            
+            if timestampChanged {
+                Logger.info("Folder \(folder.name): Timestamp changed, marking for refresh")
+                foldersToRefresh.append(folder)
+                continue
+            }
+            
+            // Step 2: If timestamp hasn't changed, check content hash
+            Logger.info("Folder \(folder.name): Timestamp unchanged, checking content hash...")
+            
+            // If no hash stored yet, we need to scan
+            guard let storedHash = folder.shasumHash else {
+                Logger.info("Folder \(folder.name): No hash stored, marking for refresh")
+                foldersToRefresh.append(folder)
+                continue
+            }
+            
+            // Calculate current hash
+            if let currentHash = await FolderUtils.getHashAsync(for: folder.url) {
+                if currentHash != storedHash {
+                    Logger.info("Folder \(folder.name): Content changed (hash mismatch), marking for refresh")
+                    foldersToRefresh.append(folder)
+                } else {
+                    Logger.info("Folder \(folder.name): No changes detected, skipping")
+                }
+            } else {
+                // If hash calculation fails, scan to be safe
+                Logger.warning("Folder \(folder.name): Hash calculation failed, marking for refresh")
+                foldersToRefresh.append(folder)
+            }
+        }
+        
+        Logger.info("Refresh check complete: \(foldersToRefresh.count)/\(folders.count) folders need refresh")
+        return foldersToRefresh
     }
 
     internal func loadEntities() {

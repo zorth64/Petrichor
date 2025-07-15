@@ -32,6 +32,13 @@ struct DatabaseMigrator {
             }
         }
         
+        migrator.registerMigration("v2_add_folder_content_hash") { db in
+            try db.alter(table: "folders") { t in
+                t.add(column: "shasum_hash", .text)
+            }
+            Logger.info("Added shasum_hash column to folders table")
+        }
+        
         // MARK: - Future Migrations
         // Add new migrations here as: migrator.registerMigration("v2_description") { db in ... }
         
