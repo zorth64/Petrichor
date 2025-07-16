@@ -270,23 +270,40 @@ extension DatabaseManager {
     func scanFoldersForTracks(_ folders: [Folder], showActivityInTray: Bool = true) async throws {
         let supportedExtensions = AudioFormat.supportedExtensions
         var processedFolders = 0
+        let totalFolders = folders.count
+
+        if showActivityInTray && totalFolders > 0 {
+            await MainActor.run {
+                NotificationManager.shared.startActivity("Scanning \(totalFolders) folder\(totalFolders == 1 ? "" : "s")...")
+            }
+        }
 
         for folder in folders {
-            if showActivityInTray {
-                await MainActor.run {
-                    NotificationManager.shared.startActivity("Scanning \(folder.name)...")
-                }
-            }
-            
             do {
                 try await scanSingleFolder(folder, supportedExtensions: supportedExtensions)
                 processedFolders += 1
+                
+                // Update progress at 25%, 50%, 75%, 100%
+                if showActivityInTray && totalFolders > 4 {
+                    let progress = Double(processedFolders) / Double(totalFolders)
+                    let shouldUpdate = progress >= 0.25 && processedFolders % max(1, totalFolders / 4) == 0
+                    
+                    if shouldUpdate {
+                        let percentage = Int(progress * 100)
+                        await MainActor.run {
+                            NotificationManager.shared.startActivity("Scanning folders... \(percentage)%")
+                        }
+                    }
+                }
             } catch {
-                // Report scanning errors to notification tray
                 Logger.error("Failed to scan folder \(folder.name): \(error)")
-                await MainActor.run {
+                Task.detached { @MainActor in
                     NotificationManager.shared.addMessage(.error, "Failed to scan folder '\(folder.name)'")
                 }
+            }
+            
+            if processedFolders % 2 == 0 {
+                await Task.yield()
             }
         }
 

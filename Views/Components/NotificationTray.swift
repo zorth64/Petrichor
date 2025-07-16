@@ -1,11 +1,9 @@
 import SwiftUI
 
-// MARK: - Notification Types
+// MARK: - Types
 
-enum NotificationType {
-    case info
-    case warning
-    case error
+enum NotificationType: Codable {
+    case info, warning, error
     
     var icon: String {
         switch self {
@@ -24,7 +22,7 @@ enum NotificationType {
     }
 }
 
-struct NotificationMessage: Identifiable {
+struct NotificationMessage: Identifiable, Codable {
     let id = UUID()
     let type: NotificationType
     let title: String
@@ -35,9 +33,13 @@ struct NotificationMessage: Identifiable {
         self.title = title
         self.timestamp = Date()
     }
+    
+    enum CodingKeys: String, CodingKey {
+        case type, title, timestamp
+    }
 }
 
-// MARK: - Notification Manager
+// MARK: - Manager
 
 class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
@@ -47,12 +49,12 @@ class NotificationManager: ObservableObject {
     @Published var messages: [NotificationMessage] = []
     
     private let messagesKey = "NotificationTrayMessages"
+    private var recentMessages: [String: Date] = [:]
+    private var cleanupTimer: Timer?
     
     private init() {
         loadPersistedMessages()
     }
-    
-    // MARK: - Activity Management
     
     func startActivity(_ message: String) {
         DispatchQueue.main.async {
@@ -68,93 +70,80 @@ class NotificationManager: ObservableObject {
         }
     }
     
-    // MARK: - Message Management
-    
     func addMessage(_ type: NotificationType, _ title: String) {
+        let messageKey = "\(type):\(title)"
+        let now = Date()
+        
+        if let lastTime = recentMessages[messageKey], now.timeIntervalSince(lastTime) < 3.0 {
+            return
+        }
+        
         DispatchQueue.main.async {
-            let message = NotificationMessage(type: type, title: title)
-            self.messages.append(message)
+            self.messages.append(NotificationMessage(type: type, title: title))
+            self.recentMessages[messageKey] = now
             self.saveMessages()
+            self.startCleanupIfNeeded()
         }
     }
     
     func clearMessages() {
         DispatchQueue.main.async {
             self.messages.removeAll()
+            self.recentMessages.removeAll()
             self.saveMessages()
+            self.stopCleanup()
         }
     }
     
-    func removeMessage(_ message: NotificationMessage) {
+    func removeMessage(_ message: NotificationMessage, completion: (() -> Void)? = nil) {
         DispatchQueue.main.async {
             self.messages.removeAll { $0.id == message.id }
             self.saveMessages()
+            completion?()
         }
     }
     
-    // MARK: - Persistence
+    private func startCleanupIfNeeded() {
+        guard cleanupTimer == nil else { return }
+        cleanupTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] timer in
+            guard let self = self else { timer.invalidate(); return }
+            let cutoff = Date().addingTimeInterval(-3.0)
+            self.recentMessages = self.recentMessages.filter { $0.value > cutoff }
+            if self.recentMessages.isEmpty { self.stopCleanup() }
+        }
+    }
+    
+    private func stopCleanup() {
+        cleanupTimer?.invalidate()
+        cleanupTimer = nil
+    }
     
     private func saveMessages() {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        
-        if let encoded = try? encoder.encode(messages) {
-            UserDefaults.standard.set(encoded, forKey: messagesKey)
-        }
+        guard let encoded = try? JSONEncoder().encode(messages) else { return }
+        UserDefaults.standard.set(encoded, forKey: messagesKey)
     }
     
     private func loadPersistedMessages() {
-        guard let data = UserDefaults.standard.data(forKey: messagesKey) else { return }
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        
-        if let decoded = try? decoder.decode([NotificationMessage].self, from: data) {
-            messages = decoded
-        }
-    }
-}
-
-// Make NotificationMessage conform to Codable for persistence
-extension NotificationMessage: Codable {
-    enum CodingKeys: String, CodingKey {
-        case type, title, timestamp
+        guard let data = UserDefaults.standard.data(forKey: messagesKey),
+              let decoded = try? JSONDecoder().decode([NotificationMessage].self, from: data) else { return }
+        messages = decoded
     }
     
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(type, forKey: .type)
-        try container.encode(title, forKey: .title)
-        try container.encode(timestamp, forKey: .timestamp)
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.type = try container.decode(NotificationType.self, forKey: .type)
-        self.title = try container.decode(String.self, forKey: .title)
-        self.timestamp = try container.decode(Date.self, forKey: .timestamp)
-    }
+    deinit { stopCleanup() }
 }
 
-extension NotificationType: Codable {}
-
-// MARK: - Notification Tray View
+// MARK: - Views
 
 struct NotificationTray: View {
     @StateObject private var manager = NotificationManager.shared
-    @State private var isAnimating = false
     @State private var showingPopover = false
     @State private var isHovered = false
     @State private var showingActivity = false
+    @State private var rotationAngle: Double = 0
     
     var body: some View {
-        Button(action: {
-            if hasNotifications {
-                showingPopover.toggle()
-            }
-        }) {
+        Button(action: { if hasNotifications { showingPopover.toggle() } }) {
             ZStack {
-                // Background circle only on hover
                 if isHovered {
                     Circle()
                         .fill(Color.gray.opacity(0.1))
@@ -163,10 +152,8 @@ struct NotificationTray: View {
                 }
                 
                 if showingActivity {
-                    // Activity indicator
                     activityIndicator
                 } else if hasNotifications {
-                    // Notification icon
                     Image(systemName: mostSevereNotificationType.icon)
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(mostSevereNotificationType.color)
@@ -179,40 +166,19 @@ struct NotificationTray: View {
             NotificationPopover(isPresented: $showingPopover)
         }
         .help(tooltipText)
-        .onHover { hovering in
-            isHovered = hovering
-        }
-        .onAppear {
-            isAnimating = true
-        }
+        .onHover { isHovered = $0 }
         .onChange(of: manager.isActivityInProgress) { _, newValue in
-            if newValue {
-                showingActivity = true
-            } else {
-                // Delay hiding activity to prevent flicker
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    showingActivity = false
-                }
-            }
+            withAnimation(.easeInOut(duration: 0.2)) { showingActivity = newValue }
+            if newValue { rotationAngle = 0 }
         }
-        .transition(.scale.combined(with: .opacity))
     }
     
-    // MARK: - Computed Properties
-    
-    private var hasNotifications: Bool {
-        !manager.messages.isEmpty
-    }
-    
+    private var hasNotifications: Bool { !manager.messages.isEmpty }
     private var mostSevereNotificationType: NotificationType {
-        if manager.messages.contains(where: { $0.type == .error }) {
-            return .error
-        } else if manager.messages.contains(where: { $0.type == .warning }) {
-            return .warning
-        }
+        if manager.messages.contains(where: { $0.type == .error }) { return .error }
+        if manager.messages.contains(where: { $0.type == .warning }) { return .warning }
         return .info
     }
-    
     private var tooltipText: String {
         if manager.isActivityInProgress {
             return manager.activityMessage.isEmpty ? "Background activity..." : manager.activityMessage
@@ -222,31 +188,33 @@ struct NotificationTray: View {
         return ""
     }
     
-    // MARK: - Activity Indicator
-    
     @ViewBuilder
     private var activityIndicator: some View {
-        Circle()
-            .trim(from: 0, to: 0.7)
-            .stroke(
-                Color.accentColor,
-                style: StrokeStyle(lineWidth: 2, lineCap: .round)
-            )
-            .frame(width: 16, height: 16)
-            .rotationEffect(.degrees(isAnimating ? 360 : 0))
-            .animation(
-                Animation.linear(duration: 1.5)
-                    .repeatForever(autoreverses: false),
-                value: isAnimating
-            )
-        
-        Image(systemName: Icons.musicNote)
-            .font(.system(size: 8, weight: .bold))
-            .foregroundColor(.accentColor)
+        ZStack {
+            Circle()
+                .trim(from: 0, to: 0.7)
+                .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .frame(width: 16, height: 16)
+                .rotationEffect(.degrees(rotationAngle))
+                .onAppear { startContinuousRotation() }
+                .onDisappear { stopContinuousRotation() }
+            
+            Image(systemName: Icons.musicNote)
+                .font(.system(size: 8, weight: .bold))
+                .foregroundColor(.accentColor)
+        }
+    }
+    
+    private func startContinuousRotation() {
+        withAnimation(Animation.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+            rotationAngle = 360
+        }
+    }
+    
+    private func stopContinuousRotation() {
+        withAnimation(.easeOut(duration: 0.3)) { rotationAngle = 0 }
     }
 }
-
-// MARK: - Notification Popover
 
 struct NotificationPopover: View {
     @StateObject private var manager = NotificationManager.shared
@@ -254,13 +222,9 @@ struct NotificationPopover: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
-                Text("Notifications")
-                    .font(.headline)
-                
+                Text("Notifications").font(.headline)
                 Spacer()
-                
                 if !manager.messages.isEmpty {
                     Button("Clear") {
                         manager.clearMessages()
@@ -268,83 +232,49 @@ struct NotificationPopover: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
-                    .help("Clear all notifications")
                 }
             }
             .padding(10)
             
             Divider()
             
-            // Messages
             if manager.messages.isEmpty {
-                emptyState
+                VStack(spacing: 8) {
+                    Image(systemName: "bell.slash")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                    Text("No notifications")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
             } else {
-                messagesList
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(manager.messages.reversed()) { message in
+                            NotificationRow(message: message) {
+                                manager.removeMessage(message) {
+                                    if manager.messages.isEmpty { isPresented = false }
+                                }
+                            }
+                            if message.id != manager.messages.first?.id {
+                                Divider().padding(.horizontal)
+                            }
+                        }
+                    }
+                }
             }
         }
         .frame(width: 350)
         .frame(maxHeight: 400)
     }
-    
-    @ViewBuilder
-    private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "bell.slash")
-                .font(.largeTitle)
-                .foregroundColor(.secondary)
-            
-            Text("No notifications")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-    
-    @ViewBuilder
-    private var messagesList: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(manager.messages.reversed()) { message in
-                    NotificationRow(message: message) {
-                        manager.removeMessage(message)
-                    }
-                    
-                    if message.id != manager.messages.first?.id {
-                        Divider()
-                            .padding(.horizontal)
-                    }
-                }
-            }
-        }
-    }
 }
-
-// MARK: - Notification Row
 
 struct NotificationRow: View {
     let message: NotificationMessage
     let onDismiss: () -> Void
-    
     @State private var isHovered = false
-    
-    private var timeAgoText: String {
-        let now = Date()
-        let interval = now.timeIntervalSince(message.timestamp)
-        
-        if interval < 60 {
-            return "Just now"
-        } else if interval < 3600 {
-            let minutes = Int(interval / 60)
-            return "\(minutes) min\(minutes == 1 ? "" : "s") ago"
-        } else if interval < 86400 {
-            let hours = Int(interval / 3600)
-            return "\(hours) hour\(hours == 1 ? "" : "s") ago"
-        } else {
-            let days = Int(interval / 86400)
-            return "\(days) day\(days == 1 ? "" : "s") ago"
-        }
-    }
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -358,7 +288,6 @@ struct NotificationRow: View {
                     .font(.system(size: 13))
                     .foregroundColor(.primary)
                     .fixedSize(horizontal: false, vertical: true)
-                
                 Text(timeAgoText)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -372,15 +301,20 @@ struct NotificationRow: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Dismiss")
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(isHovered ? Color.secondary.opacity(0.1) : Color.clear)
-        .onHover { hovering in
-            isHovered = hovering
-        }
+        .onHover { isHovered = $0 }
+    }
+    
+    private var timeAgoText: String {
+        let interval = Date().timeIntervalSince(message.timestamp)
+        if interval < 60 { return "Just now" }
+        if interval < 3600 { return "\(Int(interval / 60)) min ago" }
+        if interval < 86400 { return "\(Int(interval / 3600)) hour\(Int(interval / 3600) == 1 ? "" : "s") ago" }
+        return "\(Int(interval / 86400)) day\(Int(interval / 86400) == 1 ? "" : "s") ago"
     }
 }
 
@@ -388,13 +322,8 @@ struct NotificationRow: View {
 
 #Preview {
     VStack(spacing: 40) {
-        // Activity in progress
         NotificationTray()
-            .onAppear {
-                NotificationManager.shared.startActivity("Scanning for new music...")
-            }
-        
-        // With notifications
+            .onAppear { NotificationManager.shared.startActivity("Scanning for new music...") }
         NotificationTray()
             .onAppear {
                 NotificationManager.shared.stopActivity()

@@ -206,20 +206,12 @@ struct ContentView: View {
 
         ToolbarItem(placement: .primaryAction) {
             HStack(alignment: .center, spacing: 8) {
-                notificationTray
+                NotificationTray()
+                    .frame(width: 24, height: 24)
+
                 settingsButton
             }
         }
-    }
-
-    private var notificationTray: some View {
-        ZStack {
-            Color.clear
-                .frame(width: 24, height: 24)
-            
-            NotificationTray()
-        }
-        .animation(.easeInOut(duration: 0.2), value: NotificationManager.shared.isActivityInProgress)
     }
 
     private var settingsButton: some View {
