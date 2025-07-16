@@ -27,32 +27,22 @@ struct ContentView: View {
     @State private var windowDelegate = WindowDelegate()
     @State private var isSettingsHovered = false
     @State private var homeShowingEntities: Bool = false
+    @State private var secondaryWidth: CGFloat?
+    @State private var primaryMaxX: CGFloat?
+    @State private var primaryWidth: CGFloat?
+    @State private var principalWidth: CGFloat?
+    
+    private var statusMinWidth: CGFloat? {
+        if let primaryMaxX, let primaryWidth, let principalWidth, let secondaryWidth {
+            min(secondaryWidth, max(0, primaryMaxX / 2 - principalWidth / 2 - primaryWidth - 30))
+        } else {
+            nil
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Persistent Contextual Toolbar - always present when we have music
-            if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
-                ContextualToolbar(
-                    viewType: Binding(
-                        get: {
-                            if selectedTab == .home && homeShowingEntities {
-                                return entityViewType
-                            }
-                            return globalViewType
-                        },
-                        set: { newValue in
-                            if selectedTab == .home && homeShowingEntities {
-                                entityViewType = newValue
-                            } else {
-                                globalViewType = newValue
-                            }
-                        }
-                    ),
-                    disableTableView: selectedTab == .home && homeShowingEntities
-                )
-                .frame(height: 40)
-                Divider()
-            }
+            Divider()
 
             // Main Content Area with Queue
             mainContentArea
@@ -195,6 +185,39 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .secondaryAction) {
+            HStack(spacing: 0) {
+                // Persistent Contextual Toolbar - always present when we have music
+                if !libraryManager.folders.isEmpty && !libraryManager.tracks.isEmpty {
+                    ContextualToolbar(
+                        viewType: Binding(
+                            get: {
+                                if selectedTab == .home && homeShowingEntities {
+                                    return entityViewType
+                                }
+                                return globalViewType
+                            },
+                            set: { newValue in
+                                if selectedTab == .home && homeShowingEntities {
+                                    entityViewType = newValue
+                                } else {
+                                    globalViewType = newValue
+                                }
+                            }
+                        ),
+                        disableTableView: selectedTab == .home && homeShowingEntities
+                    )
+                    .frame(height: 40)
+                }
+            }
+            .padding(.trailing, 50)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.frame(in: .global).width
+            } action: { width in
+                secondaryWidth = width
+            }
+        }
+        
         ToolbarItem(placement: .principal) {
             TabbedButtons(
                 items: Sections.allCases.filter { $0 != .folders || showFoldersTab },
@@ -202,15 +225,47 @@ struct ContentView: View {
                 animation: .transform,
                 isDisabled: libraryManager.folders.isEmpty
             )
+			.onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.frame(in: .global).width
+            } action: { width in
+                principalWidth = width
+            }
+        }
+        
+        ToolbarItem(placement: .status) {
+            Color.clear.frame(minWidth: statusMinWidth, idealWidth: statusMinWidth, maxWidth: statusMinWidth)
         }
 
         ToolbarItem(placement: .primaryAction) {
             HStack(alignment: .center, spacing: 8) {
                 NotificationTray()
                     .frame(width: 24, height: 24)
-
+                searchField
                 settingsButton
             }
+			.onGeometryChange(for: PrimaryActionMetrics.self) { proxy in
+                let frame = proxy.frame(in: .global)
+                return PrimaryActionMetrics(maxX: frame.maxX, width: frame.width)
+            } action: { metrics in
+                primaryMaxX = metrics.maxX
+                primaryWidth = metrics.width
+            }
+        }
+    }
+	
+	// MARK: - Search Input Field
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            // TODO we should ideally replace this with `.searchable`
+            // which provides this UX without log of extra code, although
+            // it would require titlebar layout changes.
+            SearchInputField(
+                text: $libraryManager.globalSearchText,
+                placeholder: "Search",
+                fontSize: 12,
+                width: 280
+            )
+            .frame(width: 280)
         }
     }
 
@@ -272,6 +327,11 @@ struct ContentView: View {
             showingTrackDetail = false
             detailTrack = nil
         }
+    }
+    
+    private struct PrimaryActionMetrics: Equatable {
+        let maxX: CGFloat
+        let width: CGFloat
     }
 }
 

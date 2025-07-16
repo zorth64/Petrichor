@@ -35,19 +35,22 @@ struct TabbedButtons<Item: TabbedItem>: View {
     let style: TabbedButtonStyle
     let animation: TabbedButtonAnimation
     let isDisabled: Bool
+    let disableTableView: Bool
 
     init(
         items: [Item],
         selection: Binding<Item>,
         style: TabbedButtonStyle = .standard,
         animation: TabbedButtonAnimation = .fade,
-        isDisabled: Bool = false
+        isDisabled: Bool = false,
+        disableTableView: Bool = false
     ) {
         self.items = items
         self._selection = selection
         self.style = style
         self.animation = animation
         self.isDisabled = isDisabled
+        self.disableTableView = disableTableView
     }
 
     var body: some View {
@@ -58,7 +61,8 @@ struct TabbedButtons<Item: TabbedItem>: View {
                     isSelected: selection == item,
                     style: style,
                     animation: animation,
-                    isDisabled: isDisabled
+                    isDisabled: self.disableTableView && item as! LibraryViewType == LibraryViewType.table ?
+                                true : isDisabled
                 ) {
                     if !isDisabled {
                         withAnimation(.easeInOut(duration: AnimationConstants.transformDuration)) {
@@ -134,11 +138,11 @@ private struct TabbedButton<Item: TabbedItem>: View {
                         .font(.system(size: style.iconSize, weight: .medium))
                         .foregroundStyle(foregroundStyle)
                         .animation(
-                            .easeInOut(duration: AnimationConstants.transformDuration)
+                            .easeInOut(duration: isDisabled ? 0 : AnimationConstants.transformDuration)
                                 .delay(animation == .transform && isSelected
                                     ? AnimationConstants.transformTextDelay
                                     : 0),
-                            value: isSelected
+                            value: isSelected && !isDisabled
                         )
                 }
 
@@ -240,7 +244,8 @@ private struct TabbedButton<Item: TabbedItem>: View {
                         isHovered ? Color.primary.opacity(0.06) :
                         Color.clear
                 )
-                .animation(.easeOut(duration: AnimationConstants.fadeDuration), value: isSelected)
+                .animation(.easeOut(duration: isDisabled ? 0 : AnimationConstants.fadeDuration),
+                           value: isSelected && !isDisabled)
                 .animation(.easeOut(duration: AnimationConstants.hoverDuration), value: isHovered)
         } else {
             // Transform animation - no individual background, uses moving background
